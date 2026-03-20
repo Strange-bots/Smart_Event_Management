@@ -1,8 +1,9 @@
-import Index from "./pages/index.jsx";
+import BrowseEvents from "./pages/browseEvent.jsx"
 function App() {
   return (
     <div className="App">
-      <Index />
+   
+  
     </div>
   );
 }
