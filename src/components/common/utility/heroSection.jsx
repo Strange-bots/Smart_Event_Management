@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-[#1f4e79] text-white">
@@ -26,9 +28,9 @@ function HeroSection() {
             </p>
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
-              <button className="rounded-lg bg-[#f36f21] px-6 py-3 text-base font-semibold text-white transition duration-300 hover:scale-105 hover:bg-[#ff8a3d]">
-                Browse Events
-              </button>
+              <Link to="/browse-events" className="rounded-lg bg-[#f36f21] px-6 py-3 text-base font-semibold text-white transition duration-300 hover:scale-105 hover:bg-[#ff8a3d]">
+              Browse Events
+            </Link>
               <button className="rounded-lg border border-white bg-transparent px-6 py-3 text-base font-semibold text-white transition duration-300 hover:bg-white/20">
                 Create Event
               </button>

@@ -1,7 +1,8 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/navbar";
 import Footer from "../components/layout/footer";
 import FeaturedEventsSection from "../components/common/utility/featuresEvents";
-import { useState } from "react";
 
 const categoryFilters = [
   { id: "all", label: "All Events" },
@@ -13,6 +14,7 @@ const categoryFilters = [
 ];
 
 const PublicBrowseEvents = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
@@ -32,7 +34,7 @@ const PublicBrowseEvents = () => {
   });
 
   const handleRegister = () => {
-    window.location.href = "/login";
+    navigate("/login");
   };
 
   return (
@@ -367,7 +369,7 @@ const PublicBrowseEvents = () => {
               style={{ backgroundColor: "#F36F21", color: "#FFFFFF" }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FF8A3D")}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#F36F21")}
-              onClick={() => (window.location.href = "/signup")}
+              onClick={() => navigate("/signup")}
             >
               Create Account
             </button>
@@ -376,7 +378,7 @@ const PublicBrowseEvents = () => {
               style={{ borderColor: "#1F4E79", color: "#1F4E79", backgroundColor: "transparent" }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F7FA")}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-              onClick={() => (window.location.href = "/login")}
+              onClick={() => navigate("/login")}
             >
               Sign In
             </button>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 function Footer() {
   const [email, setEmail] = useState("");
@@ -134,12 +135,12 @@ function Footer() {
             <ul className="space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
+                  <Link
+                    to={link.href}
                     className="inline-block text-sm text-white/70 transition-colors hover:text-[#f36f21]"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -207,13 +208,13 @@ function Footer() {
           </p>
           <div className="flex items-center gap-6">
             {legalLinks.map((link) => (
-              <a
+              <Link
                 key={link.href}
-                href={link.href}
+                to={link.href}
                 className="text-sm text-white/50 transition-colors hover:text-[#f36f21]"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </div>
         </div>

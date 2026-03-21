@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 const AnimatedSection = ({ className = "", delay = 0, children }) => (
@@ -10,12 +12,6 @@ const AnimatedSection = ({ className = "", delay = 0, children }) => (
   >
     {children}
   </div>
-);
-
-const Link = ({ to, className = "", children }) => (
-  <a href={to} className={className}>
-    {children}
-  </a>
 );
 
 const CodeIcon = ({ size = 28, className = "" }) => (

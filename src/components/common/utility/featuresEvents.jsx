@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const categoryColors = {
   Technology: "bg-[#f36f21] hover:bg-[#ff8a3d]",
   Cultural: "bg-[#6d5df6] hover:bg-[#7d70ff]",
@@ -62,7 +64,7 @@ const AnimatedSection = ({ className = "", delay = 0, children }) => (
 
 function FeaturedEventsSection() {
   return (
-    <section className="bg-[#ffffff] py-16 md:py-24">
+    <section className="bg-[#f4f0ff] py-16 md:py-24">
       <style>{`
         @keyframes featuredFadeUp {
           from {
@@ -86,15 +88,15 @@ function FeaturedEventsSection() {
               Don&apos;t miss these upcoming popular events
             </p>
           </div>
-          <a
-            href="/browse-events"
+          <Link
+            to="/browse-events"
             className="group inline-flex items-center rounded-lg border border-[#d9e2ec] px-5 py-3 text-sm font-semibold text-[#0f1e33] transition hover:border-[#f36f21] hover:text-[#f36f21]"
           >
             View All Events
             <span className="ml-2 transition-transform group-hover:translate-x-1">
               →
             </span>
-          </a>
+          </Link>
         </AnimatedSection>
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -114,8 +116,8 @@ function FeaturedEventsSection() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
 
-                  <a
-                    href={`/browse-events?category=${event.category.toLowerCase()}`}
+                  <Link
+                    to={`/browse-events?category=${event.category.toLowerCase()}`}
                     className="absolute left-4 top-4"
                   >
                     <span
@@ -126,7 +128,7 @@ function FeaturedEventsSection() {
                     >
                       {event.category}
                     </span>
-                  </a>
+                  </Link>
 
                   {event.featured && (
                     <span className="absolute right-4 top-4 rounded-full bg-[#f36f21] px-3 py-1 text-xs font-semibold text-white">
@@ -160,15 +162,15 @@ function FeaturedEventsSection() {
                     </div>
                   </div>
 
-                  <a
-                    href="/browse-events"
+                  <Link
+                    to="/browse-events"
                     className="group/link inline-flex items-center text-sm font-medium text-[#f36f21] transition-all hover:text-[#ff8a3d] hover:underline"
                   >
                     View Details
                     <span className="ml-1 transition-transform group-hover/link:translate-x-1">
                       →
                     </span>
-                  </a>
+                  </Link>
                 </div>
               </div>
             </AnimatedSection>
