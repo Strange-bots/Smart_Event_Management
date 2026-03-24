@@ -6,6 +6,9 @@ import About from "./pages/about.jsx";
 import Contact from "./pages/contact.jsx";
 import Login from "./pages/login.jsx";
 import Signup from "./pages/signup.jsx";
+import AdminDashboard from "./pages/admin/adminDashboard.jsx";
+import UserDashboard from "./pages/users/user.jsx";
+import OrganizerDashboard from "./pages/organizer/organizerDasboard.jsx";
 
 function ScrollToHash() {
   const location = useLocation();
@@ -38,6 +41,16 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+
+          //admin routes//
+          <Route path="/admin/admindashboard" element={<AdminDashboard />} />
+          //user routes//
+          <Route path="/user/dashboard" element={<UserDashboard />} />
+          //organizer routes//
+          <Route
+            path="/organizer/organizerdashboard"
+            element={<OrganizerDashboard />}
+          />
         </Routes>
       </div>
     </BrowserRouter>
