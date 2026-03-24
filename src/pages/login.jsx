@@ -1,6 +1,23 @@
 import Navbar from "../components/layout/navbar.jsx";
 import Footer from "../components/layout/footer.jsx";
-
+const roles = {
+  email:{"admin@demo.com": "admin","user@demo.com": "user","organizer@demo.com": "organizer"},
+  role:{"admin":"admin","user":"user","organizer":"organizer"}
+};
+function loginAudthenticate(roles){
+    if (roles.email[document.getElementById("login-email").value] === roles.role.admin){
+        window.location.assign("/admin/admindashboard");
+    }
+    else if (roles.email[document.getElementById("login-email").value] === roles.role.user){
+        window.location.assign("/user/dashboard");
+    }
+    else if (roles.email[document.getElementById("login-email").value] === roles.role.organizer){
+        window.location.assign("/organizer/organizerdashboard");
+    }
+    else{
+        alert("Invalid credentials");
+    }
+}
 function Login() {
   return (
     <>
