@@ -35,12 +35,11 @@ const roleLabels = {
 const navItemsByRole = {
   admin: [
     { path: "/admin/admindashboard", label: "Overview", icon: HomeIcon },
-    { path: "/browse-events", label: "Events", icon: CalendarIcon },
-    { path: "/about", label: "Reports", icon: ChartIcon },
+    { path: "/admin/adminevents", label: "Events", icon: CalendarIcon },
+    { path: "/admin/adminusers", label: "Users", icon: UsersIcon },
+    { path: "/admin/adminmessage", label: "Messages", icon: MessageIcon },
+    { path: "/admin/adminsettings", label: "Settings", icon: SettingIcon },
     { path: "logout", label: "Log Out", icon: LogoutIcon },
-    { path: "/contact", label: "Support", icon: UsersIcon },
-    { path: "/browse-events", label: "Message", icon: MessageIcon },
-    { path: "/browse-events", label: "Settings", icon: SettingIcon },
   ],
   user: [
     { path: "/user/dashboard", label: "Overview", icon: HomeIcon },

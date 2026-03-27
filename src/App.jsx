@@ -7,6 +7,10 @@ import Contact from "./pages/contact.jsx";
 import Login from "./pages/login.jsx";
 import Signup from "./pages/signup.jsx";
 import AdminDashboard from "./pages/admin/adminDashboard.jsx";
+import AdminEvents from "./pages/admin/adminEvents.jsx";
+import AdminUsers from "./pages/admin/adminUsers.jsx";
+import AdminMessage from "./pages/admin/adminMessage.jsx";
+import AdminSettings from "./pages/admin/adminSettings.jsx";
 import UserDashboard from "./pages/users/user.jsx";
 import OrganizerDashboard from "./pages/organizer/organizerDasboard.jsx";
 
@@ -42,11 +46,17 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          //admin routes//
+          //AdminRoutes//
           <Route path="/admin/admindashboard" element={<AdminDashboard />} />
-          //user routes//
+          <Route path="/admin/adminevents" element={<AdminEvents />} />
+          <Route path="/admin/adminusers" element={<AdminUsers />} />
+          <Route path="/admin/adminmessage" element={<AdminMessage />} />
+          <Route path="/admin/adminsettings" element={<AdminSettings />} />
+
+          //UsersRoutes//
           <Route path="/user/dashboard" element={<UserDashboard />} />
-          //organizer routes//
+
+          //OrganizerRoutes//
           <Route
             path="/organizer/organizerdashboard"
             element={<OrganizerDashboard />}
