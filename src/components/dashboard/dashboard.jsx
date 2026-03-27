@@ -1,36 +1,27 @@
 import { useState } from "react";
+import {
+  CalendarDays,
+  ChartColumn,
+  ChevronLeft,
+  Home,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Settings,
+  Users,
+  X,
+} from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
-
-const iconClassName = "text-lg leading-none";
-
-const HomeIcon = () => <span className={iconClassName}>⌂</span>;
-const CalendarIcon = () => <span className={iconClassName}>📅</span>;
-const ChartIcon = () => <span className={iconClassName}>📊</span>;
-const UsersIcon = () => <span className={iconClassName}>👥</span>;
-const LogoutIcon = () => <span className={iconClassName}>🚪</span>;
-const MenuIcon = () => <span className={iconClassName}>☰</span>;
-const CloseIcon = () => <span className={iconClassName}>✕</span>;
-const MessageIcon = () => <span className={iconClassName}>✉</span>;
-const SettingIcon = () => <span className={iconClassName}>*</span>;
-
-const SearchIcon = () => <span className={iconClassName}>🔍</span>;
-const MyEventsIcon = () => <span className={iconClassName}>🎫</span>;
-const NotificationIcon = () => <span className={iconClassName}>🔔</span>;
-const PaymentIcon = () => <span className={iconClassName}>💳</span>;
-const ProfileIcon = () => <span className={iconClassName}>👤</span>;
-
 const CollapseIcon = ({ collapsed }) => (
-  <span
+  <ChevronLeft
+    size={18}
     className={cn(
-      iconClassName,
       "inline-block transition-transform",
       collapsed ? "rotate-180" : ""
     )}
-  >
-    ❮
-  </span>
+  />
 );
 
 const roleLabels = {
@@ -41,27 +32,24 @@ const roleLabels = {
 
 const navItemsByRole = {
   admin: [
-    { path: "/admin/admindashboard", label: "Overview", icon: HomeIcon },
-    { path: "/admin/adminevents", label: "Events", icon: CalendarIcon },
-    { path: "/admin/adminusers", label: "Users", icon: UsersIcon },
-    { path: "/admin/adminmessage", label: "Messages", icon: MessageIcon },
-    { path: "/admin/adminsettings", label: "Settings", icon: SettingIcon },
-    { path: "logout", label: "Log Out", icon: LogoutIcon },
+    { path: "/admin/admindashboard", label: "Overview", icon: Home },
+    { path: "/admin/adminevents", label: "Events", icon: CalendarDays },
+    { path: "/admin/adminusers", label: "Users", icon: Users },
+    { path: "/admin/adminmessage", label: "Messages", icon: MessageSquare },
+    { path: "/admin/adminsettings", label: "Settings", icon: Settings },
+    { path: "logout", label: "Log Out", icon: LogOut },
   ],
   user: [
-    { path: "/user/dashboard", label: "Dashboard", icon: HomeIcon },
-    { path: "/browseEvents", label: "Browse Events", icon: CalendarIcon },
-    { path: "/userEvents", label: "My Events", icon: UsersIcon },
-    { path: "/userNotifications", label: "Notifications", icon: NotificationIcon },
-    { path: "/userPayments", label: "Payments", icon: PaymentIcon },
-    { path: "/userProfile", label: "Profile", icon: ProfileIcon },
-    { path: "logout", label: "Logout", icon: LogoutIcon }
+    { path: "/user/dashboard", label: "Overview", icon: Home },
+    { path: "/browse-events", label: "Browse", icon: CalendarDays },
+    { path: "/contact", label: "Support", icon: Users },
+    { path: "logout", label: "Log Out", icon: LogOut },
   ],
   organizer: [
-    { path: "/organizer/organizerdashboard", label: "Overview", icon: HomeIcon },
-    { path: "/browse-events", label: "Events", icon: CalendarIcon },
-    { path: "/about", label: "Analytics", icon: ChartIcon },
-    { path: "logout", label: "Log Out", icon: LogoutIcon },
+    { path: "/organizer/organizerdashboard", label: "Overview", icon: Home },
+    { path: "/browse-events", label: "Events", icon: CalendarDays },
+    { path: "/about", label: "Analytics", icon: ChartColumn },
+    { path: "logout", label: "Log Out", icon: LogOut },
   ],
 };
 
@@ -103,7 +91,7 @@ function DashboardLayout({ children }) {
               "text-white/70 hover:bg-white/10 hover:text-white"
             )}
           >
-            <Icon />
+            <Icon size={18} />
             {(!isMobile && sidebarOpen) || isMobile ? (
               <span className="font-medium">{item.label}</span>
             ) : null}
@@ -127,7 +115,7 @@ function DashboardLayout({ children }) {
               : "text-white/70 hover:bg-white/10 hover:text-white"
           )}
         >
-          <Icon />
+          <Icon size={18} />
           {(!isMobile && sidebarOpen) || isMobile ? (
             <span className="font-medium">{item.label}</span>
           ) : null}
@@ -189,7 +177,7 @@ function DashboardLayout({ children }) {
             className="p-1 text-white"
             aria-label="Close menu"
           >
-            <CloseIcon />
+            <X size={22} />
           </button>
         </div>
 
@@ -204,7 +192,7 @@ function DashboardLayout({ children }) {
               className="p-1 text-[#0f1e33] md:hidden"
               aria-label="Open menu"
             >
-              <MenuIcon />
+              <Menu size={22} />
             </button>
             <div className="flex items-center gap-2">
               <span className="text-sm text-[#6b7c93]">@</span>
@@ -222,7 +210,7 @@ function DashboardLayout({ children }) {
               </p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f7fa] text-[#6b7c93]">
-              <UsersIcon />
+              <Users size={20} />
             </div>
           </div>
         </header>
