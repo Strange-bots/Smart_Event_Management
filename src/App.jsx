@@ -11,7 +11,7 @@ import AdminEvents from "./pages/admin/adminEvents.jsx";
 import AdminUsers from "./pages/admin/adminUsers.jsx";
 import AdminMessage from "./pages/admin/adminMessage.jsx";
 import AdminSettings from "./pages/admin/adminSettings.jsx";
-import UserDashboard from "./pages/users/user.jsx";
+import UserDashboard from "./pages/users/userDashboard.jsx";
 import OrganizerDashboard from "./pages/organizer/organizerDasboard.jsx";
 
 function ScrollToHash() {

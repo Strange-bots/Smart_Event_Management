@@ -9,11 +9,18 @@ const HomeIcon = () => <span className={iconClassName}>⌂</span>;
 const CalendarIcon = () => <span className={iconClassName}>📅</span>;
 const ChartIcon = () => <span className={iconClassName}>📊</span>;
 const UsersIcon = () => <span className={iconClassName}>👥</span>;
-const LogoutIcon = () => <span className={iconClassName}>⇦</span>;
+const LogoutIcon = () => <span className={iconClassName}>🚪</span>;
 const MenuIcon = () => <span className={iconClassName}>☰</span>;
 const CloseIcon = () => <span className={iconClassName}>✕</span>;
 const MessageIcon = () => <span className={iconClassName}>✉</span>;
 const SettingIcon = () => <span className={iconClassName}>*</span>;
+
+const SearchIcon = () => <span className={iconClassName}>🔍</span>;
+const MyEventsIcon = () => <span className={iconClassName}>🎫</span>;
+const NotificationIcon = () => <span className={iconClassName}>🔔</span>;
+const PaymentIcon = () => <span className={iconClassName}>💳</span>;
+const ProfileIcon = () => <span className={iconClassName}>👤</span>;
+
 const CollapseIcon = ({ collapsed }) => (
   <span
     className={cn(
@@ -42,10 +49,13 @@ const navItemsByRole = {
     { path: "logout", label: "Log Out", icon: LogoutIcon },
   ],
   user: [
-    { path: "/user/dashboard", label: "Overview", icon: HomeIcon },
-    { path: "/browse-events", label: "Browse", icon: CalendarIcon },
-    { path: "/contact", label: "Support", icon: UsersIcon },
-    { path: "logout", label: "Log Out", icon: LogoutIcon },
+    { path: "/user/dashboard", label: "Dashboard", icon: HomeIcon },
+    { path: "/browseEvents", label: "Browse Events", icon: CalendarIcon },
+    { path: "/userEvents", label: "My Events", icon: UsersIcon },
+    { path: "/userNotifications", label: "Notifications", icon: NotificationIcon },
+    { path: "/userPayments", label: "Payments", icon: PaymentIcon },
+    { path: "/userProfile", label: "Profile", icon: ProfileIcon },
+    { path: "logout", label: "Logout", icon: LogoutIcon }
   ],
   organizer: [
     { path: "/organizer/organizerdashboard", label: "Overview", icon: HomeIcon },
