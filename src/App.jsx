@@ -12,6 +12,12 @@ import AdminUsers from "./pages/admin/adminUsers.jsx";
 import AdminMessage from "./pages/admin/adminMessage.jsx";
 import AdminSettings from "./pages/admin/adminSettings.jsx";
 import UserDashboard from "./pages/users/userDashboard.jsx";
+import BrowseEventsPage from "./pages/users/BrowseEvents.jsx";
+import UserEvents from "./pages/users/UserEvents.jsx";
+import UserNotifications from "./pages/users/UserNotifications.jsx";
+import UserProfile from "./pages/users/UserProfile.jsx";
+import UserPayments from "./pages/users/UserPayments.jsx";
+import PaymentPage from "./pages/users/paymentPage.jsx";
 import OrganizerDashboard from "./pages/organizer/organizerDasboard.jsx";
 
 function ScrollToHash() {
@@ -55,6 +61,12 @@ function App() {
 
           //UsersRoutes//
           <Route path="/user/dashboard" element={<UserDashboard />} />
+          <Route path="/browseEvents" element={<BrowseEventsPage />} />
+          <Route path="/userEvents" element={<UserEvents />} />
+          <Route path="/userNotifications" element={<UserNotifications />} />
+          <Route path="/userProfile" element={<UserProfile />} />
+          <Route path="/userPayments" element={<UserPayments />} />
+          <Route path="/payment" element={<PaymentPage />} />
 
           //OrganizerRoutes//
           <Route

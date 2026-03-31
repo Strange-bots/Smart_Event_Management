@@ -1,13 +1,16 @@
 import { useState } from "react";
 import {
+  Bell,
   CalendarDays,
   ChartColumn,
   ChevronLeft,
+  CreditCard,
   Home,
   LogOut,
   Menu,
   MessageSquare,
   Settings,
+  User,
   Users,
   X,
 } from "lucide-react";
@@ -40,10 +43,13 @@ const navItemsByRole = {
     { path: "logout", label: "Log Out", icon: LogOut },
   ],
   user: [
-    { path: "/user/dashboard", label: "Overview", icon: Home },
-    { path: "/browse-events", label: "Browse", icon: CalendarDays },
-    { path: "/contact", label: "Support", icon: Users },
-    { path: "logout", label: "Log Out", icon: LogOut },
+    { path: "/user/dashboard",      label: "Overview",       icon: Home },
+    { path: "/browseEvents",         label: "Browse Events",  icon: CalendarDays },
+    { path: "/userEvents",           label: "My Events",      icon: CalendarDays },
+    { path: "/userPayments",         label: "Payments",       icon: CreditCard },
+    { path: "/userNotifications",    label: "Notifications",  icon: Bell },
+    { path: "/userProfile",          label: "Profile",        icon: User },
+    { path: "logout",                label: "Log Out",        icon: LogOut },
   ],
   organizer: [
     { path: "/organizer/organizerdashboard", label: "Overview", icon: Home },
