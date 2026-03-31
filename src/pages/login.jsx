@@ -1,9 +1,16 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import Navbar from "../components/layout/navbar";
+import {
+  findUserByCredentials,
+  getCurrentUser,
+  getDashboardPath,
+  setCurrentUser,
+} from "../utils/auth";
 
 const Login = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -11,6 +18,14 @@ const Login = () => {
     email: "",
     password: "",
   });
+
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+
+    if (currentUser?.role) {
+      navigate(getDashboardPath(currentUser.role), { replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -27,8 +42,27 @@ const Login = () => {
 
     setError("");
     setIsLoading(true);
+
+    const matchedUser = findUserByCredentials(
+      formData.email,
+      formData.password,
+    );
+
+    if (!matchedUser) {
+      setIsLoading(false);
+      setError("Invalid email or password");
+      return;
+    }
+
+    setCurrentUser({
+      name: matchedUser.name,
+      email: matchedUser.email,
+      role: matchedUser.role,
+    });
+
     setTimeout(() => {
       setIsLoading(false);
+      navigate(getDashboardPath(matchedUser.role), { replace: true });
     }, 600);
   };
 
@@ -110,7 +144,7 @@ const Login = () => {
                   <div className="flex justify-between items-center">
                     <label htmlFor="password">Password</label>
                     <Link
-                      to="/forgot-password"
+                      to="/login"
                       className="text-sm text-brand-orange hover:underline"
                     >
                       Forgot password?
@@ -170,6 +204,16 @@ const Login = () => {
                   Demo Accounts (Click to fill):
                 </p>
                 <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin("user@demo.com", "Demo@123")}
+                    className="w-full text-left p-2 rounded border border-border hover:bg-accent transition-colors text-xs"
+                  >
+                    <span className="font-medium text-[#1f4e79]">User:</span>{" "}
+                    <span className="text-muted-foreground">
+                      user@demo.com / Demo@123
+                    </span>
+                  </button>
                   <button
                     type="button"
                     onClick={() =>

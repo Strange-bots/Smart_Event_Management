@@ -1,6 +1,7 @@
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import EventCalendar from "../../components/dashboard/EventCalendar";
+import { getCurrentUser } from "../../utils/auth";
 const upcomingEvents = [
   {
     id: 1,
@@ -46,6 +47,11 @@ const recommendations = [
 
 const UserDashboard = () => {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
+
+  if (!currentUser || currentUser.role !== "user") {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <DashboardLayout>

@@ -1,8 +1,16 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import Navbar from "../components/layout/navbar"
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Navbar from "../components/layout/navbar";
+import {
+  getCurrentUser,
+  getDashboardPath,
+  getRegisteredUsers,
+  saveRegisteredUsers,
+  setCurrentUser,
+} from "../utils/auth";
 
 const Signup = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -12,6 +20,14 @@ const Signup = () => {
     password: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+
+    if (currentUser?.role) {
+      navigate(getDashboardPath(currentUser.role), { replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,8 +54,36 @@ const Signup = () => {
 
     setError("");
     setIsLoading(true);
+
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const existingUsers = getRegisteredUsers();
+    const emailTaken = existingUsers.some(
+      (user) => user.email.toLowerCase() === normalizedEmail,
+    );
+
+    if (emailTaken) {
+      setIsLoading(false);
+      setError("An account with this email already exists");
+      return;
+    }
+
+    const newUser = {
+      name: formData.name.trim(),
+      email: normalizedEmail,
+      password: formData.password,
+      role: "user",
+    };
+
+    saveRegisteredUsers([...existingUsers, newUser]);
+    setCurrentUser({
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+    });
+
     setTimeout(() => {
       setIsLoading(false);
+      navigate("/user/dashboard", { replace: true });
     }, 600);
   };
 
