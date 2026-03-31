@@ -108,44 +108,46 @@ function Contact() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#f5f7fa]">
       <Navbar />
-      <main className="flex-1 bg-background">
-        <div className="bg-gradient-to-br from-primary via-primary/95 to-primary/90 py-16 md:py-24">
-          <div className="container mx-auto px-4 text-center">
-            <h1 className="text-3xl md:text-5xl font-heading font-bold text-primary-foreground mb-4">
+      <main className="flex-1 bg-[#f5f7fa]">
+        <div className="bg-gradient-to-b from-[#2e5f8f] to-[#345f8d] py-24 md:py-32">
+          <div className="mx-auto max-w-[1440px] px-4 text-center lg:px-12">
+            <h1 className="mb-5 text-4xl font-bold text-white md:text-[4rem]">
               Contact Us
             </h1>
-            <p className="text-primary-foreground/80 text-lg max-w-2xl mx-auto">
+            <p className="mx-auto max-w-3xl text-lg text-white/85 md:text-[1.15rem]">
               Have questions about events, registrations, or our platform?
               We&apos;re here to help!
             </p>
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid lg:grid-cols-3 gap-8">
+        <div className="mx-auto max-w-[1440px] px-4 py-12 lg:px-12">
+          <div className="grid gap-8 lg:grid-cols-[0.95fr_1.95fr]">
             <div className="space-y-6">
-              <div className="border-0 shadow-lg rounded-lg bg-card">
-                <div className="p-6 pb-4">
-                  <h2 className="font-heading text-xl font-semibold text-foreground">
+              <div className="rounded-2xl bg-white shadow-[0_10px_35px_rgba(15,30,51,0.08)]">
+                <div className="p-8 pb-5">
+                  <h2 className="text-[2rem] font-bold text-[#1f4e79]">
                     Get in Touch
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="mt-1 text-base text-[#6b7c93]">
                     Reach out to us through any of these channels
                   </p>
                 </div>
 
-                <div className="space-y-6 p-6 pt-2">
+                <div className="space-y-6 p-8 pt-1">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                      <Mail className="text-brand-orange" size={22} />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f36f21]/10">
+                      <Mail className="text-[#f36f21]" size={22} />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">Email</p>
+                      <p className="text-[1.05rem] font-medium text-[#0f1e33]">
+                        Email
+                      </p>
                       <a
                         href="mailto:events@koi.edu.au"
-                        className="text-muted-foreground hover:text-brand-orange transition-colors"
+                        className="text-[1.05rem] text-[#5f7fa9] transition-colors hover:text-[#f36f21]"
                       >
                         events@koi.edu.au
                       </a>
@@ -153,14 +155,16 @@ function Contact() {
                   </div>
 
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                      <Phone className="text-brand-orange" size={22} />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f36f21]/10">
+                      <Phone className="text-[#f36f21]" size={22} />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">Phone</p>
+                      <p className="text-[1.05rem] font-medium text-[#0f1e33]">
+                        Phone
+                      </p>
                       <a
                         href="tel:+61292833583"
-                        className="text-muted-foreground hover:text-brand-orange transition-colors"
+                        className="text-[1.05rem] text-[#5f7fa9] transition-colors hover:text-[#f36f21]"
                       >
                         +61 2 9283 3583
                       </a>
@@ -168,12 +172,14 @@ function Contact() {
                   </div>
 
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                      <MapPin className="text-brand-orange" size={22} />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f36f21]/10">
+                      <MapPin className="text-[#f36f21]" size={22} />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">Address</p>
-                      <p className="text-muted-foreground">
+                      <p className="text-[1.05rem] font-medium text-[#0f1e33]">
+                        Address
+                      </p>
+                      <p className="text-[1.05rem] leading-relaxed text-[#5f7fa9]">
                         Level 1, 545 Kent Street
                         <br />
                         Sydney NSW 2000, Australia
@@ -182,14 +188,14 @@ function Contact() {
                   </div>
 
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                      <Clock className="text-brand-orange" size={22} />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f36f21]/10">
+                      <Clock className="text-[#f36f21]" size={22} />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">
+                      <p className="text-[1.05rem] font-medium text-[#0f1e33]">
                         Office Hours
                       </p>
-                      <p className="text-muted-foreground">
+                      <p className="text-[1.05rem] leading-relaxed text-[#5f7fa9]">
                         Mon - Fri: 9:00 AM - 5:00 PM
                         <br />
                         Sat - Sun: Closed
@@ -199,9 +205,9 @@ function Contact() {
                 </div>
               </div>
 
-              <div className="border-0 shadow-lg overflow-hidden rounded-lg bg-card">
-                <div className="h-48 bg-secondary flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
+              <div className="overflow-hidden rounded-2xl bg-white shadow-[0_10px_35px_rgba(15,30,51,0.08)]">
+                <div className="flex h-48 items-center justify-center bg-[#f5f7fa]">
+                  <div className="text-center text-[#6b7c93]">
                     <MapPin size={32} className="mx-auto mb-2" />
                     <p className="text-sm">Map integration placeholder</p>
                   </div>
@@ -210,18 +216,18 @@ function Contact() {
             </div>
 
             <div className="lg:col-span-2">
-              <div className="border-0 shadow-lg rounded-lg bg-card">
-                <div className="p-6 pb-4">
-                  <h2 className="font-heading text-xl font-semibold text-foreground">
+              <div className="rounded-2xl bg-white shadow-[0_10px_35px_rgba(15,30,51,0.08)]">
+                <div className="p-8 pb-5">
+                  <h2 className="text-[2rem] font-bold text-[#1f4e79]">
                     Send us a Message
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="mt-1 text-base text-[#6b7c93]">
                     Fill out the form below and we&apos;ll get back to you
                     within 24-48 hours
                   </p>
                 </div>
 
-                <div className="p-6 pt-2">
+                <div className="p-8 pt-1">
                   {isSubmitted ? (
                     <div className="py-12 text-center">
                       <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
@@ -241,7 +247,7 @@ function Contact() {
                         <div className="space-y-2">
                           <label
                             htmlFor="fullName"
-                            className="text-sm font-medium text-foreground"
+                            className="text-[1.02rem] font-medium text-[#0f1e33]"
                           >
                             Full Name *
                           </label>
@@ -250,7 +256,7 @@ function Contact() {
                             placeholder="Enter your full name"
                             value={formData.fullName}
                             onChange={handleChange}
-                            className={`w-full rounded-lg border bg-white px-4 py-3 text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
+                            className={`w-full rounded-lg border bg-white px-4 py-3 text-[1.02rem] text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
                               errors.fullName
                                 ? "border-red-500"
                                 : "border-[#d9e2ec] focus:border-[#1f4e79]"
@@ -266,7 +272,7 @@ function Contact() {
                         <div className="space-y-2">
                           <label
                             htmlFor="email"
-                            className="text-sm font-medium text-foreground"
+                            className="text-[1.02rem] font-medium text-[#0f1e33]"
                           >
                             Email Address *
                           </label>
@@ -276,7 +282,7 @@ function Contact() {
                             placeholder="Enter your email"
                             value={formData.email}
                             onChange={handleChange}
-                            className={`w-full rounded-lg border bg-white px-4 py-3 text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
+                            className={`w-full rounded-lg border bg-white px-4 py-3 text-[1.02rem] text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
                               errors.email
                                 ? "border-red-500"
                                 : "border-[#d9e2ec] focus:border-[#1f4e79]"
@@ -293,7 +299,7 @@ function Contact() {
                       <div className="space-y-2">
                         <label
                           htmlFor="subject"
-                          className="text-sm font-medium text-foreground"
+                          className="text-[1.02rem] font-medium text-[#0f1e33]"
                         >
                           Subject *
                         </label>
@@ -302,7 +308,7 @@ function Contact() {
                           placeholder="What is your message about?"
                           value={formData.subject}
                           onChange={handleChange}
-                          className={`w-full rounded-lg border bg-white px-4 py-3 text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
+                          className={`w-full rounded-lg border bg-white px-4 py-3 text-[1.02rem] text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
                             errors.subject
                               ? "border-red-500"
                               : "border-[#d9e2ec] focus:border-[#1f4e79]"
@@ -318,7 +324,7 @@ function Contact() {
                       <div className="space-y-2">
                         <label
                           htmlFor="message"
-                          className="text-sm font-medium text-foreground"
+                          className="text-[1.02rem] font-medium text-[#0f1e33]"
                         >
                           Message *
                         </label>
@@ -328,7 +334,7 @@ function Contact() {
                           rows={6}
                           value={formData.message}
                           onChange={handleChange}
-                          className={`w-full rounded-lg border bg-white px-4 py-3 text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
+                          className={`w-full rounded-lg border bg-white px-4 py-3 text-[1.02rem] text-[#0f1e33] outline-none transition placeholder:text-[#6b7c93] ${
                             errors.message
                               ? "border-red-500"
                               : "border-[#d9e2ec] focus:border-[#1f4e79]"
@@ -343,7 +349,7 @@ function Contact() {
 
                       <button
                         type="submit"
-                        className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-brand-orange px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#ff8a3d] disabled:cursor-not-allowed disabled:opacity-70"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#f36f21] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#ff8a3d] disabled:cursor-not-allowed disabled:opacity-70 md:w-auto"
                         disabled={isSubmitting}
                       >
                         <Send size={18} />
