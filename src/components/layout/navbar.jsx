@@ -5,7 +5,7 @@ function Navbar() {
     "relative inline-block pb-1 text-white transition-colors duration-200 hover:text-[#ff8a3d] after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:w-0 after:-translate-x-1/2 after:bg-[#ff8a3d] after:transition-all after:duration-200 hover:after:w-full";
 
   return (
-    <nav className="border-b border-[#163a5a] bg-[#1f4e79]">
+    <nav className="border-b border-[#163a5a] bg-[#163c5e]">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-6 py-4 lg:px-12">
         <Link to="/" className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-lg font-black text-[#1f4e79] shadow-sm">
