@@ -158,7 +158,7 @@ const Login = () => {
                     <input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="��������"
+                      placeholder="Enter your password"
                       className="pl-10 pr-10 w-full rounded-lg border border-[#d9e2ec] px-4 py-3 text-[#0f1e33] outline-none transition focus:border-[#1f4e79]"
                       value={formData.password}
                       onChange={(e) =>
