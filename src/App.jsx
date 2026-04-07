@@ -19,6 +19,12 @@ import UserProfile from "./pages/users/UserProfile.jsx";
 import UserPayments from "./pages/users/UserPayments.jsx";
 import PaymentPage from "./pages/users/paymentPage.jsx";
 import OrganizerDashboard from "./pages/organizer/organizerDasboard.jsx";
+import OrganizerEmailLog from "./pages/organizer/organizerEmailLog.jsx";
+import OrganizerEvents from "./pages/organizer/organizerEvents.jsx";
+import OrganizerFeedback from "./pages/organizer/organizerFeedback.jsx";
+import OrganizerMessages from "./pages/organizer/organizerMessages.jsx";
+import OrganizerProfile from "./pages/organizer/organizerProfile.jsx";
+import OrganizerRegistrations from "./pages/organizer/organizerRegistrations.jsx";
 
 function ScrollToHash() {
   const location = useLocation();
@@ -72,6 +78,34 @@ function App() {
           <Route
             path="/organizer/organizerdashboard"
             element={<OrganizerDashboard />}
+          />
+          <Route
+            path="/organizer/create"
+            element={<OrganizerDashboard />}
+          />
+          <Route
+            path="/organizer/events"
+            element={<OrganizerEvents />}
+          />
+          <Route
+            path="/organizer/email-log"
+            element={<OrganizerEmailLog />}
+          />
+          <Route
+            path="/organizer/feedback"
+            element={<OrganizerFeedback />}
+          />
+          <Route
+            path="/organizer/messages"
+            element={<OrganizerMessages />}
+          />
+          <Route
+            path="/organizer/profile"
+            element={<OrganizerProfile />}
+          />
+          <Route
+            path="/organizer/registrations"
+            element={<OrganizerRegistrations />}
           />
         </Routes>
       </div>
