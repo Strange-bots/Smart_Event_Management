@@ -8,6 +8,7 @@ import Login from "./pages/login.jsx";
 import Signup from "./pages/signup.jsx";
 import AdminDashboard from "./pages/admin/adminDashboard.jsx";
 import AdminEvents from "./pages/admin/adminEvents.jsx";
+import AdminGallery from "./pages/admin/adminGallery.jsx";
 import AdminUsers from "./pages/admin/adminUsers.jsx";
 import AdminMessage from "./pages/admin/adminMessage.jsx";
 import AdminSettings from "./pages/admin/adminSettings.jsx";
@@ -61,6 +62,7 @@ function App() {
           //AdminRoutes//
           <Route path="/admin/admindashboard" element={<AdminDashboard />} />
           <Route path="/admin/adminevents" element={<AdminEvents />} />
+          <Route path="/admin/admingallery" element={<AdminGallery />} />
           <Route path="/admin/adminusers" element={<AdminUsers />} />
           <Route path="/admin/adminmessage" element={<AdminMessage />} />
           <Route path="/admin/adminsettings" element={<AdminSettings />} />

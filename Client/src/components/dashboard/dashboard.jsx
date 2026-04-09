@@ -37,6 +37,7 @@ const navItemsByRole = {
   admin: [
     { path: "/admin/admindashboard", label: "Overview", icon: Home },
     { path: "/admin/adminevents", label: "Events", icon: CalendarDays },
+    { path: "/admin/admingallery", label: "Gallery", icon: ChartColumn },
     { path: "/admin/adminusers", label: "Users", icon: Users },
     { path: "/admin/adminmessage", label: "Messages", icon: MessageSquare },
     { path: "/admin/adminsettings", label: "Settings", icon: Settings },

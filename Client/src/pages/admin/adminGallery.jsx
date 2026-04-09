@@ -1,12 +1,12 @@
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { useEffect, useRef, useState } from "react";
+
+import DashboardLayout from "../../components/dashboard/dashboard.jsx";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, Trash2, Download, Search, Grid, List, Filter, X } from "lucide-react";
-import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -81,7 +81,17 @@ const AdminGallery = () => {
   const [imageToDelete, setImageToDelete] = useState(null);
   const [uploadData, setUploadData] = useState({ title: "", category: "" });
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [notice, setNotice] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setNotice(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const toggleImageSelection = (id) => {
     setSelectedImages(prev =>
@@ -104,7 +114,10 @@ const AdminGallery = () => {
 
   const handleUpload = () => {
     if (!uploadData.title || !uploadData.category || !previewUrl) {
-      toast.error("Please fill in all fields and select an image");
+      setNotice({
+        type: "error",
+        message: "Please fill in all fields and select an image.",
+      });
       return;
     }
 
@@ -120,7 +133,7 @@ const AdminGallery = () => {
     setIsUploadDialogOpen(false);
     setUploadData({ title: "", category: "" });
     setPreviewUrl(null);
-    toast.success("Image uploaded successfully!");
+    setNotice({ type: "success", message: "Image uploaded successfully." });
   };
 
   const handleDownload = (image) => {
@@ -131,7 +144,7 @@ const AdminGallery = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`Downloading ${image.title}`);
+    setNotice({ type: "success", message: `Downloading ${image.title}.` });
   };
 
   const handleDeleteSingle = (id) => {
@@ -143,7 +156,7 @@ const AdminGallery = () => {
     if (imageToDelete) {
       setGalleryImages(prev => prev.filter(img => img.id !== imageToDelete));
       setSelectedImages(prev => prev.filter(id => id !== imageToDelete));
-      toast.success("Image deleted successfully");
+      setNotice({ type: "success", message: "Image deleted successfully." });
     }
     setIsDeleteDialogOpen(false);
     setImageToDelete(null);
@@ -151,14 +164,29 @@ const AdminGallery = () => {
 
   const handleBulkDelete = () => {
     setGalleryImages(prev => prev.filter(img => !selectedImages.includes(img.id)));
-    toast.success(`${selectedImages.length} image(s) deleted successfully`);
+    setNotice({
+      type: "success",
+      message: `${selectedImages.length} image(s) deleted successfully.`,
+    });
     setSelectedImages([]);
   };
 
   return (
-    <DashboardLayout userRole="admin" userName="Sachin Thapa">
+    <DashboardLayout>
       <div className="space-y-6">
-        {/* Page Header */}
+        {notice ? (
+          <div
+            className={cn(
+              "rounded-md border px-4 py-3 text-sm",
+              notice.type === "error"
+                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                : "border-green-600/20 bg-green-50 text-green-700"
+            )}
+          >
+            {notice.message}
+          </div>
+        ) : null}
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-heading font-bold text-primary">
@@ -174,7 +202,6 @@ const AdminGallery = () => {
           </Button>
         </div>
 
-        {/* Toolbar */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -220,7 +247,6 @@ const AdminGallery = () => {
           </CardContent>
         </Card>
 
-        {/* Gallery Grid/List */}
         {viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredImages.map((image) => (
@@ -321,7 +347,6 @@ const AdminGallery = () => {
         )}
       </div>
 
-      {/* Upload Dialog */}
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -386,7 +411,6 @@ const AdminGallery = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
