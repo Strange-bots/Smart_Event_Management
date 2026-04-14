@@ -3,6 +3,10 @@ const {
   findUserByCredentials,
   findUserByEmail,
   sanitizeUser,
+  generateOTP,
+  sendOTPEmail,
+  storeOTP,
+  verifyOTP,
 } = require('../services/authService');
 const {
   validateLoginPayload,
@@ -28,33 +32,30 @@ const login = (req, res) => {
   });
 };
 
-const signup = (req, res) => {
-  const { name, email, password, confirmPassword } = req.body ?? {};
-  const validationError = validateSignupPayload({
-    name,
-    email,
-    password,
-    confirmPassword,
-  });
+const verifyOTP = (req, res) => {
+  const { email, otp, name, password } = req.body ?? {};
 
-  if (validationError) {
-    return res.status(400).json({ message: validationError });
+  if (!email || !otp || !name || !password) {
+    return res.status(400).json({ message: 'Email, OTP, name, and password are required' });
   }
 
-  const existingUser = findUserByEmail(email);
+  const isValidOTP = verifyOTP(email, otp);
 
-  if (existingUser) {
-    return res
-      .status(409)
-      .json({ message: 'An account with this email already exists' });
+  if (!isValidOTP) {
+    return res.status(400).json({ message: 'Invalid or expired OTP' });
   }
 
+  // OTP verified, create the user
   const user = createUser({ name, email, password });
 
-  return res.status(201).json({ user });
+  return res.status(201).json({ 
+    message: 'Account created successfully',
+    user 
+  });
 };
 
 module.exports = {
   login,
   signup,
+  verifyOTP,
 };
