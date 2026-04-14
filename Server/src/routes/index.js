@@ -1,10 +1,12 @@
 const express = require('express');
 const { getApiStatus } = require('../controllers/indexController');
 const { login, signup } = require('../controllers/authController');
+const { getNextEvent } = require('../controllers/eventController');
 
 const router = express.Router();
 
 router.get('/', getApiStatus);
+router.get('/events/next', getNextEvent);
 router.post('/login', login);
 router.post('/signup', signup);
 
