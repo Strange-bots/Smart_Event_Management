@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import Navbar from "../components/layout/navbar";
 import {
-  findUserByCredentials,
   getCurrentUser,
   getDashboardPath,
   setCurrentUser,
@@ -27,7 +26,7 @@ const Login = () => {
     }
   }, [navigate]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.email.trim()) {
@@ -43,27 +42,36 @@ const Login = () => {
     setError("");
     setIsLoading(true);
 
-    const matchedUser = findUserByCredentials(
-      formData.email,
-      formData.password,
-    );
+    try {
+      const response = await fetch("http://localhost:5001/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-    if (!matchedUser) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Invalid email or password");
+        setIsLoading(false);
+        return;
+      }
+
+      setCurrentUser(data.user);
+
+      setTimeout(() => {
+        setIsLoading(false);
+        navigate(getDashboardPath(data.user.role), { replace: true });
+      }, 600);
+    } catch (err) {
       setIsLoading(false);
-      setError("Invalid email or password");
-      return;
+      setError("Unable to connect to the server");
     }
-
-    setCurrentUser({
-      name: matchedUser.name,
-      email: matchedUser.email,
-      role: matchedUser.role,
-    });
-
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate(getDashboardPath(matchedUser.role), { replace: true });
-    }, 600);
   };
 
   const handleQuickLogin = (email, password) => {
