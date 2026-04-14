@@ -32,7 +32,7 @@ const login = (req, res) => {
   });
 };
 
-const verifyOTP = (req, res) => {
+const signup = (req, res) => {
   const { email, otp, name, password } = req.body ?? {};
 
   if (!email || !otp || !name || !password) {
@@ -57,5 +57,4 @@ const verifyOTP = (req, res) => {
 module.exports = {
   login,
   signup,
-  verifyOTP,
 };
