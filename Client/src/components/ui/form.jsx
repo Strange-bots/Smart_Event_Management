@@ -6,10 +6,13 @@ import { Controller, FormProvider, useFormContext } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
+// FormProvider alias for react-hook-form.
 const Form = FormProvider;
 
+// Internal context for field name resolution.
 const FormFieldContext = React.createContext({});
 
+// Wraps Controller and provides form field metadata.
 const FormField = ({ ...props }) => {
   return (
     <FormFieldContext.Provider value={{ name: props.name }}>
@@ -21,12 +24,12 @@ const FormField = ({ ...props }) => {
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
-  const { getFieldState, formState } = useFormContext();
 
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>");
   }
 
+  const { getFieldState, formState } = useFormContext();
   const fieldState = getFieldState(fieldContext.name, formState);
   const { id } = itemContext;
 
@@ -40,8 +43,10 @@ const useFormField = () => {
   };
 };
 
+// Internal context for form item IDs.
 const FormItemContext = React.createContext({});
 
+// Wrapper for each form item block.
 const FormItem = React.forwardRef(({ className, ...props }, ref) => {
   const id = React.useId();
 
@@ -53,6 +58,7 @@ const FormItem = React.forwardRef(({ className, ...props }, ref) => {
 });
 FormItem.displayName = "FormItem";
 
+// Label connected to the form control.
 const FormLabel = React.forwardRef(({ className, ...props }, ref) => {
   const { error, formItemId } = useFormField();
 
@@ -60,6 +66,7 @@ const FormLabel = React.forwardRef(({ className, ...props }, ref) => {
 });
 FormLabel.displayName = "FormLabel";
 
+// Slot wrapper for custom form controls.
 const FormControl = React.forwardRef(({ ...props }, ref) => {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
 
@@ -75,6 +82,7 @@ const FormControl = React.forwardRef(({ ...props }, ref) => {
 });
 FormControl.displayName = "FormControl";
 
+// Description text for the form field.
 const FormDescription = React.forwardRef(({ className, ...props }, ref) => {
   const { formDescriptionId } = useFormField();
 
@@ -82,6 +90,7 @@ const FormDescription = React.forwardRef(({ className, ...props }, ref) => {
 });
 FormDescription.displayName = "FormDescription";
 
+// Validation message output for the form field.
 const FormMessage = React.forwardRef(({ className, children, ...props }, ref) => {
   const { error, formMessageId } = useFormField();
   const body = error ? String(error?.message) : children;
