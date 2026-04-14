@@ -13,17 +13,18 @@ import AdminUsers from "./pages/admin/adminUsers.jsx";
 import AdminMessage from "./pages/admin/adminMessage.jsx";
 import AdminSettings from "./pages/admin/adminSettings.jsx";
 import UserDashboard from "./pages/users/userDashboard.jsx";
-import BrowseEventsPage from "./pages/users/BrowseEvents.jsx";
-import UserEvents from "./pages/users/UserEvents.jsx";
-import UserNotifications from "./pages/users/UserNotifications.jsx";
-import UserProfile from "./pages/users/UserProfile.jsx";
-import UserPayments from "./pages/users/UserPayments.jsx";
+import BrowseEventsPage from "./pages/users/browseEvents.jsx";
+import UserEvents from "./pages/users/userEvents.jsx";
+import UserNotifications from "./pages/users/userNotifications.jsx";
+import UserProfile from "./pages/users/userProfile.jsx";
+import UserPayments from "./pages/users/userPayments.jsx";
 import PaymentPage from "./pages/users/paymentPage.jsx";
 import OrganizerDashboard from "./pages/organizer/organizerDasboard.jsx";
 import OrganizerEmailLog from "./pages/organizer/organizerEmailLog.jsx";
 import OrganizerEvents from "./pages/organizer/organizerEvents.jsx";
 import OrganizerFeedback from "./pages/organizer/organizerFeedback.jsx";
 import OrganizerMessages from "./pages/organizer/organizerMessages.jsx";
+import OrganizerNotifications from "./pages/organizer/organizerNotifications.jsx";
 import OrganizerProfile from "./pages/organizer/organizerProfile.jsx";
 import OrganizerRegistrations from "./pages/organizer/organizerRegistrations.jsx";
 
@@ -47,6 +48,25 @@ function ScrollToHash() {
 }
 
 function App() {
+  useEffect(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
+
+    fetch(`${apiBaseUrl}/api`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        return response.text();
+      })
+      .then((message) => {
+        console.log("Server message:", message);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch server message:", error);
+      });
+  }, []);
+
   return (
     <BrowserRouter>
       <div className="App">
@@ -100,6 +120,10 @@ function App() {
           <Route
             path="/organizer/messages"
             element={<OrganizerMessages />}
+          />
+          <Route
+            path="/organizer/notifications"
+            element={<OrganizerNotifications />}
           />
           <Route
             path="/organizer/profile"

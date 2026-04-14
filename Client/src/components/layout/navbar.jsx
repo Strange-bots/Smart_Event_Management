@@ -54,7 +54,7 @@ function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           <Link
             to="/login"
-            className="rounded-lg border border-white/60 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white hover:text-[#1f4e79]"
+className="rounded-lg border border-white/60 bg-white px-4 py-2 text-sm font-semibold text-white opacity-100 transition-opacity duration-300 hover:opacity-70 hover:text-[#1f4e79]"
           >
             Log In
           </Link>

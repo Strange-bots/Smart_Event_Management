@@ -57,10 +57,10 @@ const navItemsByRole = {
     { path: "/organizer/events", label: "Events", icon: CalendarDays },
     { path: "/organizer/registrations", label: "Registrations", icon: Users },
     { path: "/organizer/messages", label: "Messages", icon: MessageSquare },
+    { path: "/organizer/notifications", label: "Notifications", icon: Bell },
     { path: "/organizer/feedback", label: "Feedback", icon: Bell },
     { path: "/organizer/email-log", label: "Email Log", icon: MessageSquare },
     { path: "/organizer/profile", label: "Profile", icon: User },
-    { path: "/about", label: "Analytics", icon: ChartColumn },
     { path: "logout", label: "Log Out", icon: LogOut },
   ],
 };
@@ -70,7 +70,6 @@ function DashboardLayout({ children }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const storedUser = window.localStorage.getItem("smart_event_user");
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
   const userRole = currentUser?.role ?? "user";
