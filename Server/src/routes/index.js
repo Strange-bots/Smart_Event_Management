@@ -1,10 +1,11 @@
 const express = require('express');
-const { getApiStatus } = require('../controllers/indexController');
+const { getApiStatus, getHeroImage } = require('../controllers/indexController');
 const { login, signup } = require('../controllers/authController');
 
 const router = express.Router();
 
 router.get('/', getApiStatus);
+router.get('/hero-image', getHeroImage);
 router.post('/login', login);
 router.post('/signup', signup);
 
