@@ -20,7 +20,22 @@ const formatRegistrationDate = (dateString) => {
   }).format(parsedDate);
 };
 
-const getOrganizerRegistrationDetails = (organizerEmail) => {
+const calculateAttendanceRisk = (registration) => {
+  if (registration.attendanceStatus === 'no-show') {
+    return 'red';
+  }
+
+  if (
+    registration.paymentStatus === 'unpaid' ||
+    registration.attendanceStatus === 'cancelled'
+  ) {
+    return 'amber';
+  }
+
+  return 'green';
+};
+
+const getOrganizerContext = (organizerEmail) => {
   const organizer = findUserByEmail(organizerEmail);
 
   if (!organizer) {
@@ -59,6 +74,7 @@ const getOrganizerRegistrationDetails = (organizerEmail) => {
         registrationDate: formatRegistrationDate(registration.registrationDate),
         paymentStatus: registration.paymentStatus,
         attendanceStatus: registration.attendanceStatus,
+        riskLevel: calculateAttendanceRisk(registration),
       };
     });
 
@@ -69,6 +85,132 @@ const getOrganizerRegistrationDetails = (organizerEmail) => {
   };
 };
 
+const getOrganizerRegistrationDetails = (organizerEmail) =>
+  getOrganizerContext(organizerEmail);
+
+const filterRegistrations = (registrationsList, filters = {}) => {
+  const normalizedSearch =
+    typeof filters.search === 'string' ? filters.search.trim().toLowerCase() : '';
+  const normalizedEventName =
+    typeof filters.eventName === 'string'
+      ? filters.eventName.trim().toLowerCase()
+      : '';
+  const normalizedPaymentStatus =
+    typeof filters.paymentStatus === 'string'
+      ? filters.paymentStatus.trim().toLowerCase()
+      : '';
+  const normalizedRiskLevel =
+    typeof filters.riskLevel === 'string'
+      ? filters.riskLevel.trim().toLowerCase()
+      : '';
+
+  return registrationsList.filter((registration) => {
+    const matchesSearch =
+      !normalizedSearch ||
+      `${registration.attendeeName} ${registration.attendeeEmail}`
+        .toLowerCase()
+        .includes(normalizedSearch);
+
+    const matchesEvent =
+      !normalizedEventName ||
+      registration.eventName.toLowerCase() === normalizedEventName;
+
+    const matchesPaymentStatus =
+      !normalizedPaymentStatus ||
+      registration.paymentStatus.toLowerCase() === normalizedPaymentStatus;
+
+    const matchesRiskLevel =
+      !normalizedRiskLevel || registration.riskLevel === normalizedRiskLevel;
+
+    return (
+      matchesSearch &&
+      matchesEvent &&
+      matchesPaymentStatus &&
+      matchesRiskLevel
+    );
+  });
+};
+
+const escapeXml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+const buildSpreadsheetXml = (rows) => {
+  const headerRow = [
+    'Attendee Name',
+    'Attendee Email',
+    'Event Name',
+    'Registration Date',
+    'Payment Status',
+    'Attendance Status',
+    'Risk Level',
+  ];
+
+  const tableRows = [
+    headerRow,
+    ...rows.map((registration) => [
+      registration.attendeeName,
+      registration.attendeeEmail,
+      registration.eventName,
+      registration.registrationDate,
+      registration.paymentStatus,
+      registration.attendanceStatus,
+      registration.riskLevel,
+    ]),
+  ]
+    .map(
+      (columns) =>
+        `<Row>${columns
+          .map(
+            (column) =>
+              `<Cell><Data ss:Type="String">${escapeXml(column)}</Data></Cell>`
+          )
+          .join('')}</Row>`
+    )
+    .join('');
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Registrations">
+  <Table>${tableRows}</Table>
+ </Worksheet>
+</Workbook>`;
+};
+
+const exportOrganizerRegistrations = (organizerEmail, filters = {}) => {
+  const result = getOrganizerContext(organizerEmail);
+
+  if (result.error) {
+    return result;
+  }
+
+  const filteredRegistrations = filterRegistrations(
+    result.registrations,
+    filters,
+  );
+  const safeEmail = result.organizer.email
+    .replace(/[^a-z0-9]+/gi, '-')
+    .toLowerCase();
+
+  return {
+    statusCode: 200,
+    organizer: result.organizer,
+    registrations: filteredRegistrations,
+    fileName: `registrations-${safeEmail}.xls`,
+    workbook: buildSpreadsheetXml(filteredRegistrations),
+  };
+};
+
 module.exports = {
+  exportOrganizerRegistrations,
   getOrganizerRegistrationDetails,
 };

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import { exportOrganizerRegistrations } from "../../services/registrationService.js";
 
 const EVENT_STORAGE_KEY = "smart_event_organizer_events";
 const REGISTRATION_STORAGE_KEY = "smart_event_registrations";
@@ -154,6 +155,7 @@ function OrganizerRegistrations() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [notice, setNotice] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const events = useMemo(() => {
     const storedEvents = JSON.parse(
@@ -210,11 +212,38 @@ function OrganizerRegistrations() {
     (registration) => calculateAttendanceRisk(registration) === "red",
   ).length;
 
-  const handleExport = () => {
-    setNotice({
-      type: "success",
-      message: `Prepared ${filteredRegistrations.length} registration record(s) for export.`,
-    });
+  const handleExport = async () => {
+    setIsExporting(true);
+
+    try {
+      const { blob, fileName } = await exportOrganizerRegistrations({
+        organizerEmail: currentUser.email,
+        search: searchQuery,
+        eventName: eventFilter,
+        paymentStatus: statusFilter,
+        riskLevel: riskFilter,
+      });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setNotice({
+        type: "success",
+        message: `Downloaded ${filteredRegistrations.length} registration record(s) from the backend.`,
+      });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.message || "Could not export registrations right now.",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -230,10 +259,11 @@ function OrganizerRegistrations() {
           <button
             type="button"
             onClick={handleExport}
+            disabled={isExporting}
             className="inline-flex items-center gap-2 rounded-xl border border-[#d9e2ec] px-4 py-2.5 font-medium text-[#0f1e33]"
           >
             <Download size={18} />
-            Export List
+            {isExporting ? "Exporting..." : "Export List"}
           </button>
         </div>
 
