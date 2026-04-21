@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useState, useEffect } from "react";
-=======
 import { useEffect, useState } from "react";
->>>>>>> 335cb0278dcc007e526d9fed62bb2b09519d5c5a
 import { Link } from "react-router-dom";
 import { fetchHeroImage } from "../../../services/homepageService.js";
 
@@ -11,6 +7,12 @@ const fallbackEvent = {
   date: "Stay tuned",
   image:
     "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80",
+};
+
+const fallbackStats = {
+  eventsHosted: 5000,
+  participants: 12000,
+  institutions: 50,
 };
 
 const formatEventDate = (dateString) => {
@@ -32,35 +34,7 @@ const formatEventDate = (dateString) => {
 };
 
 function HeroSection() {
-<<<<<<< HEAD
-  const [stats, setStats] = useState({
-    eventsHosted: 5000,
-    participants: 12000,
-    institutions: 50
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/events/stats');
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            setStats(result.data);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        // Fallback to default values on error
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
-=======
+  const [stats, setStats] = useState(fallbackStats);
   const [nextEvent, setNextEvent] = useState(fallbackEvent);
   const [heroImage, setHeroImage] = useState(fallbackEvent.image);
   const [isHeroImageLoading, setIsHeroImageLoading] = useState(true);
@@ -68,6 +42,31 @@ function HeroSection() {
 
   useEffect(() => {
     let isMounted = true;
+
+    const loadStats = async () => {
+      try {
+        const response = await fetch("/api/events/stats");
+
+        if (!response.ok) {
+          return;
+        }
+
+        const result = await response.json();
+
+        if (!isMounted || !result?.success || !result?.data) {
+          return;
+        }
+
+        setStats({
+          eventsHosted:
+            result.data.eventsHosted ?? fallbackStats.eventsHosted,
+          participants: result.data.participants ?? fallbackStats.participants,
+          institutions: result.data.institutions ?? fallbackStats.institutions,
+        });
+      } catch {
+        // Keep the default stats when the backend is unavailable.
+      }
+    };
 
     const loadHeroImage = async () => {
       try {
@@ -117,6 +116,7 @@ function HeroSection() {
       }
     };
 
+    loadStats();
     loadHeroImage();
     loadNextEvent();
 
@@ -125,7 +125,6 @@ function HeroSection() {
     };
   }, []);
 
->>>>>>> 335cb0278dcc007e526d9fed62bb2b09519d5c5a
   return (
     <section className="relative overflow-hidden bg-[#1f4e79] text-white">
       <div className="absolute inset-0 opacity-10">
@@ -153,9 +152,12 @@ function HeroSection() {
             </p>
 
             <div className="flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
-              <Link to="/browse-events" className="rounded-lg bg-[#f36f21] px-6 py-3 text-base font-semibold text-white transition duration-300 hover:scale-105 hover:bg-[#ff8a3d]">
-              Browse Events
-            </Link>
+              <Link
+                to="/browse-events"
+                className="rounded-lg bg-[#f36f21] px-6 py-3 text-base font-semibold text-white transition duration-300 hover:scale-105 hover:bg-[#ff8a3d]"
+              >
+                Browse Events
+              </Link>
               <button className="rounded-lg border border-white bg-transparent px-6 py-3 text-base font-semibold text-white transition duration-300 hover:bg-white/20">
                 Create Event
               </button>
@@ -163,15 +165,21 @@ function HeroSection() {
 
             <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/20 pt-8">
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">{stats.eventsHosted.toLocaleString()}+</p>
+                <p className="text-3xl font-bold md:text-4xl">
+                  {stats.eventsHosted.toLocaleString()}+
+                </p>
                 <p className="text-sm text-white/60">Events Hosted</p>
               </div>
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">{stats.participants.toLocaleString()}+</p>
+                <p className="text-3xl font-bold md:text-4xl">
+                  {stats.participants.toLocaleString()}+
+                </p>
                 <p className="text-sm text-white/60">Participants</p>
               </div>
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">{stats.institutions}+</p>
+                <p className="text-3xl font-bold md:text-4xl">
+                  {stats.institutions}+
+                </p>
                 <p className="text-sm text-white/60">Institutions</p>
               </div>
             </div>
