@@ -160,12 +160,28 @@ const createUser = ({ name, email, password }) => {
   return sanitizeUser(newUser);
 };
 
+const updateUserPassword = ({ email, newPassword }) => {
+  const normalizedEmail = normalizeEmail(email);
+  const user = [...demoUsers, ...registeredUsers].find(
+    (item) => item.email.toLowerCase() === normalizedEmail,
+  );
+
+  if (!user) {
+    return null;
+  }
+
+  user.password = newPassword;
+
+  return sanitizeUser(user);
+};
+
 module.exports = {
   createSessionToken,
   createUser,
   findUserByCredentials,
   findUserByEmail,
   sanitizeUser,
+  updateUserPassword,
   verifySessionToken,
   generateOTP,
   sendOTPEmail,
