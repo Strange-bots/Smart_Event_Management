@@ -20,6 +20,8 @@ const DEFAULT_SETTINGS = {
     twoFactorAuth: false,
     emailVerification: true,
     passwordComplexity: true,
+    sessionTimeout: 30,
+    maxSessions: 3,
   },
   appearance: {
     darkMode: false,
@@ -34,8 +36,18 @@ const SETTINGS_SCHEMA = {
     'eventReminders',
     'feedbackRequests',
   ],
-  security: ['twoFactorAuth', 'emailVerification', 'passwordComplexity'],
+  security: [
+    'twoFactorAuth',
+    'emailVerification',
+    'passwordComplexity',
+    'sessionTimeout',
+    'maxSessions',
+  ],
   appearance: ['darkMode'],
+};
+
+const NUMERIC_SETTING_FIELDS = {
+  security: ['sessionTimeout', 'maxSessions'],
 };
 
 const readSettingsFromDisk = () => {
@@ -121,6 +133,14 @@ const validateTogglePayload = (payload) => {
     for (const [field, value] of Object.entries(payload[section])) {
       if (!fields.includes(field)) {
         return `Unsupported setting field: ${section}.${field}`;
+      }
+
+      if (NUMERIC_SETTING_FIELDS[section]?.includes(field)) {
+        if (!Number.isInteger(value) || value <= 0) {
+          return `Setting ${section}.${field} must be a positive whole number`;
+        }
+
+        continue;
       }
 
       if (typeof value !== 'boolean') {

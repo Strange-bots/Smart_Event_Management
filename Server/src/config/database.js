@@ -14,6 +14,7 @@ const connectDatabase = async () => {
 
   const connection = await mongoose.connect(mongoUri, {
     dbName: 'smart_event_management',
+    serverSelectionTimeoutMS: 3000,
   });
 
   databaseAvailable = true;

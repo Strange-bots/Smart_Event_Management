@@ -228,10 +228,7 @@ function Footer() {
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f36f21]/20 text-[#f36f21]">
                   ✉
                 </div>
-                <a
-                  href="mailto:events@koi.edu.au"
-                  className="text-white/70 transition-colors hover:text-[#f36f21]"
-                >
+                <a href="mailto:events@koi.edu.au" style={{ color: "inherit", textDecoration: "none" }}>
                   events@koi.edu.au
                 </a>
               </li>
