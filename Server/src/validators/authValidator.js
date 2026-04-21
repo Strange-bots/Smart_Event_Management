@@ -2,7 +2,7 @@ const { readSettingsFromDisk } = require('../services/adminSettingsService');
 const { sanitizeString } = require('../utils/sanitizeInput');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const KOI_EMAIL_REGEX = /^[^\s@]+@koi\.edu\.au$/i;
+const STUDENT_EMAIL_REGEX = /^[^\s@]+@students\.koi\.edu\.au$/i;
 
 const validateLoginPayload = ({ email, password }) => {
   if (!email?.trim() || !password?.trim()) {
@@ -55,6 +55,14 @@ const validateSignupPayload = ({ name, email, password, confirmPassword }) => {
     return 'Please enter your email';
   }
 
+  if (!EMAIL_REGEX.test(email.trim())) {
+    return 'Please enter a valid email address';
+  }
+
+  if (!STUDENT_EMAIL_REGEX.test(email.trim())) {
+    return 'Only @students.edu.au email addresses are allowed';
+  }
+
   if (!password) {
     return 'Please enter your password';
   }
@@ -78,7 +86,7 @@ const sanitizeSignupRequest = (payload = {}) => ({
   password: typeof payload.password === 'string' ? payload.password.trim() : '',
 });
 
-// Restrict registration to official KOI student/staff email addresses only.
+// Restrict registration to approved student email addresses only.
 const validateSecureSignupPayload = ({ name, email, password }) => {
   const errors = [];
 
@@ -99,10 +107,10 @@ const validateSecureSignupPayload = ({ name, email, password }) => {
       field: 'email',
       message: 'Email must be in a valid format',
     });
-  } else if (!KOI_EMAIL_REGEX.test(email)) {
+  } else if (!STUDENT_EMAIL_REGEX.test(email)) {
     errors.push({
       field: 'email',
-      message: 'Only @koi.edu.au email addresses are allowed',
+      message: 'Only @students.edu.au email addresses are allowed',
     });
   }
 

@@ -42,6 +42,11 @@ const Signup = () => {
       return;
     }
 
+    if (!formData.email.trim().toLowerCase().endsWith("@students.edu.au")) {
+      setError("Only @students.edu.au email addresses are allowed");
+      return;
+    }
+
     if (formData.password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
@@ -56,7 +61,7 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/signup`, {
+      const response = await fetch(`${apiBaseUrl}/api/registrations/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -241,7 +246,7 @@ const Signup = () => {
                     <input
                       id="email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder="yourname@students.edu.au"
                       className="pl-10 w-full rounded-lg border border-[#d9e2ec] px-4 py-3 text-[#0f1e33] outline-none transition focus:border-[#1f4e79]"
                       value={formData.email}
                       onChange={(e) =>
@@ -250,6 +255,9 @@ const Signup = () => {
                       required
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use your @students.edu.au email address
+                  </p>
                 </div>
 
                 <div className="space-y-2">
