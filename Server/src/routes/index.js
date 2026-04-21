@@ -4,6 +4,7 @@ const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/in
 const { login, signup } = require('../controllers/authController');
 const { listEvents, getNextEvent, getRecommendations } = require('../controllers/eventController');
 const { listOrganizerRegistrations } = require('../controllers/registrationController');
+const { listOrganizerNotifications } = require('../controllers/notificationController');
 
 const router = express.Router();
 
@@ -14,6 +15,7 @@ router.get('/events', listEvents);
 router.get('/events/next', getNextEvent);
 router.get('/events/recommendations', getRecommendations);
 router.get('/organizer/registrations', listOrganizerRegistrations);
+router.get('/organizer/notifications', listOrganizerNotifications);
 router.get('/hero-image', getHeroImage);
 router.post('/login', login);
 router.post('/signup', signup);
