@@ -30,6 +30,24 @@ const getNextUpcomingEvent = () => {
   return nextEvent ? formatEvent(nextEvent) : null;
 };
 
+const getRecommendationMatch = (event) => 78 + (event.id % 18);
+
+const getRecommendedEvents = () => {
+  const now = new Date();
+
+  return events
+    .filter((event) => event.status === 'approved')
+    .filter((event) => getEventStart(event).getTime() > now.getTime())
+    .sort((left, right) => getEventStart(left) - getEventStart(right))
+    .slice(0, 3)
+    .map((event) => ({
+      ...formatEvent(event),
+      attendees: event.registrations,
+      match: getRecommendationMatch(event),
+    }));
+};
+
 module.exports = {
   getNextUpcomingEvent,
+  getRecommendedEvents,
 };

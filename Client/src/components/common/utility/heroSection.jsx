@@ -1,5 +1,10 @@
+<<<<<<< HEAD
+import { useState, useEffect } from "react";
+=======
 import { useEffect, useState } from "react";
+>>>>>>> 335cb0278dcc007e526d9fed62bb2b09519d5c5a
 import { Link } from "react-router-dom";
+import { fetchHeroImage } from "../../../services/homepageService.js";
 
 const fallbackEvent = {
   title: "Next event coming soon",
@@ -27,10 +32,66 @@ const formatEventDate = (dateString) => {
 };
 
 function HeroSection() {
+<<<<<<< HEAD
+  const [stats, setStats] = useState({
+    eventsHosted: 5000,
+    participants: 12000,
+    institutions: 50
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/events/stats');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setStats(result.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        // Fallback to default values on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+=======
   const [nextEvent, setNextEvent] = useState(fallbackEvent);
+  const [heroImage, setHeroImage] = useState(fallbackEvent.image);
+  const [isHeroImageLoading, setIsHeroImageLoading] = useState(true);
+  const [heroImageError, setHeroImageError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
+
+    const loadHeroImage = async () => {
+      try {
+        const imageUrl = await fetchHeroImage();
+
+        if (!isMounted || !imageUrl) {
+          return;
+        }
+
+        setHeroImage(imageUrl);
+        setHeroImageError("");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setHeroImage(fallbackEvent.image);
+        setHeroImageError("Unable to load hero image. Showing default image.");
+      } finally {
+        if (isMounted) {
+          setIsHeroImageLoading(false);
+        }
+      }
+    };
 
     const loadNextEvent = async () => {
       try {
@@ -56,6 +117,7 @@ function HeroSection() {
       }
     };
 
+    loadHeroImage();
     loadNextEvent();
 
     return () => {
@@ -63,6 +125,7 @@ function HeroSection() {
     };
   }, []);
 
+>>>>>>> 335cb0278dcc007e526d9fed62bb2b09519d5c5a
   return (
     <section className="relative overflow-hidden bg-[#1f4e79] text-white">
       <div className="absolute inset-0 opacity-10">
@@ -100,15 +163,15 @@ function HeroSection() {
 
             <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/20 pt-8">
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">5,000+</p>
+                <p className="text-3xl font-bold md:text-4xl">{stats.eventsHosted.toLocaleString()}+</p>
                 <p className="text-sm text-white/60">Events Hosted</p>
               </div>
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">12,000+</p>
+                <p className="text-3xl font-bold md:text-4xl">{stats.participants.toLocaleString()}+</p>
                 <p className="text-sm text-white/60">Participants</p>
               </div>
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">50+</p>
+                <p className="text-3xl font-bold md:text-4xl">{stats.institutions}+</p>
                 <p className="text-sm text-white/60">Institutions</p>
               </div>
             </div>
@@ -117,11 +180,21 @@ function HeroSection() {
           <div className="relative">
             <div className="group relative overflow-hidden rounded-2xl shadow-2xl">
               <img
-                src={nextEvent.image}
+                src={heroImage}
                 alt={nextEvent.title}
                 className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f1e33]/50 to-transparent" />
+              {isHeroImageLoading ? (
+                <div className="absolute inset-x-4 top-4 rounded-lg bg-white/85 px-4 py-2 text-sm font-medium text-[#0f1e33] shadow-md">
+                  Loading hero image...
+                </div>
+              ) : null}
+              {!isHeroImageLoading && heroImageError ? (
+                <div className="absolute inset-x-4 top-4 rounded-lg bg-[#f36f21]/90 px-4 py-2 text-sm font-medium text-white shadow-md">
+                  {heroImageError}
+                </div>
+              ) : null}
             </div>
 
             <div className="absolute -bottom-6 -left-6 rounded-xl bg-white p-4 text-[#0f1e33] shadow-xl">

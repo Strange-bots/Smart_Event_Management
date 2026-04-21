@@ -1,8 +1,11 @@
-const recommendations = [
+import { useEffect, useState } from "react";
+import { fetchRecommendedEvents } from "../../../services/homepageService.js";
+
+const fallbackRecommendations = [
   {
-    id: "ai-workshop-2025",
+    id: "fallback-ai-workshop",
     title: "AI & Machine Learning Workshop",
-    date: "February 10, 2025",
+    date: "Coming soon",
     category: "Tech",
     match: 95,
     attendees: 120,
@@ -10,9 +13,9 @@ const recommendations = [
       "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80",
   },
   {
-    id: "data-science-bootcamp",
+    id: "fallback-data-science",
     title: "Data Science Bootcamp",
-    date: "February 20, 2025",
+    date: "Coming soon",
     category: "Academic",
     match: 88,
     attendees: 80,
@@ -20,9 +23,9 @@ const recommendations = [
       "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80",
   },
   {
-    id: "hackathon-2025",
-    title: "Innovation Hackathon 2025",
-    date: "March 1, 2025",
+    id: "fallback-hackathon",
+    title: "Innovation Hackathon",
+    date: "Coming soon",
     category: "Tech",
     match: 82,
     attendees: 200,
@@ -30,6 +33,24 @@ const recommendations = [
       "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&q=80",
   },
 ];
+
+const formatRecommendationDate = (dateString) => {
+  if (!dateString) {
+    return "Coming soon";
+  }
+
+  const parsedDate = new Date(dateString);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
+};
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -46,6 +67,56 @@ const AnimatedSection = ({ className = "", delay = 0, children }) => (
 );
 
 function AIRecommendationSection() {
+  const [recommendations, setRecommendations] = useState(fallbackRecommendations);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRecommendations = async () => {
+      try {
+        const liveRecommendations = await fetchRecommendedEvents();
+
+        if (!isMounted || !liveRecommendations.length) {
+          return;
+        }
+
+        setRecommendations(
+          liveRecommendations.map((event) => ({
+            id: event.id,
+            title: event.title,
+            date: formatRecommendationDate(event.date),
+            category: event.category,
+            match: event.match,
+            attendees: event.attendees,
+            image: event.image,
+          }))
+        );
+        setErrorMessage("");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setRecommendations(fallbackRecommendations);
+        setErrorMessage(
+          "Unable to load live recommendations. Showing default suggestions."
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadRecommendations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleJoinNow = (eventId) => {
     window.location.assign(`/event/${eventId}/register`);
   };
@@ -82,6 +153,16 @@ function AIRecommendationSection() {
             Our AI analyzes your interests and activity to suggest the perfect
             events for you
           </p>
+          {isLoading ? (
+            <p className="mt-4 text-sm font-medium text-[#6d5df6]">
+              Loading recommendations...
+            </p>
+          ) : null}
+          {!isLoading && errorMessage ? (
+            <p className="mt-4 text-sm font-medium text-[#f36f21]">
+              {errorMessage}
+            </p>
+          ) : null}
         </AnimatedSection>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
