@@ -7,6 +7,7 @@ const { listOrganizerRegistrations } = require('../controllers/registrationContr
 const { listOrganizerNotifications } = require('../controllers/notificationController');
 const { listOrganizerEmailLogs } = require('../controllers/emailLogController');
 const { subscribeToNewsletter } = require('../controllers/newsletterController');
+const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.get('/events/stats', getEventStats);
 router.get('/events', listEvents);
 router.get('/events/next', getNextEvent);
 router.get('/events/recommendations', getRecommendations);
+router.get('/admin/dashboard/overview', getAdminOverviewStats);
 router.get('/organizer/registrations', listOrganizerRegistrations);
 router.get('/organizer/notifications', listOrganizerNotifications);
 router.get('/organizer/email-logs', listOrganizerEmailLogs);
