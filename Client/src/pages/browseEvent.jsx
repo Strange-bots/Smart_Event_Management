@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/navbar";
 import Footer from "../components/layout/footer";
@@ -13,13 +13,56 @@ const categoryFilters = [
   { id: "career", label: "Career" },
 ];
 
+// Map backend categories to filter categories
+const categoryMapper = {
+  'technology': 'tech',
+  'Technology': 'tech',
+  'career': 'career',
+  'Career': 'career',
+  'workshop': 'tech',
+  'Workshop': 'tech',
+  // Add more mappings as needed
+};
+
 const PublicBrowseEvents = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
-  const [allEvents] = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('http://localhost:5001/api/events');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch events');
+        }
+
+        const data = await response.json();
+        
+        if (data.success && Array.isArray(data.data)) {
+          setAllEvents(data.data);
+          setError(null);
+        } else {
+          setAllEvents([]);
+        }
+      } catch (err) {
+        console.error('Error fetching events:', err);
+        setError('Failed to load events. Please try again later.');
+        setAllEvents([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
 
   const handleCategoryChange = (category) => {
     setCategoryFilter(category);
@@ -29,7 +72,13 @@ const PublicBrowseEvents = () => {
     const matchesSearch =
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || event.category === categoryFilter;
+    
+    let matchesCategory = categoryFilter === "all";
+    if (!matchesCategory) {
+      const mappedCategory = categoryMapper[event.categoryLabel] || event.categoryLabel?.toLowerCase();
+      matchesCategory = mappedCategory === categoryFilter || event.category?.toLowerCase() === categoryFilter;
+    }
+    
     return matchesSearch && matchesCategory;
   });
 
@@ -127,8 +176,25 @@ const PublicBrowseEvents = () => {
       {/* Events Section */}
       <section className="py-12" style={{ backgroundColor: "#F5F7FA" }}>
         <div className="container mx-auto px-4">
-          {/* Results Count */}
-          <div className="flex items-center justify-between mb-6">
+          {/* Error State */}
+          {error && (
+            <div
+              className="mb-6 p-4 rounded-lg text-center"
+              style={{ backgroundColor: "#FEE2E2", color: "#991B1B" }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p style={{ color: "#6B7C93" }}>Loading events...</p>
+            </div>
+          ) : (
+            <>
+              {/* Results Count */}
+              <div className="flex items-center justify-between mb-6">
             <p style={{ color: "#6B7C93" }}>
               Showing{" "}
               <span className="font-semibold" style={{ color: "#0F1E33" }}>
@@ -351,6 +417,9 @@ const PublicBrowseEvents = () => {
               </div>
             </div>
           )}
+
+              </>
+            )}
         </div>
       </section>
 

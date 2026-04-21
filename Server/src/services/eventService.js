@@ -47,7 +47,20 @@ const getRecommendedEvents = () => {
     }));
 };
 
+const getAllApprovedEvents = () => {
+  const now = new Date();
+
+  return events
+    .filter((event) => event.status === 'approved')
+    .sort((left, right) => getEventStart(left) - getEventStart(right))
+    .map((event) => ({
+      ...formatEvent(event),
+      categoryLabel: event.category,
+    }));
+};
+
 module.exports = {
   getNextUpcomingEvent,
   getRecommendedEvents,
+  getAllApprovedEvents,
 };

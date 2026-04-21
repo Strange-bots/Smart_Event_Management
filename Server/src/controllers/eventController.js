@@ -1,6 +1,7 @@
 const {
   getNextUpcomingEvent,
   getRecommendedEvents,
+  getAllApprovedEvents,
 } = require('../services/eventService');
 
 const getNextEvent = (req, res) => {
@@ -27,7 +28,17 @@ const getRecommendations = (req, res) => {
   return res.json({ recommendations });
 };
 
+const getAllEvents = (req, res) => {
+  const allEvents = getAllApprovedEvents();
+
+  return res.json({
+    success: true,
+    data: allEvents,
+  });
+};
+
 module.exports = {
   getNextEvent,
   getRecommendations,
+  getAllEvents,
 };
