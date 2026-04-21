@@ -2,7 +2,17 @@ const express = require('express');
 
 const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/indexController');
 const { login, signup } = require('../controllers/authController');
-const { listEvents, getNextEvent, getRecommendations, uploadEventImage } = require('../controllers/eventController');
+const {
+  createOrganizerEventRecord,
+  deleteOrganizerEventRecord,
+  duplicateOrganizerEventRecord,
+  listEvents,
+  getNextEvent,
+  getRecommendations,
+  listOrganizerEvents,
+  updateOrganizerEventRecord,
+  uploadEventImage,
+} = require('../controllers/eventController');
 const {
   createUserRegistration,
   deleteUserRegistration,
@@ -31,6 +41,11 @@ router.get('/events/stats', getEventStats);
 router.get('/events', listEvents);
 router.get('/events/next', getNextEvent);
 router.get('/events/recommendations', getRecommendations);
+router.get('/organizer/events', requireRole('organizer'), listOrganizerEvents);
+router.post('/organizer/events', requireRole('organizer'), createOrganizerEventRecord);
+router.put('/organizer/events/:eventId', requireRole('organizer'), updateOrganizerEventRecord);
+router.post('/organizer/events/:eventId/duplicate', requireRole('organizer'), duplicateOrganizerEventRecord);
+router.delete('/organizer/events/:eventId', requireRole('organizer'), deleteOrganizerEventRecord);
 router.post('/admin/events/:eventId/image', requireRole('admin'), uploadEventImage);
 router.get('/admin/dashboard/overview', requireRole('admin'), getAdminOverviewStats);
 router.get('/organizer/registrations/export', requireRole('organizer'), downloadOrganizerRegistrations);

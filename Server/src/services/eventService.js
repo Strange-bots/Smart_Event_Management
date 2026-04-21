@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { events } = require('../data/events');
+const { organizerEvents } = require('../data/organizerEvents');
 const { findUserByEmail } = require('./authService');
 
 const getEventStart = (event) => {
@@ -15,18 +16,30 @@ const formatEvent = (event) => ({
   description: event.description,
   date: event.date,
   time: event.time,
-  location: event.location,
+  location: event.location || event.venue,
+  venue: event.venue || event.location,
   category: event.category,
   capacity: event.capacity,
   registrations: event.registrations,
-  image: event.image,
+  image: event.image || event.imagePreview,
+  imagePreview: event.imagePreview || event.image,
   status: event.status,
+  isPaid: event.isPaid,
+  price: event.price,
+  tags: event.tags,
+  organizerName: event.organizerName,
+  organizerEmail: event.organizerEmail,
+  dateLabel: event.dateLabel,
+  createdAt: event.createdAt,
+  updatedAt: event.updatedAt,
 });
+
+const getAllEventRecords = () => [...events, ...organizerEvents];
 
 const getNextUpcomingEvent = () => {
   const now = new Date();
 
-  const nextEvent = events
+  const nextEvent = getAllEventRecords()
     .filter((event) => event.status === 'approved')
     .filter((event) => getEventStart(event).getTime() > now.getTime())
     .sort((left, right) => getEventStart(left) - getEventStart(right))[0];
@@ -39,7 +52,7 @@ const getRecommendationMatch = (event) => 78 + (event.id % 18);
 const getRecommendedEvents = () => {
   const now = new Date();
 
-  return events
+  return getAllEventRecords()
     .filter((event) => event.status === 'approved')
     .filter((event) => getEventStart(event).getTime() > now.getTime())
     .sort((left, right) => getEventStart(left) - getEventStart(right))
@@ -52,7 +65,7 @@ const getRecommendedEvents = () => {
 };
 
 const getAllApprovedEvents = () => {
-  return events
+  return getAllEventRecords()
     .filter((event) => event.status === 'approved')
     .sort((left, right) => getEventStart(left) - getEventStart(right))
     .map((event) => ({
@@ -68,7 +81,7 @@ const getEvents = ({ category, search } = {}) => {
   const normalizedCategory = normalizeQueryValue(category);
   const normalizedSearch = normalizeQueryValue(search);
 
-  return events
+  return getAllEventRecords()
     .filter((event) => event.status === 'approved')
     .filter((event) => {
       if (!normalizedCategory) {
@@ -141,7 +154,7 @@ const uploadAdminEventImage = ({ adminEmail, eventId, imageData }) => {
     };
   }
 
-  const event = events.find((item) => String(item.id) === String(eventId));
+  const event = getAllEventRecords().find((item) => String(item.id) === String(eventId));
 
   if (!event) {
     return {
@@ -200,10 +213,164 @@ const uploadAdminEventImage = ({ adminEmail, eventId, imageData }) => {
   };
 };
 
+const normalizeOrganizerEventPayload = (payload = {}) => ({
+  title: String(payload.title || '').trim(),
+  description: String(payload.description || '').trim(),
+  date: String(payload.date || '').trim(),
+  dateLabel: String(payload.dateLabel || '').trim(),
+  time: String(payload.time || '').trim(),
+  venue: String(payload.venue || payload.location || '').trim(),
+  location: String(payload.venue || payload.location || '').trim(),
+  category: String(payload.category || '').trim(),
+  capacity: Number(payload.capacity || 0),
+  registrations: Number(payload.registrations || 0),
+  isPaid: Boolean(payload.isPaid),
+  price: payload.isPaid ? Number(payload.price || 0) : 0,
+  tags: Array.isArray(payload.tags)
+    ? payload.tags.map((tag) => String(tag).trim()).filter(Boolean).slice(0, 5)
+    : [],
+  imagePreview: String(payload.imagePreview || payload.image || '').trim(),
+  image: String(payload.image || payload.imagePreview || '').trim(),
+});
+
+const validateOrganizerEventPayload = (event) => {
+  if (!event.title) return 'Event title is required';
+  if (!event.description) return 'Event description is required';
+  if (!event.date) return 'Event date is required';
+  if (!event.time) return 'Event time is required';
+  if (!event.venue) return 'Event venue is required';
+  if (!event.category) return 'Event category is required';
+  if (!event.capacity || event.capacity <= 0) return 'Event capacity must be greater than 0';
+  if (!event.tags.length) return 'At least one event tag is required';
+  if (event.isPaid && (!event.price || event.price <= 0)) {
+    return 'Ticket price must be greater than 0 for paid events';
+  }
+  return null;
+};
+
+const getOrganizerEvents = (organizerEmail) =>
+  organizerEvents
+    .filter((event) => event.organizerEmail === organizerEmail)
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+    .map(formatEvent);
+
+const createOrganizerEvent = ({ organizer, payload }) => {
+  const normalizedEvent = normalizeOrganizerEventPayload(payload);
+  const validationError = validateOrganizerEventPayload(normalizedEvent);
+
+  if (validationError) {
+    return {
+      error: validationError,
+      statusCode: 400,
+    };
+  }
+
+  const createdAt = new Date().toISOString();
+  const event = {
+    id: `event-${Date.now()}`,
+    ...normalizedEvent,
+    organizerName: organizer.name || organizer.email,
+    organizerEmail: organizer.email,
+    status: 'pending',
+    createdAt,
+    updatedAt: createdAt,
+  };
+
+  organizerEvents.unshift(event);
+
+  return {
+    statusCode: 201,
+    event: formatEvent(event),
+  };
+};
+
+const getOrganizerOwnedEvent = ({ organizerEmail, eventId }) =>
+  organizerEvents.find(
+    (event) => String(event.id) === String(eventId) && event.organizerEmail === organizerEmail,
+  );
+
+const updateOrganizerEvent = ({ organizerEmail, eventId, payload }) => {
+  const event = getOrganizerOwnedEvent({ organizerEmail, eventId });
+
+  if (!event) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  const normalizedEvent = normalizeOrganizerEventPayload({
+    ...event,
+    ...payload,
+  });
+  const validationError = validateOrganizerEventPayload(normalizedEvent);
+
+  if (validationError) {
+    return {
+      error: validationError,
+      statusCode: 400,
+    };
+  }
+
+  Object.assign(event, normalizedEvent, {
+    status: 'pending',
+    updatedAt: new Date().toISOString(),
+  });
+
+  return {
+    statusCode: 200,
+    event: formatEvent(event),
+  };
+};
+
+const duplicateOrganizerEvent = ({ organizer, eventId }) => {
+  const event = getOrganizerOwnedEvent({ organizerEmail: organizer.email, eventId });
+
+  if (!event) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  return createOrganizerEvent({
+    organizer,
+    payload: {
+      ...event,
+      title: `${event.title} Copy`,
+      registrations: 0,
+    },
+  });
+};
+
+const deleteOrganizerEvent = ({ organizerEmail, eventId }) => {
+  const eventIndex = organizerEvents.findIndex(
+    (event) => String(event.id) === String(eventId) && event.organizerEmail === organizerEmail,
+  );
+
+  if (eventIndex === -1) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  organizerEvents.splice(eventIndex, 1);
+
+  return {
+    statusCode: 200,
+  };
+};
+
 module.exports = {
+  createOrganizerEvent,
+  deleteOrganizerEvent,
+  duplicateOrganizerEvent,
   getEvents,
   getNextUpcomingEvent,
+  getOrganizerEvents,
   getRecommendedEvents,
   getAllApprovedEvents,
+  updateOrganizerEvent,
   uploadAdminEventImage,
 };

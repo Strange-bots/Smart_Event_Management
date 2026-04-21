@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   Clock,
@@ -19,53 +19,15 @@ import {
 } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import {
+  deleteOrganizerEvent,
+  duplicateOrganizerEvent,
+  fetchOrganizerEvents,
+  updateOrganizerEvent,
+} from "../../services/organizerEventService.js";
 
-const EVENT_STORAGE_KEY = "smart_event_organizer_events";
 const EMAIL_LOG_STORAGE_KEY = "smart_event_organizer_email_logs";
 const NOTIFICATION_STORAGE_KEY = "smart_event_notifications";
-
-const sampleEvents = [
-  {
-    id: "event-sample-1",
-    title: "AI Career Workshop",
-    description: "A practical session on AI tools, job pathways, and industry expectations for students.",
-    date: "2026-04-15",
-    dateLabel: "15 April 2026",
-    time: "10:00 - 12:00",
-    venue: "Conference Hall",
-    category: "Workshop",
-    capacity: 80,
-    registrations: 48,
-    isPaid: false,
-    price: 0,
-    tags: ["Technology", "AI", "Career"],
-    organizerName: "Demo Organizer",
-    organizerEmail: "organizer@demo.com",
-    imagePreview: "https://images.unsplash.com/photo-1515169067868-5387ec356754?auto=format&fit=crop&w=1200&q=80",
-    status: "approved",
-    createdAt: "2026-04-01T10:00:00.000Z",
-  },
-  {
-    id: "event-sample-2",
-    title: "Campus Networking Evening",
-    description: "Meet peers, alumni, and guest professionals in an easy-going campus networking session.",
-    date: "2026-04-20",
-    dateLabel: "20 April 2026",
-    time: "17:00 - 19:00",
-    venue: "Main Auditorium",
-    category: "Networking",
-    capacity: 120,
-    registrations: 22,
-    isPaid: true,
-    price: 15,
-    tags: ["Networking", "Business", "Professional Development"],
-    organizerName: "Demo Organizer",
-    organizerEmail: "organizer@demo.com",
-    imagePreview: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80",
-    status: "pending",
-    createdAt: "2026-04-03T12:00:00.000Z",
-  },
-];
 
 const aiTemplates = (event) => [
   {
@@ -86,6 +48,26 @@ const aiTemplates = (event) => [
 ];
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+const normalizeSearchValue = (value) => String(value || "").toLowerCase();
+
+const getEventSearchText = (event) =>
+  [
+    event.title,
+    event.description,
+    event.category,
+    event.venue,
+    event.location,
+    event.status,
+    event.date,
+    event.dateLabel,
+    event.time,
+    event.isPaid ? "paid" : "free",
+    event.price,
+    ...(event.tags || []),
+  ]
+    .map(normalizeSearchValue)
+    .join(" ");
 
 function getStatusBadge(status) {
   switch (status) {
@@ -129,43 +111,70 @@ function OrganizerEvents() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [notice, setNotice] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
+  const [events, setEvents] = useState([]);
 
-  const events = useMemo(() => {
-    const storedEvents = JSON.parse(
-      window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]",
-    );
-    const combinedEvents =
-      storedEvents.length > 0 ? storedEvents : sampleEvents;
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== "organizer") {
+      return undefined;
+    }
 
-    return combinedEvents
-      .filter(
-        (event) =>
-          !currentUser ||
-          event.organizerEmail === currentUser.email ||
-          event.organizerId === currentUser.id,
-      )
-      .map((event) => ({
-        ...event,
-        imagePreview:
-          event.imagePreview ||
-          "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80",
-        registrations: Number(event.registrations || 0),
-        capacity: Number(event.capacity || 0),
-      }));
-  }, [currentUser]);
+    let isMounted = true;
+
+    const loadEvents = async () => {
+      setIsLoadingEvents(true);
+
+      try {
+        const organizerEvents = await fetchOrganizerEvents();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setEvents(
+          organizerEvents.map((event) => ({
+            ...event,
+            imagePreview:
+              event.imagePreview ||
+              "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80",
+            registrations: Number(event.registrations || 0),
+            capacity: Number(event.capacity || 0),
+          })),
+        );
+        setNotice(null);
+      } catch (error) {
+        if (isMounted) {
+          setNotice({ type: "error", message: error.message || "Unable to load events." });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingEvents(false);
+        }
+      }
+    };
+
+    loadEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.email, currentUser?.role]);
 
   const filteredEvents = useMemo(
-    () =>
-      events.filter((event) => {
-        const matchesSearch = event.title
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+    () => {
+      const normalizedSearch = normalizeSearchValue(searchQuery).trim();
+
+      return events.filter((event) => {
+        const matchesSearch =
+          !normalizedSearch ||
+          getEventSearchText(event).includes(normalizedSearch);
         const matchesStatus =
           statusFilter === "all" || event.status === statusFilter;
         return matchesSearch && matchesStatus;
-      }),
+      });
+    },
     [events, searchQuery, statusFilter],
   );
 
@@ -192,27 +201,26 @@ function OrganizerEvents() {
     setActiveMenuId(null);
   };
 
-  const handleDuplicate = (event) => {
-    const storedEvents = JSON.parse(
-      window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]",
-    );
-
-    const duplicatedEvent = {
-      ...event,
-      id: `event-${Date.now()}`,
-      title: `${event.title} Copy`,
-      registrations: 0,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    window.localStorage.setItem(
-      EVENT_STORAGE_KEY,
-      JSON.stringify([duplicatedEvent, ...storedEvents]),
-    );
-
-    setSuccess(`Event "${event.title}" duplicated successfully.`);
-    setActiveMenuId(null);
+  const handleDuplicate = async (event) => {
+    try {
+      const duplicatedEvent = await duplicateOrganizerEvent(event.id);
+      setEvents((currentEvents) => [
+        {
+          ...duplicatedEvent,
+          imagePreview:
+            duplicatedEvent.imagePreview ||
+            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80",
+          registrations: Number(duplicatedEvent.registrations || 0),
+          capacity: Number(duplicatedEvent.capacity || 0),
+        },
+        ...currentEvents,
+      ]);
+      setSuccess(`Event "${event.title}" duplicated successfully.`);
+    } catch (error) {
+      setError(error.message || "Unable to duplicate event.");
+    } finally {
+      setActiveMenuId(null);
+    }
   };
 
   const handleDelete = (event) => {
@@ -221,22 +229,75 @@ function OrganizerEvents() {
     setActiveMenuId(null);
   };
 
-  const confirmDelete = () => {
+  const handleEditEvent = async (event) => {
+    const nextTitle = window.prompt("Update event title", event.title);
+
+    if (nextTitle === null) {
+      setActiveMenuId(null);
+      return;
+    }
+
+    const nextDescription = window.prompt(
+      "Update event description",
+      event.description,
+    );
+
+    if (nextDescription === null) {
+      setActiveMenuId(null);
+      return;
+    }
+
+    try {
+      const updatedEvent = await updateOrganizerEvent(event.id, {
+        ...event,
+        title: nextTitle,
+        description: nextDescription,
+      });
+
+      setEvents((currentEvents) =>
+        currentEvents.map((item) =>
+          item.id === updatedEvent.id
+            ? {
+                ...updatedEvent,
+                imagePreview:
+                  updatedEvent.imagePreview ||
+                  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80",
+                registrations: Number(updatedEvent.registrations || 0),
+                capacity: Number(updatedEvent.capacity || 0),
+              }
+            : item,
+        ),
+      );
+      setSelectedEvent((currentEvent) =>
+        currentEvent?.id === updatedEvent.id ? updatedEvent : currentEvent,
+      );
+      setSuccess(`Event "${updatedEvent.title}" updated successfully.`);
+    } catch (error) {
+      setError(error.message || "Unable to update event.");
+    } finally {
+      setActiveMenuId(null);
+    }
+  };
+
+  const confirmDelete = async () => {
     if (!eventToDelete) {
       return;
     }
 
-    const storedEvents = JSON.parse(
-      window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]",
-    );
-    const nextEvents = storedEvents.filter((event) => event.id !== eventToDelete.id);
-    window.localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(nextEvents));
-    setSuccess(`Event "${eventToDelete.title}" deleted successfully.`);
-    setShowDeleteDialog(false);
-    setEventToDelete(null);
-    if (selectedEvent?.id === eventToDelete.id) {
-      setSelectedEvent(null);
-      setShowDetailsModal(false);
+    try {
+      await deleteOrganizerEvent(eventToDelete.id);
+      setEvents((currentEvents) =>
+        currentEvents.filter((event) => event.id !== eventToDelete.id),
+      );
+      setSuccess(`Event "${eventToDelete.title}" deleted successfully.`);
+      setShowDeleteDialog(false);
+      setEventToDelete(null);
+      if (selectedEvent?.id === eventToDelete.id) {
+        setSelectedEvent(null);
+        setShowDetailsModal(false);
+      }
+    } catch (error) {
+      setError(error.message || "Unable to delete event.");
     }
   };
 
@@ -376,6 +437,19 @@ function OrganizerEvents() {
           </div>
         </section>
 
+        {isLoadingEvents ? (
+          <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
+            <Calendar size={48} className="mx-auto text-[#9aa9bc]" />
+            <h3 className="mt-4 text-xl font-semibold text-[#0f1e33]">
+              Loading events...
+            </h3>
+            <p className="mt-2 text-[#6b7c93]">
+              Fetching your organizer-owned events from the server.
+            </p>
+          </section>
+        ) : null}
+
+        {!isLoadingEvents ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {filteredEvents.map((event) => {
             const status = getStatusBadge(event.status);
@@ -428,7 +502,7 @@ function OrganizerEvents() {
                               <Eye size={14} />
                               View Details
                             </button>
-                            <button type="button" onClick={() => setError("Edit flow is not wired yet. You can duplicate the event and update it from Create Event.")} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[#0f1e33] hover:bg-[#f5f7fa]">
+                            <button type="button" onClick={() => handleEditEvent(event)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[#0f1e33] hover:bg-[#f5f7fa]">
                               <Edit size={14} />
                               Edit Event
                             </button>
@@ -500,8 +574,9 @@ function OrganizerEvents() {
             );
           })}
         </div>
+        ) : null}
 
-        {filteredEvents.length === 0 ? (
+        {!isLoadingEvents && filteredEvents.length === 0 ? (
           <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
             <Calendar size={48} className="mx-auto text-[#9aa9bc]" />
             <h3 className="mt-4 text-xl font-semibold text-[#0f1e33]">
@@ -619,11 +694,7 @@ function OrganizerEvents() {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    setError(
-                      "Edit flow is not wired yet. You can duplicate the event and update it from Create Event.",
-                    )
-                  }
+                  onClick={() => handleEditEvent(selectedEvent)}
                   className="inline-flex items-center gap-2 rounded-xl border border-[#d9e2ec] px-4 py-2.5 font-medium text-[#0f1e33]"
                 >
                   <Edit size={16} />

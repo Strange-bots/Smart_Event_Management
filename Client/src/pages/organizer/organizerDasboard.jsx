@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import { createOrganizerEvent } from "../../services/organizerEventService.js";
 
-const EVENT_STORAGE_KEY = "smart_event_organizer_events";
 const venues = ["Main Auditorium", "Conference Hall", "Room 301", "Room 302", "Computer Lab A", "Computer Lab B", "Exhibition Hall", "Outdoor Area"];
 const categories = ["Workshop", "Seminar", "Conference", "Networking", "Career Fair", "Cultural Event", "Sports Event", "Technology", "Academic", "Other"];
 const availableTags = ["Technology", "Business", "Career", "Workshop", "Networking", "Academic", "Cultural", "Sports", "AI", "Data Science", "Leadership", "Finance", "Marketing", "Innovation", "Professional Development"];
@@ -45,6 +45,20 @@ function formatDisplayDate(dateValue) {
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      resolve("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Unable to read image file"));
+    reader.readAsDataURL(file);
+  });
 }
 
 function buildDescription({ title, category, venue, capacity, isPaid, price, tags }) {
@@ -92,6 +106,7 @@ function OrganizerDashboard() {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isSuggestingTime, setIsSuggestingTime] = useState(false);
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [suggestedTimes, setSuggestedTimes] = useState([]);
   const [showTimeSuggestions, setShowTimeSuggestions] = useState(false);
 
@@ -185,35 +200,40 @@ function OrganizerDashboard() {
     setIsSuggestingTags(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     clearNotice();
     if (!validateForm()) return setNotice({ type: "error", message: "Please fix the required fields first." });
-    const savedEvents = JSON.parse(window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]");
-    const newEvent = {
-      id: `event-${Date.now()}`,
-      title: title.trim(),
-      description: description.trim(),
-      date,
-      dateLabel: formatDisplayDate(date),
-      time: `${startTime} - ${endTime}`,
-      venue,
-      category,
-      capacity: Number(capacity),
-      isPaid,
-      price: isPaid ? Number(price) : 0,
-      tags: selectedTags,
-      organizerName: currentUser.name || currentUser.email,
-      organizerEmail: currentUser.email,
-      imagePreview: uploadedImages[0]?.preview || "",
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-    window.localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify([newEvent, ...savedEvents]));
-    uploadedImages.forEach((image) => URL.revokeObjectURL(image.preview));
-    setDate(""); setTitle(""); setDescription(""); setCategory(""); setVenue(""); setCapacity("");
-    setStartTime(""); setEndTime(""); setIsPaid(false); setPrice(""); setSelectedTags([]); setTagInput("");
-    setUploadedImages([]); setErrors({}); setSuggestedTimes([]); setShowTimeSuggestions(false);
-    setNotice({ type: "success", message: "Event submitted for admin approval." });
+
+    setIsSubmitting(true);
+
+    try {
+      const imagePreview = await readFileAsDataUrl(uploadedImages[0]?.file);
+
+      await createOrganizerEvent({
+        title: title.trim(),
+        description: description.trim(),
+        date,
+        dateLabel: formatDisplayDate(date),
+        time: `${startTime} - ${endTime}`,
+        venue,
+        category,
+        capacity: Number(capacity),
+        isPaid,
+        price: isPaid ? Number(price) : 0,
+        tags: selectedTags,
+        imagePreview,
+      });
+
+      uploadedImages.forEach((image) => URL.revokeObjectURL(image.preview));
+      setDate(""); setTitle(""); setDescription(""); setCategory(""); setVenue(""); setCapacity("");
+      setStartTime(""); setEndTime(""); setIsPaid(false); setPrice(""); setSelectedTags([]); setTagInput("");
+      setUploadedImages([]); setErrors({}); setSuggestedTimes([]); setShowTimeSuggestions(false);
+      setNotice({ type: "success", message: "Event submitted for admin approval." });
+    } catch (error) {
+      setNotice({ type: "error", message: error.message || "Unable to submit event." });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const inputClass = (name) => cn("w-full rounded-xl border px-4 py-3 outline-none transition", errors[name] ? "border-rose-400 bg-rose-50" : "border-[#d9e2ec] bg-white focus:border-[#1f4e79]");
@@ -232,9 +252,9 @@ function OrganizerDashboard() {
               <Eye size={18} />
               Preview
             </button>
-            <button type="button" onClick={handleSubmit} className="inline-flex items-center gap-2 rounded-xl bg-[#f36f21] px-4 py-2.5 font-medium text-white">
-              <Save size={18} />
-              Submit for Approval
+            <button type="button" onClick={handleSubmit} disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-[#f36f21] px-4 py-2.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-70">
+              {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {isSubmitting ? "Submitting..." : "Submit for Approval"}
             </button>
           </div>
         </div>

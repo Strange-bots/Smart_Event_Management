@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   CheckCircle,
@@ -13,33 +13,10 @@ import {
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import { fetchOrganizerEvents } from "../../services/organizerEventService.js";
 
-const EVENT_STORAGE_KEY = "smart_event_organizer_events";
 const EMAIL_LOG_STORAGE_KEY = "smart_event_organizer_email_logs";
 const NOTIFICATION_STORAGE_KEY = "smart_event_notifications";
-
-const sampleEvents = [
-  {
-    id: "event-sample-1",
-    title: "AI Career Workshop",
-    date: "2026-04-15",
-    dateLabel: "15 April 2026",
-    time: "10:00 - 12:00",
-    venue: "Conference Hall",
-    registrations: 48,
-    organizerEmail: "organizer@demo.com",
-  },
-  {
-    id: "event-sample-2",
-    title: "Campus Networking Evening",
-    date: "2026-04-20",
-    dateLabel: "20 April 2026",
-    time: "17:00 - 19:00",
-    venue: "Main Auditorium",
-    registrations: 22,
-    organizerEmail: "organizer@demo.com",
-  },
-];
 
 const sampleEmailLogs = [
   {
@@ -169,20 +146,31 @@ function OrganizerMessages() {
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [events, setEvents] = useState([]);
 
-  const events = useMemo(() => {
-    const storedEvents = JSON.parse(
-      window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]",
-    );
-    const combinedEvents = storedEvents.length > 0 ? storedEvents : sampleEvents;
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== "organizer") {
+      return undefined;
+    }
 
-    return combinedEvents.filter(
-      (event) =>
-        !currentUser ||
-        event.organizerEmail === currentUser.email ||
-        event.organizerId === currentUser.id,
-    );
-  }, [currentUser]);
+    let isMounted = true;
+
+    fetchOrganizerEvents()
+      .then((organizerEvents) => {
+        if (isMounted) {
+          setEvents(organizerEvents);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setEvents([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.email, currentUser?.role]);
 
   const [emailLogs, setEmailLogs] = useState(() => {
     const storedLogs = JSON.parse(

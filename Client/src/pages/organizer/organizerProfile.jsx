@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Building,
   Calendar,
@@ -13,15 +13,10 @@ import {
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import { fetchOrganizerEvents } from "../../services/organizerEventService.js";
 
-const EVENT_STORAGE_KEY = "smart_event_organizer_events";
 const FEEDBACK_STORAGE_KEY = "smart_event_organizer_feedback";
 const ORGANIZER_PROFILE_STORAGE_KEY = "smart_event_organizer_profile";
-
-const sampleEvents = [
-  { id: "event-sample-1", organizerEmail: "organizer@demo.com", registrations: 48 },
-  { id: "event-sample-2", organizerEmail: "organizer@demo.com", registrations: 22 },
-];
 
 const sampleFeedback = [
   { id: "feedback-1", organizerEmail: "organizer@demo.com", rating: 5 },
@@ -61,20 +56,31 @@ function OrganizerProfile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [notice, setNotice] = useState(null);
+  const [events, setEvents] = useState([]);
 
-  const events = useMemo(() => {
-    const storedEvents = JSON.parse(
-      window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]",
-    );
-    const combinedEvents = storedEvents.length > 0 ? storedEvents : sampleEvents;
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== "organizer") {
+      return undefined;
+    }
 
-    return combinedEvents.filter(
-      (event) =>
-        !currentUser ||
-        event.organizerEmail === currentUser.email ||
-        event.organizerId === currentUser.id,
-    );
-  }, [currentUser]);
+    let isMounted = true;
+
+    fetchOrganizerEvents()
+      .then((organizerEvents) => {
+        if (isMounted) {
+          setEvents(organizerEvents);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setEvents([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.email, currentUser?.role]);
 
   const feedback = useMemo(() => {
     const storedFeedback = JSON.parse(

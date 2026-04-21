@@ -6,6 +6,7 @@ const {
 } = require('./src/config/database');
 
 const PORT = process.env.PORT || 5001;
+const HOST = process.env.HOST || '127.0.0.1';
 
 const startServer = async () => {
   const server = http.createServer(app);
@@ -15,8 +16,8 @@ const startServer = async () => {
     process.exit(1);
   });
 
-  server.listen(PORT, async () => {
-    console.log(`Server is running on port ${PORT}`);
+  server.listen(PORT, HOST, async () => {
+    console.log(`Server is running on http://${HOST}:${PORT}`);
 
     try {
       await connectDatabase();

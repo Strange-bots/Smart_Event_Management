@@ -1,8 +1,13 @@
 const {
+  createOrganizerEvent,
+  deleteOrganizerEvent,
+  duplicateOrganizerEvent,
   getEvents,
   getNextUpcomingEvent,
+  getOrganizerEvents,
   getRecommendedEvents,
   getAllApprovedEvents,
+  updateOrganizerEvent,
   uploadAdminEventImage,
 } = require('../services/eventService');
 
@@ -74,10 +79,86 @@ const uploadEventImage = (req, res) => {
   });
 };
 
+const listOrganizerEvents = (req, res) => {
+  return res.status(200).json({
+    message: 'Organizer events fetched successfully',
+    events: getOrganizerEvents(req.user.email),
+  });
+};
+
+const createOrganizerEventRecord = (req, res) => {
+  const result = createOrganizerEvent({
+    organizer: req.user,
+    payload: req.body ?? {},
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(result.statusCode).json({
+    message: 'Event created successfully',
+    event: result.event,
+  });
+};
+
+const updateOrganizerEventRecord = (req, res) => {
+  const result = updateOrganizerEvent({
+    organizerEmail: req.user.email,
+    eventId: req.params.eventId,
+    payload: req.body ?? {},
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(result.statusCode).json({
+    message: 'Event updated successfully',
+    event: result.event,
+  });
+};
+
+const duplicateOrganizerEventRecord = (req, res) => {
+  const result = duplicateOrganizerEvent({
+    organizer: req.user,
+    eventId: req.params.eventId,
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(result.statusCode).json({
+    message: 'Event duplicated successfully',
+    event: result.event,
+  });
+};
+
+const deleteOrganizerEventRecord = (req, res) => {
+  const result = deleteOrganizerEvent({
+    organizerEmail: req.user.email,
+    eventId: req.params.eventId,
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(200).json({
+    message: 'Event deleted successfully',
+  });
+};
+
 module.exports = {
+  createOrganizerEventRecord,
+  deleteOrganizerEventRecord,
+  duplicateOrganizerEventRecord,
   listEvents,
   getNextEvent,
   getRecommendations,
   getAllEvents,
+  listOrganizerEvents,
+  updateOrganizerEventRecord,
   uploadEventImage,
 };
