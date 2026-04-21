@@ -11,3 +11,17 @@ export async function fetchHeroImage() {
 
   return data?.imageUrl ?? "";
 }
+
+export async function fetchRecommendedEvents() {
+  const response = await fetch(`${getApiBaseUrl()}/api/events/recommendations`);
+
+  if (!response.ok) {
+    throw new Error(
+      `Recommendations request failed with status ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+
+  return data?.recommendations ?? [];
+}
