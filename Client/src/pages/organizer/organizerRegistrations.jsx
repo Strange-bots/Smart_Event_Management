@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle,
   Clock,
@@ -7,70 +7,14 @@ import {
   Search,
   ShieldAlert,
   Users,
-  XCircle,
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
-import { exportOrganizerRegistrations } from "../../services/registrationService.js";
-
-const EVENT_STORAGE_KEY = "smart_event_organizer_events";
-const REGISTRATION_STORAGE_KEY = "smart_event_registrations";
-
-const sampleEvents = [
-  { id: "event-sample-1", title: "AI Career Workshop", organizerEmail: "organizer@demo.com" },
-  { id: "event-sample-2", title: "Campus Networking Evening", organizerEmail: "organizer@demo.com" },
-];
-
-const sampleRegistrations = [
-  {
-    id: "reg-1",
-    eventId: "event-sample-1",
-    eventTitle: "AI Career Workshop",
-    userName: "Sophia Chen",
-    userEmail: "sophia@example.com",
-    userAvatar: "",
-    registrationDate: "2 April 2026",
-    paymentStatus: "paid",
-    attendanceStatus: "registered",
-    organizerEmail: "organizer@demo.com",
-  },
-  {
-    id: "reg-2",
-    eventId: "event-sample-1",
-    eventTitle: "AI Career Workshop",
-    userName: "Liam Patel",
-    userEmail: "liam@example.com",
-    userAvatar: "",
-    registrationDate: "3 April 2026",
-    paymentStatus: "unpaid",
-    attendanceStatus: "no-show",
-    organizerEmail: "organizer@demo.com",
-  },
-  {
-    id: "reg-3",
-    eventId: "event-sample-2",
-    eventTitle: "Campus Networking Evening",
-    userName: "Olivia Brown",
-    userEmail: "olivia@example.com",
-    userAvatar: "",
-    registrationDate: "4 April 2026",
-    paymentStatus: "paid",
-    attendanceStatus: "attended",
-    organizerEmail: "organizer@demo.com",
-  },
-  {
-    id: "reg-4",
-    eventId: "event-sample-2",
-    eventTitle: "Campus Networking Evening",
-    userName: "Noah Singh",
-    userEmail: "noah@example.com",
-    userAvatar: "",
-    registrationDate: "5 April 2026",
-    paymentStatus: "refunded",
-    attendanceStatus: "cancelled",
-    organizerEmail: "organizer@demo.com",
-  },
-];
+import {
+  exportOrganizerRegistrations,
+  fetchOrganizerRegistrations,
+} from "../../services/registrationService.js";
+import { getCurrentUser } from "../../utils/auth.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -147,54 +91,76 @@ function getRiskConfig(registration) {
 }
 
 function OrganizerRegistrations() {
-  const storedUser = window.localStorage.getItem("smart_event_user");
-  const currentUser = storedUser ? JSON.parse(storedUser) : null;
-
+  const currentUser = useMemo(() => getCurrentUser(), []);
+  const currentUserRole = currentUser?.role ?? null;
   const [searchQuery, setSearchQuery] = useState("");
   const [eventFilter, setEventFilter] = useState("All Events");
   const [statusFilter, setStatusFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [notice, setNotice] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [allRegistrations, setAllRegistrations] = useState([]);
 
-  const events = useMemo(() => {
-    const storedEvents = JSON.parse(
-      window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]",
-    );
-    const combinedEvents = storedEvents.length > 0 ? storedEvents : sampleEvents;
+  useEffect(() => {
+    let isMounted = true;
 
-    return combinedEvents.filter(
-      (event) =>
-        !currentUser ||
-        event.organizerEmail === currentUser.email ||
-        event.organizerId === currentUser.id,
-    );
-  }, [currentUser]);
+    if (currentUserRole !== "organizer") {
+      return undefined;
+    }
 
-  const allRegistrations = useMemo(() => {
-    const storedRegistrations = JSON.parse(
-      window.localStorage.getItem(REGISTRATION_STORAGE_KEY) || "[]",
-    );
-    const combinedRegistrations =
-      storedRegistrations.length > 0 ? storedRegistrations : sampleRegistrations;
+    const loadRegistrations = async () => {
+      try {
+        setIsLoading(true);
+        const result = await fetchOrganizerRegistrations();
 
-    const allowedEventTitles = new Set(events.map((event) => event.title));
-    return combinedRegistrations.filter(
-      (registration) =>
-        allowedEventTitles.has(registration.eventTitle) ||
-        registration.organizerEmail === currentUser?.email,
-    );
-  }, [currentUser, events]);
+        if (!isMounted) {
+          return;
+        }
+
+        setAllRegistrations(result.registrations);
+        setNotice(null);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setAllRegistrations([]);
+        setNotice({
+          type: "error",
+          message: error.message || "Could not load registrations right now.",
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadRegistrations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUserRole]);
+
+  const events = useMemo(
+    () =>
+      Array.from(
+        new Set(allRegistrations.map((registration) => registration.eventName))
+      ).map((eventName) => ({ title: eventName })),
+    [allRegistrations]
+  );
 
   const eventOptions = ["All Events", ...events.map((event) => event.title)];
 
   const filteredRegistrations = useMemo(
     () =>
       allRegistrations.filter((registration) => {
-        const haystack = `${registration.userName} ${registration.userEmail}`.toLowerCase();
+        const haystack = `${registration.attendeeName} ${registration.attendeeEmail}`.toLowerCase();
         const matchesSearch = haystack.includes(searchQuery.toLowerCase());
         const matchesEvent =
-          eventFilter === "All Events" || registration.eventTitle === eventFilter;
+          eventFilter === "All Events" || registration.eventName === eventFilter;
         const matchesStatus =
           statusFilter === "all" || registration.paymentStatus === statusFilter;
         const matchesRisk =
@@ -204,7 +170,7 @@ function OrganizerRegistrations() {
     [allRegistrations, searchQuery, eventFilter, statusFilter, riskFilter],
   );
 
-  if (!currentUser || currentUser.role !== "organizer") {
+  if (currentUserRole !== "organizer") {
     return <Navigate to="/login" replace />;
   }
 
@@ -217,7 +183,6 @@ function OrganizerRegistrations() {
 
     try {
       const { blob, fileName } = await exportOrganizerRegistrations({
-        organizerEmail: currentUser.email,
         search: searchQuery,
         eventName: eventFilter,
         paymentStatus: statusFilter,
@@ -409,7 +374,19 @@ function OrganizerRegistrations() {
           </div>
         </section>
 
-        {filteredRegistrations.length > 0 ? (
+        {isLoading ? (
+          <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
+            <Users size={48} className="mx-auto mb-4 text-[#9aa9bc]" />
+            <h3 className="text-xl font-semibold text-[#0f1e33]">
+              Loading registrations...
+            </h3>
+            <p className="mt-2 text-[#6b7c93]">
+              Fetching registration data for your organizer account.
+            </p>
+          </section>
+        ) : null}
+
+        {!isLoading && filteredRegistrations.length > 0 ? (
           <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-[#e8eef5]">
@@ -453,7 +430,7 @@ function OrganizerRegistrations() {
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f7fa] text-sm font-semibold text-[#1f4e79]">
-                              {registration.userName
+                              {registration.attendeeName
                                 .split(" ")
                                 .map((part) => part[0])
                                 .join("")
@@ -461,16 +438,16 @@ function OrganizerRegistrations() {
                             </div>
                             <div>
                               <p className="font-medium text-[#0f1e33]">
-                                {registration.userName}
+                                {registration.attendeeName}
                               </p>
                               <p className="text-sm text-[#6b7c93]">
-                                {registration.userEmail}
+                                {registration.attendeeEmail}
                               </p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-4 font-medium text-[#0f1e33]">
-                          {registration.eventTitle}
+                          {registration.eventName}
                         </td>
                         <td className="px-4 py-4 text-sm text-[#0f1e33]">
                           {registration.registrationDate}
@@ -514,7 +491,7 @@ function OrganizerRegistrations() {
                             onClick={() =>
                               setNotice({
                                 type: "success",
-                                message: `Ready to message ${registration.userName}.`,
+                                message: `Ready to message ${registration.attendeeName}.`,
                               })
                             }
                             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d9e2ec] text-[#1f4e79]"
@@ -531,7 +508,7 @@ function OrganizerRegistrations() {
           </section>
         ) : null}
 
-        {filteredRegistrations.length === 0 ? (
+        {!isLoading && filteredRegistrations.length === 0 ? (
           <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
             <Users size={48} className="mx-auto mb-4 text-[#9aa9bc]" />
             <h3 className="text-xl font-semibold text-[#0f1e33]">

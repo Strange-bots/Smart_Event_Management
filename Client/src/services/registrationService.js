@@ -1,12 +1,43 @@
+import { getCurrentUser } from "../utils/auth";
+
 const getApiBaseUrl = () => import.meta.env.VITE_API_URL ?? "";
 
+export async function fetchOrganizerRegistrations() {
+  const currentUser = getCurrentUser();
+
+  if (!currentUser?.token) {
+    throw new Error("Authentication is required");
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/api/organizer/registrations`, {
+    headers: {
+      Authorization: `Bearer ${currentUser.token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch registrations");
+  }
+
+  return {
+    registrations: data?.registrations ?? [],
+  };
+}
+
 export async function exportOrganizerRegistrations({
-  organizerEmail,
   search,
   eventName,
   paymentStatus,
   riskLevel,
 }) {
+  const currentUser = getCurrentUser();
+
+  if (!currentUser?.token) {
+    throw new Error("Authentication is required");
+  }
+
   const params = new URLSearchParams();
 
   if (search?.trim()) {
@@ -30,7 +61,7 @@ export async function exportOrganizerRegistrations({
     `${getApiBaseUrl()}/api/organizer/registrations/export${queryString ? `?${queryString}` : ""}`,
     {
       headers: {
-        "x-user-email": organizerEmail,
+        Authorization: `Bearer ${currentUser.token}`,
       },
     }
   );
