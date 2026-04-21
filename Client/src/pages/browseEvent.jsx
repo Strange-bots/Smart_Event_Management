@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/navbar";
 import Footer from "../components/layout/footer";
 import FeaturedEventsSection from "../components/common/utility/featuresEvents";
+import { ViewModeToggle } from "../components/ui/view-mode-toggle";
 import { fetchEvents } from "../services/eventService.js";
 
 const categoryFilters = [
@@ -175,33 +176,12 @@ const PublicBrowseEvents = () => {
             ))}
 
             <div className="ml-auto flex items-center gap-2 shrink-0">
-              <div
-                className="flex border rounded-lg overflow-hidden"
-                style={{ borderColor: "#6B7C93" }}
-              >
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className="h-8 w-8 inline-flex items-center justify-center text-sm font-medium transition-colors"
-                  style={
-                    viewMode === "grid"
-                      ? { backgroundColor: "#F36F21", color: "#FFFFFF" }
-                      : { backgroundColor: "#FFFFFF", color: "#0F1E33" }
-                  }
-                >
-                  Grid
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className="h-8 w-8 inline-flex items-center justify-center text-sm font-medium transition-colors"
-                  style={
-                    viewMode === "list"
-                      ? { backgroundColor: "#F36F21", color: "#FFFFFF" }
-                      : { backgroundColor: "#FFFFFF", color: "#0F1E33" }
-                  }
-                >
-                  List
-                </button>
-              </div>
+              <ViewModeToggle
+                value={viewMode}
+                onValueChange={setViewMode}
+                activeClassName="bg-[#f36f21] text-white"
+                inactiveClassName="bg-white text-[#0f1e33] hover:bg-[#f5f7fa]"
+              />
             </div>
           </div>
         </div>
