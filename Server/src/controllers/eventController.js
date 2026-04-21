@@ -3,6 +3,7 @@ const {
   getNextUpcomingEvent,
   getRecommendedEvents,
   getAllApprovedEvents,
+  uploadAdminEventImage,
 } = require('../services/eventService');
 
 const listEvents = (req, res) => {
@@ -45,9 +46,38 @@ const getAllEvents = (req, res) => {
   });
 };
 
+const uploadEventImage = (req, res) => {
+  const adminEmail = req.headers['x-user-email'];
+
+  if (!adminEmail) {
+    return res.status(401).json({
+      message: 'Admin email is required',
+    });
+  }
+
+  const result = uploadAdminEventImage({
+    adminEmail,
+    eventId: req.params.eventId,
+    imageData: req.body?.imageData,
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({
+      message: result.error,
+    });
+  }
+
+  return res.status(200).json({
+    message: 'Event image uploaded successfully',
+    event: result.event,
+    imageUrl: result.imageUrl,
+  });
+};
+
 module.exports = {
   listEvents,
   getNextEvent,
   getRecommendations,
   getAllEvents,
+  uploadEventImage,
 };
