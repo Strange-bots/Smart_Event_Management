@@ -33,6 +33,7 @@ import ReportIssue from "./pages/reportIssue.jsx";
 import Feedback from "./pages/feedback.jsx";
 import TermsOfService from "./components/layout/legal/terms";
 import PrivacyPolicy from "./components/layout/legal/privacy";
+import Cookies from "./components/layout/legal/cookies";
 
 function ScrollToHash() {
   const location = useLocation();
@@ -88,6 +89,7 @@ function App() {
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/cookies" element={<Cookies />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
