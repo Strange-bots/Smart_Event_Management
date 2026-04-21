@@ -4,8 +4,12 @@ const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/in
 const { login, signup } = require('../controllers/authController');
 const { listEvents, getNextEvent, getRecommendations, uploadEventImage } = require('../controllers/eventController');
 const {
+  createUserRegistration,
+  deleteUserRegistration,
   downloadOrganizerRegistrations,
+  listUserRegistrations,
   listOrganizerRegistrations,
+  updateUserRegistration,
 } = require('../controllers/registrationController');
 const {
   createFeedback,
@@ -30,6 +34,10 @@ router.get('/events/recommendations', getRecommendations);
 router.post('/admin/events/:eventId/image', requireRole('admin'), uploadEventImage);
 router.get('/admin/dashboard/overview', requireRole('admin'), getAdminOverviewStats);
 router.get('/organizer/registrations/export', requireRole('organizer'), downloadOrganizerRegistrations);
+router.get('/registrations/users', requireRole('admin'), listUserRegistrations);
+router.post('/registrations/users', createUserRegistration);
+router.put('/registrations/users/:email', requireRole('admin'), updateUserRegistration);
+router.delete('/registrations/users/:email', requireRole('admin'), deleteUserRegistration);
 router.get('/admin/settings', requireRole('admin'), getSettings);
 router.put('/admin/settings', requireRole('admin'), updateSettings);
 router.get('/organizer/feedback', requireRole('organizer'), listOrganizerFeedback);
