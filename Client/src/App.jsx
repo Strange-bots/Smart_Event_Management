@@ -35,6 +35,7 @@ import Feedback from "./pages/feedback.jsx";
 import TermsOfService from "./components/layout/legal/terms";
 import PrivacyPolicy from "./components/layout/legal/privacy";
 import Cookies from "./components/layout/legal/cookies";
+import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 
 function ScrollToHash() {
   const location = useLocation();
@@ -96,58 +97,58 @@ function App() {
           <Route path="/signup" element={<Signup />} />
 
           //AdminRoutes//
-          <Route path="/admin/admindashboard" element={<AdminDashboard />} />
-          <Route path="/admin/adminevents" element={<AdminEvents />} />
-          <Route path="/admin/admingallery" element={<AdminGallery />} />
-          <Route path="/admin/adminusers" element={<AdminUsers />} />
-          <Route path="/admin/adminmessage" element={<AdminMessage />} />
-          <Route path="/admin/adminsettings" element={<AdminSettings />} />
+          <Route path="/admin/admindashboard" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/adminevents" element={<ProtectedRoute role="admin"><AdminEvents /></ProtectedRoute>} />
+          <Route path="/admin/admingallery" element={<ProtectedRoute role="admin"><AdminGallery /></ProtectedRoute>} />
+          <Route path="/admin/adminusers" element={<ProtectedRoute role="admin"><AdminUsers /></ProtectedRoute>} />
+          <Route path="/admin/adminmessage" element={<ProtectedRoute role="admin"><AdminMessage /></ProtectedRoute>} />
+          <Route path="/admin/adminsettings" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
 
           //UsersRoutes//
-          <Route path="/user/dashboard" element={<UserDashboard />} />
-          <Route path="/browseEvents" element={<BrowseEventsPage />} />
-          <Route path="/userEvents" element={<UserEvents />} />
-          <Route path="/userNotifications" element={<UserNotifications />} />
-          <Route path="/userProfile" element={<UserProfile />} />
-          <Route path="/userPayments" element={<UserPayments />} />
-          <Route path="/payment" element={<PaymentPage />} />
+          <Route path="/user/dashboard" element={<ProtectedRoute role="user"><UserDashboard /></ProtectedRoute>} />
+          <Route path="/browseEvents" element={<ProtectedRoute role="user"><BrowseEventsPage /></ProtectedRoute>} />
+          <Route path="/userEvents" element={<ProtectedRoute role="user"><UserEvents /></ProtectedRoute>} />
+          <Route path="/userNotifications" element={<ProtectedRoute role="user"><UserNotifications /></ProtectedRoute>} />
+          <Route path="/userProfile" element={<ProtectedRoute role="user"><UserProfile /></ProtectedRoute>} />
+          <Route path="/userPayments" element={<ProtectedRoute role="user"><UserPayments /></ProtectedRoute>} />
+          <Route path="/payment" element={<ProtectedRoute role="user"><PaymentPage /></ProtectedRoute>} />
 
           //OrganizerRoutes//
           <Route
             path="/organizer/organizerdashboard"
-            element={<OrganizerDashboard />}
+            element={<ProtectedRoute role="organizer"><OrganizerDashboard /></ProtectedRoute>}
           />
           <Route
             path="/organizer/create"
-            element={<OrganizerDashboard />}
+            element={<ProtectedRoute role="organizer"><OrganizerDashboard /></ProtectedRoute>}
           />
           <Route
             path="/organizer/events"
-            element={<OrganizerEvents />}
+            element={<ProtectedRoute role="organizer"><OrganizerEvents /></ProtectedRoute>}
           />
           <Route
             path="/organizer/email-log"
-            element={<OrganizerEmailLog />}
+            element={<ProtectedRoute role="organizer"><OrganizerEmailLog /></ProtectedRoute>}
           />
           <Route
             path="/organizer/feedback"
-            element={<OrganizerFeedback />}
+            element={<ProtectedRoute role="organizer"><OrganizerFeedback /></ProtectedRoute>}
           />
           <Route
             path="/organizer/messages"
-            element={<OrganizerMessages />}
+            element={<ProtectedRoute role="organizer"><OrganizerMessages /></ProtectedRoute>}
           />
           <Route
             path="/organizer/notifications"
-            element={<OrganizerNotifications />}
+            element={<ProtectedRoute role="organizer"><OrganizerNotifications /></ProtectedRoute>}
           />
           <Route
             path="/organizer/profile"
-            element={<OrganizerProfile />}
+            element={<ProtectedRoute role="organizer"><OrganizerProfile /></ProtectedRoute>}
           />
           <Route
             path="/organizer/registrations"
-            element={<OrganizerRegistrations />}
+            element={<ProtectedRoute role="organizer"><OrganizerRegistrations /></ProtectedRoute>}
           />
         </Routes>
       </div>

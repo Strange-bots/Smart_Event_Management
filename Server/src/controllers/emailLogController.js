@@ -1,7 +1,7 @@
 const { getEmailLogsForUser } = require('../services/emailLogService');
 
 const listOrganizerEmailLogs = (req, res) => {
-  const organizerEmail = req.headers['x-user-email'];
+  const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
     return res.status(401).json({

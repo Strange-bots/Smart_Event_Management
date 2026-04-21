@@ -8,6 +8,8 @@ import {
   setCurrentUser,
 } from "../utils/auth";
 
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
+
 const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -21,7 +23,7 @@ const Login = () => {
   useEffect(() => {
     const currentUser = getCurrentUser();
 
-    if (currentUser?.role) {
+    if (currentUser?.role && currentUser?.token) {
       navigate(getDashboardPath(currentUser.role), { replace: true });
     }
   }, [navigate]);
@@ -43,7 +45,7 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5001/api/login", {
+      const response = await fetch(`${apiBaseUrl}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -62,7 +64,7 @@ const Login = () => {
         return;
       }
 
-      setCurrentUser(data.user);
+      setCurrentUser({ ...data.user, token: data.token });
 
       setTimeout(() => {
         setIsLoading(false);

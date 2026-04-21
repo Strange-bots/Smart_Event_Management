@@ -4,12 +4,62 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
+const SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000;
+const SESSION_SECRET =
+  process.env.SESSION_SECRET || 'smart-event-management-dev-session-secret';
 
 const sanitizeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
 });
+
+const encodeBase64Url = (value) =>
+  Buffer.from(JSON.stringify(value)).toString('base64url');
+
+const signPayload = (payload) =>
+  crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
+
+const createSessionToken = (user) => {
+  const payload = encodeBase64Url({
+    email: normalizeEmail(user.email),
+    role: user.role,
+    exp: Date.now() + SESSION_EXPIRY_MS,
+  });
+  const signature = signPayload(payload);
+
+  return `${payload}.${signature}`;
+};
+
+const verifySessionToken = (token) => {
+  if (!token || typeof token !== 'string') {
+    return null;
+  }
+
+  const [payload, signature] = token.split('.');
+
+  if (!payload || !signature || signPayload(payload) !== signature) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+
+    if (!session.email || !session.role || Date.now() > session.exp) {
+      return null;
+    }
+
+    const user = findUserByEmail(session.email);
+
+    if (!user || user.role !== session.role) {
+      return null;
+    }
+
+    return user;
+  } catch {
+    return null;
+  }
+};
 
 // In-memory OTP storage
 const otpStorage = {};
@@ -111,10 +161,12 @@ const createUser = ({ name, email, password }) => {
 };
 
 module.exports = {
+  createSessionToken,
   createUser,
   findUserByCredentials,
   findUserByEmail,
   sanitizeUser,
+  verifySessionToken,
   generateOTP,
   sendOTPEmail,
   storeOTP,

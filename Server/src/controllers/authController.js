@@ -1,8 +1,10 @@
 const {
   createUser,
+  createSessionToken,
   findUserByCredentials,
   findUserByEmail,
   sanitizeUser,
+  verifySessionToken,
   generateOTP,
   sendOTPEmail,
   storeOTP,
@@ -29,6 +31,34 @@ const login = (req, res) => {
 
   return res.json({
     user: sanitizeUser(matchedUser),
+    token: createSessionToken(matchedUser),
+  });
+};
+
+const authorizeDashboard = (req, res) => {
+  const { role } = req.body ?? {};
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+
+  if (!role) {
+    return res.status(400).json({ message: 'Role is required' });
+  }
+
+  const user = verifySessionToken(token);
+
+  if (!user) {
+    return res.status(401).json({ message: 'Invalid or expired session' });
+  }
+
+  if (user.role !== role) {
+    return res.status(403).json({
+      message: 'You are not authorized to access this dashboard',
+      user: sanitizeUser(user),
+    });
+  }
+
+  return res.status(200).json({
+    authorized: true,
+    user: sanitizeUser(user),
   });
 };
 
@@ -94,14 +124,17 @@ const signup = (req, res) => {
 
   // OTP verified, create the user
   const user = createUser({ name, email, password });
+  const createdUser = findUserByEmail(user.email);
 
   return res.status(201).json({ 
     message: 'Account created successfully',
     user,
+    token: createSessionToken(createdUser),
   });
 };
 
 module.exports = {
+  authorizeDashboard,
   login,
   signup,
 };
