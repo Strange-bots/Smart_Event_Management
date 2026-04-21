@@ -1,4 +1,8 @@
 const { readSettingsFromDisk } = require('../services/adminSettingsService');
+const { sanitizeString } = require('../utils/sanitizeInput');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const KOI_EMAIL_REGEX = /^[^\s@]+@koi\.edu\.au$/i;
 
 const validateLoginPayload = ({ email, password }) => {
   if (!email?.trim() || !password?.trim()) {
@@ -68,6 +72,55 @@ const validateSignupPayload = ({ name, email, password, confirmPassword }) => {
   return null;
 };
 
+const sanitizeSignupRequest = (payload = {}) => ({
+  name: sanitizeString(payload.name),
+  email: sanitizeString(payload.email).toLowerCase(),
+  password: typeof payload.password === 'string' ? payload.password.trim() : '',
+});
+
+// Restrict registration to official KOI student/staff email addresses only.
+const validateSecureSignupPayload = ({ name, email, password }) => {
+  const errors = [];
+
+  if (!name) {
+    errors.push({
+      field: 'name',
+      message: 'Name is required',
+    });
+  }
+
+  if (!email) {
+    errors.push({
+      field: 'email',
+      message: 'Email is required',
+    });
+  } else if (!EMAIL_REGEX.test(email)) {
+    errors.push({
+      field: 'email',
+      message: 'Email must be in a valid format',
+    });
+  } else if (!KOI_EMAIL_REGEX.test(email)) {
+    errors.push({
+      field: 'email',
+      message: 'Only @koi.edu.au email addresses are allowed',
+    });
+  }
+
+  if (!password) {
+    errors.push({
+      field: 'password',
+      message: 'Password is required',
+    });
+  } else if (password.length < 6) {
+    errors.push({
+      field: 'password',
+      message: 'Password must be at least 6 characters long',
+    });
+  }
+
+  return errors;
+};
+
 const validateChangePasswordPayload = ({
   currentPassword,
   newPassword,
@@ -99,8 +152,10 @@ const validateChangePasswordPayload = ({
 };
 
 module.exports = {
+  sanitizeSignupRequest,
   validateChangePasswordPayload,
   validateLoginPayload,
   validatePasswordStrength,
+  validateSecureSignupPayload,
   validateSignupPayload,
 };

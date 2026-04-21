@@ -1,3 +1,6 @@
+const bcrypt = require('bcrypt');
+const User = require('../models/User');
+const { isDatabaseAvailable } = require('../config/database');
 const {
   createUser,
   createSessionToken,
@@ -12,8 +15,10 @@ const {
   verifyOTP,
 } = require('../services/authService');
 const {
+  sanitizeSignupRequest,
   validateChangePasswordPayload,
   validateLoginPayload,
+  validateSecureSignupPayload,
   validateSignupPayload,
 } = require('../validators/authValidator');
 
@@ -62,6 +67,58 @@ const authorizeDashboard = (req, res) => {
     authorized: true,
     user: sanitizeUser(user),
   });
+};
+
+const registerUser = async (req, res) => {
+  try {
+    const sanitizedPayload = sanitizeSignupRequest(req.body);
+    const validationErrors = validateSecureSignupPayload(sanitizedPayload);
+
+    if (validationErrors.length) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: validationErrors,
+      });
+    }
+
+    if (!isDatabaseAvailable()) {
+      return res.status(500).json({
+        message: 'Internal server error',
+      });
+    }
+
+    const existingUser = await User.findOne({ email: sanitizedPayload.email });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: 'User already exists',
+      });
+    }
+
+    // Persist only a bcrypt hash so raw passwords never reach the database.
+    const hashedPassword = await bcrypt.hash(sanitizedPayload.password, 10);
+
+    await User.create({
+      name: sanitizedPayload.name,
+      email: sanitizedPayload.email,
+      password: hashedPassword,
+      role: 'user',
+    });
+
+    return res.status(201).json({
+      message: 'User registered successfully',
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        message: 'User already exists',
+      });
+    }
+
+    return res.status(500).json({
+      message: 'Internal server error',
+    });
+  }
 };
 
 const signup = (req, res) => {
@@ -124,11 +181,10 @@ const signup = (req, res) => {
     return res.status(400).json({ message: 'Invalid or expired OTP' });
   }
 
-  // OTP verified, create the user
   const user = createUser({ name, email, password });
   const createdUser = findUserByEmail(user.email);
 
-  return res.status(201).json({ 
+  return res.status(201).json({
     message: 'Account created successfully',
     user,
     token: createSessionToken(createdUser),
@@ -175,5 +231,6 @@ module.exports = {
   authorizeDashboard,
   changePassword,
   login,
+  registerUser,
   signup,
 };
