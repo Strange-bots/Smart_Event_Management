@@ -1,13 +1,9 @@
 const express = require('express');
 
-const { getApiStatus, getHeroImage, getEventStats } = require('../controllers/indexController');
-const { login, signup } = require('../controllers/authController');
-const { getNextEvent, getRecommendations, getAllEvents } = require('../controllers/eventController');
 const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/indexController');
 const { login, signup } = require('../controllers/authController');
 const { listEvents, getNextEvent, getRecommendations } = require('../controllers/eventController');
 const { listOrganizerRegistrations } = require('../controllers/registrationController');
-
 
 const router = express.Router();
 

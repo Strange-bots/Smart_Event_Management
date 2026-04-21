@@ -1,8 +1,5 @@
-<<<<<<< HEAD
+
 import { useState, useEffect } from "react";
-=======
-import { useEffect, useState } from "react";
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/navbar";
 import Footer from "../components/layout/footer";
@@ -20,17 +17,6 @@ const categoryFilters = [
   { id: "networking", label: "Networking", queryValue: "Networking" },
 ];
 
-<<<<<<< HEAD
-// Map backend categories to filter categories
-const categoryMapper = {
-  'technology': 'tech',
-  'Technology': 'tech',
-  'career': 'career',
-  'Career': 'career',
-  'workshop': 'tech',
-  'Workshop': 'tech',
-  // Add more mappings as needed
-=======
 const formatEventDate = (dateString) => {
   if (!dateString) {
     return "Date to be announced";
@@ -47,7 +33,6 @@ const formatEventDate = (dateString) => {
     month: "short",
     year: "numeric",
   }).format(parsedDate);
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
 };
 
 const PublicBrowseEvents = () => {
@@ -56,11 +41,6 @@ const PublicBrowseEvents = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
   const [allEvents, setAllEvents] = useState([]);
-<<<<<<< HEAD
-=======
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -147,7 +127,6 @@ const PublicBrowseEvents = () => {
     setCategoryFilter(category);
   };
 
-<<<<<<< HEAD
   const filteredEvents = allEvents.filter((event) => {
     const matchesSearch =
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -162,8 +141,6 @@ const PublicBrowseEvents = () => {
     return matchesSearch && matchesCategory;
   });
 
-=======
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
   const handleRegister = () => {
     navigate("/login");
   };
@@ -279,7 +256,6 @@ const PublicBrowseEvents = () => {
 
       <section className="py-12" style={{ backgroundColor: "#F5F7FA" }}>
         <div className="container mx-auto px-4">
-<<<<<<< HEAD
           {/* Error State */}
           {error && (
             <div
@@ -299,9 +275,6 @@ const PublicBrowseEvents = () => {
             <>
               {/* Results Count */}
               <div className="flex items-center justify-between mb-6">
-=======
-          <div className="flex items-center justify-between mb-6">
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
             <p style={{ color: "#6B7C93" }}>
               {isLoading ? (
                 "Loading events..."

@@ -47,10 +47,7 @@ const getRecommendedEvents = () => {
     }));
 };
 
-<<<<<<< HEAD
 const getAllApprovedEvents = () => {
-  const now = new Date();
-
   return events
     .filter((event) => event.status === 'approved')
     .sort((left, right) => getEventStart(left) - getEventStart(right))
@@ -58,7 +55,8 @@ const getAllApprovedEvents = () => {
       ...formatEvent(event),
       categoryLabel: event.category,
     }));
-=======
+};
+
 const normalizeQueryValue = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
 
@@ -93,7 +91,6 @@ const getEvents = ({ category, search } = {}) => {
     })
     .sort((left, right) => getEventStart(left) - getEventStart(right))
     .map(formatEvent);
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
 };
 
 module.exports = {
