@@ -12,7 +12,9 @@
   "security": {
     "twoFactorAuth": false,
     "emailVerification": true,
-    "passwordComplexity": true
+    "passwordComplexity": true,
+    "sessionTimeout": 30,
+    "maxSessions": 3
   },
   "appearance": {
     "darkMode": false
