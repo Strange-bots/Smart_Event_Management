@@ -4,6 +4,7 @@ const {
   findUserByCredentials,
   findUserByEmail,
   sanitizeUser,
+  updateUserPassword,
   verifySessionToken,
   generateOTP,
   sendOTPEmail,
@@ -11,6 +12,7 @@ const {
   verifyOTP,
 } = require('../services/authService');
 const {
+  validateChangePasswordPayload,
   validateLoginPayload,
   validateSignupPayload,
 } = require('../validators/authValidator');
@@ -133,8 +135,45 @@ const signup = (req, res) => {
   });
 };
 
+const changePassword = (req, res) => {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const sessionUser = verifySessionToken(token);
+
+  if (!sessionUser) {
+    return res.status(401).json({ message: 'Invalid or expired session' });
+  }
+
+  const { currentPassword, newPassword, confirmPassword } = req.body ?? {};
+  const validationError = validateChangePasswordPayload({
+    currentPassword,
+    newPassword,
+    confirmPassword,
+  });
+
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
+  }
+
+  const matchedUser = findUserByCredentials(sessionUser.email, currentPassword);
+
+  if (!matchedUser) {
+    return res.status(401).json({ message: 'Current password is incorrect' });
+  }
+
+  updateUserPassword({
+    email: sessionUser.email,
+    newPassword,
+  });
+
+  return res.status(200).json({
+    message: 'Password updated successfully',
+    user: sanitizeUser(findUserByEmail(sessionUser.email)),
+  });
+};
+
 module.exports = {
   authorizeDashboard,
+  changePassword,
   login,
   signup,
 };

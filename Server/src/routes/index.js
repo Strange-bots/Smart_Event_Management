@@ -1,7 +1,7 @@
 const express = require('express');
 
 const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/indexController');
-const { authorizeDashboard, login, signup } = require('../controllers/authController');
+const { authorizeDashboard, changePassword, login, signup } = require('../controllers/authController');
 const { listEvents, getNextEvent, getRecommendations, uploadEventImage } = require('../controllers/eventController');
 const {
   downloadOrganizerRegistrations,
@@ -36,6 +36,7 @@ router.get('/organizer/email-logs', requireRole('organizer'), listOrganizerEmail
 router.get('/hero-image', getHeroImage);
 router.post('/newsletter/subscribe', subscribeToNewsletter);
 router.post('/auth/authorize-dashboard', authorizeDashboard);
+router.post('/auth/change-password', changePassword);
 router.post('/login', login);
 router.post('/signup', signup);
 router.use('/contact', contactRoutes);

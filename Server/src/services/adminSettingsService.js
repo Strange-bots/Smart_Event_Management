@@ -171,6 +171,7 @@ const saveAdminSettings = (adminEmail, nextSettings) => {
 };
 
 module.exports = {
+  readSettingsFromDisk,
   getAdminSettings,
   saveAdminSettings,
 };
