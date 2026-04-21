@@ -2,7 +2,7 @@ const { readSettingsFromDisk } = require('../services/adminSettingsService');
 const { sanitizeString } = require('../utils/sanitizeInput');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const STUDENT_EMAIL_REGEX = /^[^\s@]+@students\.koi\.edu\.au$/i;
+const STUDENT_EMAIL_REGEX = /^[^\s@]+@students\.edu\.au$/i;
 
 const validateLoginPayload = ({ email, password }) => {
   if (!email?.trim() || !password?.trim()) {
