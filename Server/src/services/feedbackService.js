@@ -100,6 +100,103 @@ const getOrganizerFeedbackDetails = (organizerEmail) => {
   };
 };
 
+const submitFeedback = ({
+  userEmail,
+  eventId,
+  rating,
+  comment,
+  isAnonymous,
+}) => {
+  const user = findUserByEmail(userEmail);
+
+  if (!user) {
+    return {
+      error: 'User account not found',
+      statusCode: 404,
+    };
+  }
+
+  if (user.role !== 'user') {
+    return {
+      error: 'Only attendees can submit feedback',
+      statusCode: 403,
+    };
+  }
+
+  const numericEventId = Number(eventId);
+  const numericRating = Number(rating);
+
+  if (!Number.isInteger(numericEventId)) {
+    return {
+      error: 'A valid event is required',
+      statusCode: 400,
+    };
+  }
+
+  if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
+    return {
+      error: 'Rating must be a whole number between 1 and 5',
+      statusCode: 400,
+    };
+  }
+
+  const event = events.find((item) => item.id === numericEventId);
+
+  if (!event) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  const normalizedEmail = user.email.toLowerCase();
+  const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+  const submittedAt = new Date().toISOString();
+
+  const existingFeedback = feedback.find(
+    (item) =>
+      Number(item.eventId) === numericEventId &&
+      item.userEmail?.toLowerCase() === normalizedEmail,
+  );
+
+  if (existingFeedback) {
+    existingFeedback.rating = numericRating;
+    existingFeedback.comment = trimmedComment;
+    existingFeedback.isAnonymous = Boolean(isAnonymous);
+    existingFeedback.userName = user.name;
+    existingFeedback.eventTitle = event.title;
+    existingFeedback.organizerEmail = event.organizerEmail;
+    existingFeedback.userEmail = user.email;
+    existingFeedback.dateSubmitted = submittedAt;
+
+    return {
+      statusCode: 200,
+      feedback: existingFeedback,
+    };
+  }
+
+  const newFeedback = {
+    id: `feedback-${Date.now()}`,
+    eventId: event.id,
+    eventTitle: event.title,
+    userEmail: user.email,
+    userName: user.name,
+    comment: trimmedComment,
+    rating: numericRating,
+    dateSubmitted: submittedAt,
+    isAnonymous: Boolean(isAnonymous),
+    organizerEmail: event.organizerEmail,
+  };
+
+  feedback.push(newFeedback);
+
+  return {
+    statusCode: 201,
+    feedback: newFeedback,
+  };
+};
+
 module.exports = {
   getOrganizerFeedbackDetails,
+  submitFeedback,
 };

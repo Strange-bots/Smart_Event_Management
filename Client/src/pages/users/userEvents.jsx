@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
+import { submitEventFeedback } from "../../services/feedbackService";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -24,19 +25,19 @@ const sampleEvents = [
     certificate: false,
   },
   {
-    id: 2,
+    id: 102,
     registrationId: 102,
-    title: "Business Analytics Workshop",
-    description: "Hands-on workshop covering data analysis, dashboards, and business intelligence tools for modern professionals.",
-    date: "February 10, 2024",
-    time: "10:00 AM - 2:00 PM",
-    location: "Room 301",
+    title: "Career Networking Evening",
+    description: "Meet mentors, alumni, and hiring partners across business and technology.",
+    date: "May 14, 2026",
+    time: "5:30 PM - 8:00 PM",
+    location: "Innovation Hub",
     status: "attended",
     image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&q=80",
-    tags: ["Analytics", "Data", "Business"],
-    capacity: 50,
-    registrations: 40,
-    price: 25,
+    tags: ["Career", "Networking", "Mentorship"],
+    capacity: 120,
+    registrations: 94,
+    price: 0,
     rating: 4,
     hasFeedback: true,
     certificate: true,
@@ -60,19 +61,19 @@ const sampleEvents = [
     certificate: false,
   },
   {
-    id: 4,
+    id: 104,
     registrationId: 104,
-    title: "Cloud Computing Fundamentals",
-    description: "A beginner-friendly course covering cloud platforms, deployment, and scalable architecture.",
-    date: "January 20, 2024",
-    time: "9:00 AM - 12:00 PM",
-    location: "IT Lab 2",
+    title: "Data Science Bootcamp",
+    description: "Hands-on labs covering data wrangling, visualization, and machine learning basics.",
+    date: "June 18, 2026",
+    time: "11:00 AM - 3:00 PM",
+    location: "Computer Lab A",
     status: "attended",
     image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",
-    tags: ["Cloud", "AWS", "DevOps"],
-    capacity: 40,
-    registrations: 30,
-    price: 15,
+    tags: ["Technology", "Data", "Workshop"],
+    capacity: 90,
+    registrations: 58,
+    price: 0,
     rating: null,
     hasFeedback: false,
     certificate: true,
@@ -102,6 +103,7 @@ const UserEvents = () => {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   const handleViewDetails = (event) => {
     setSelectedEvent(event);
@@ -136,24 +138,41 @@ const UserEvents = () => {
     setShowFeedbackModal(true);
   };
 
-  const handleSubmitFeedback = () => {
+  const handleSubmitFeedback = async () => {
     if (!feedbackEvent) return;
     if (feedbackRating === 0) {
       alert("Please select a rating");
       return;
     }
-    setUserEvents((prev) =>
-      prev.map((e) =>
-        e.id === feedbackEvent.id
-          ? { ...e, rating: feedbackRating, hasFeedback: true }
-          : e
-      )
-    );
-    alert("Thank you for your feedback!");
-    setShowFeedbackModal(false);
-    setFeedbackEvent(null);
-    setFeedbackRating(0);
-    setFeedbackComment("");
+
+    try {
+      setIsSubmittingFeedback(true);
+
+      await submitEventFeedback({
+        eventId: feedbackEvent.id,
+        rating: feedbackRating,
+        comment: feedbackComment,
+        isAnonymous,
+      });
+
+      setUserEvents((prev) =>
+        prev.map((e) =>
+          e.id === feedbackEvent.id
+            ? { ...e, rating: feedbackRating, hasFeedback: true }
+            : e
+        )
+      );
+      alert("Thank you for your feedback!");
+      setShowFeedbackModal(false);
+      setFeedbackEvent(null);
+      setFeedbackRating(0);
+      setFeedbackComment("");
+      setIsAnonymous(false);
+    } catch (error) {
+      alert(error.message || "Unable to submit feedback right now.");
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
   };
 
   const filteredUpcoming = userEvents.filter(
@@ -603,14 +622,16 @@ const UserEvents = () => {
               <button
                 className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                 onClick={() => setShowFeedbackModal(false)}
+                disabled={isSubmittingFeedback}
               >
                 Cancel
               </button>
               <button
-                className="bg-[#f36f21] text-white px-4 py-2 rounded-lg hover:bg-[#e05e10] transition-colors text-sm font-medium"
+                className="bg-[#f36f21] text-white px-4 py-2 rounded-lg hover:bg-[#e05e10] transition-colors text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70"
                 onClick={handleSubmitFeedback}
+                disabled={isSubmittingFeedback}
               >
-                Submit Feedback
+                {isSubmittingFeedback ? "Submitting..." : "Submit Feedback"}
               </button>
             </div>
           </div>

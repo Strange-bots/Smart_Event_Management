@@ -31,3 +31,38 @@ export async function fetchOrganizerFeedback() {
     },
   };
 }
+
+export async function submitEventFeedback({
+  eventId,
+  rating,
+  comment,
+  isAnonymous,
+}) {
+  const currentUser = getCurrentUser();
+
+  if (!currentUser?.token) {
+    throw new Error("Authentication is required");
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/api/feedback`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${currentUser.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      eventId,
+      rating,
+      comment,
+      isAnonymous,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to submit feedback");
+  }
+
+  return data?.feedback ?? null;
+}

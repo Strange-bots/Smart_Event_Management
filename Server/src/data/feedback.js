@@ -3,7 +3,7 @@ const feedback = [
     id: 'feedback-1',
     eventId: 102,
     eventTitle: 'Career Networking Evening',
-    userName: 'Sophia Chen',
+    userName: 'Sachin kun',
     comment:
       'Very practical and easy to follow. The speaker examples made career paths feel much clearer.',
     rating: 5,

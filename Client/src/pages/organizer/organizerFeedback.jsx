@@ -10,6 +10,7 @@ import {
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
 import { fetchOrganizerFeedback } from "../../services/feedbackService.js";
+import { getCurrentUser } from "../../utils/auth.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -32,8 +33,9 @@ function renderStars(rating) {
 }
 
 function OrganizerFeedback() {
-  const storedUser = window.localStorage.getItem("smart_event_user");
-  const currentUser = storedUser ? JSON.parse(storedUser) : null;
+  const currentUser = useMemo(() => getCurrentUser(), []);
+  const currentUserRole = currentUser?.role ?? null;
+  const currentUserToken = currentUser?.token ?? null;
   const [searchQuery, setSearchQuery] = useState("");
   const [eventFilter, setEventFilter] = useState("All Events");
   const [allFeedback, setAllFeedback] = useState([]);
@@ -49,7 +51,7 @@ function OrganizerFeedback() {
   useEffect(() => {
     let isMounted = true;
 
-    if (!currentUser || currentUser.role !== "organizer") {
+    if (currentUserRole !== "organizer" || !currentUserToken) {
       return undefined;
     }
 
@@ -92,7 +94,7 @@ function OrganizerFeedback() {
     return () => {
       isMounted = false;
     };
-  }, [currentUser]);
+  }, [currentUserRole, currentUserToken]);
 
   const events = useMemo(
     () => analytics.reviewsByEvent.map((event) => ({ title: event.eventTitle })),
@@ -116,7 +118,7 @@ function OrganizerFeedback() {
     [allFeedback, searchQuery, eventFilter],
   );
 
-  if (!currentUser || currentUser.role !== "organizer") {
+  if (currentUserRole !== "organizer") {
     return <Navigate to="/login" replace />;
   }
 
