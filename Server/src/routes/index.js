@@ -10,6 +10,7 @@ const { subscribeToNewsletter } = require('../controllers/newsletterController')
 const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
 const { requireRole } = require('../middleware/requireRole');
 const contactRoutes = require('./contactRoutes');
+const { getSettings, updateSettings } = require('../controllers/adminSettingsController');
 
 const router = express.Router();
 
@@ -21,6 +22,8 @@ router.get('/events/next', getNextEvent);
 router.get('/events/recommendations', getRecommendations);
 router.post('/admin/events/:eventId/image', requireRole('admin'), uploadEventImage);
 router.get('/admin/dashboard/overview', requireRole('admin'), getAdminOverviewStats);
+router.get('/admin/settings', requireRole('admin'), getSettings);
+router.put('/admin/settings', requireRole('admin'), updateSettings);
 router.get('/organizer/registrations', requireRole('organizer'), listOrganizerRegistrations);
 router.get('/organizer/notifications', requireRole('organizer'), listOrganizerNotifications);
 router.get('/organizer/email-logs', requireRole('organizer'), listOrganizerEmailLogs);

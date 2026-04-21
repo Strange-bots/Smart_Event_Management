@@ -1,0 +1,20 @@
+{
+  "events": {
+    "requireApproval": true,
+    "allowWaitlist": true
+  },
+  "notifications": {
+    "newRegistration": true,
+    "approvalRequests": true,
+    "eventReminders": true,
+    "feedbackRequests": true
+  },
+  "security": {
+    "twoFactorAuth": false,
+    "emailVerification": true,
+    "passwordComplexity": true
+  },
+  "appearance": {
+    "darkMode": false
+  }
+}
