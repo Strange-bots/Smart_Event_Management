@@ -1,6 +1,34 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 function HeroSection() {
+  const [stats, setStats] = useState({
+    eventsHosted: 5000,
+    participants: 12000,
+    institutions: 50
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/events/stats');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setStats(result.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        // Fallback to default values on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
   return (
     <section className="relative overflow-hidden bg-[#1f4e79] text-white">
       <div className="absolute inset-0 opacity-10">
@@ -38,15 +66,15 @@ function HeroSection() {
 
             <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/20 pt-8">
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">5,000+</p>
+                <p className="text-3xl font-bold md:text-4xl">{stats.eventsHosted.toLocaleString()}+</p>
                 <p className="text-sm text-white/60">Events Hosted</p>
               </div>
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">12,000+</p>
+                <p className="text-3xl font-bold md:text-4xl">{stats.participants.toLocaleString()}+</p>
                 <p className="text-sm text-white/60">Participants</p>
               </div>
               <div className="text-center lg:text-left">
-                <p className="text-3xl font-bold md:text-4xl">50+</p>
+                <p className="text-3xl font-bold md:text-4xl">{stats.institutions}+</p>
                 <p className="text-sm text-white/60">Institutions</p>
               </div>
             </div>
