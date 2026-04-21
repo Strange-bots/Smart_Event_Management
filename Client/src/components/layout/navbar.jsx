@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import CurrentAccountStatus from "./CurrentAccountStatus";
 
 function Navbar() {
   const navLinkClass =
@@ -52,18 +53,7 @@ function Navbar() {
           </li>
         </ul>
         <div className="hidden items-center gap-3 md:flex">
-          <Link
-            to="/login"
-className="rounded-lg border border-white/60 bg-white px-4 py-2 text-sm font-semibold text-white opacity-100 transition-opacity duration-300 hover:opacity-70 hover:text-[#1f4e79]"
-          >
-            Log In
-          </Link>
-          <Link
-            to="/signup"
-            className="rounded-lg bg-[#f36f21] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#ff8a3d]"
-          >
-            Sign Up
-          </Link>
+          <CurrentAccountStatus />
         </div>
       </div>
     </nav>
