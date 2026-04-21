@@ -7,6 +7,7 @@ const {
   downloadOrganizerRegistrations,
   listOrganizerRegistrations,
 } = require('../controllers/registrationController');
+const { listOrganizerFeedback } = require('../controllers/feedbackController');
 const { listOrganizerNotifications } = require('../controllers/notificationController');
 const { listOrganizerEmailLogs } = require('../controllers/emailLogController');
 const { subscribeToNewsletter } = require('../controllers/newsletterController');
@@ -28,6 +29,7 @@ router.get('/admin/dashboard/overview', requireRole('admin'), getAdminOverviewSt
 router.get('/organizer/registrations/export', requireRole('organizer'), downloadOrganizerRegistrations);
 router.get('/admin/settings', requireRole('admin'), getSettings);
 router.put('/admin/settings', requireRole('admin'), updateSettings);
+router.get('/organizer/feedback', requireRole('organizer'), listOrganizerFeedback);
 router.get('/organizer/registrations', requireRole('organizer'), listOrganizerRegistrations);
 router.get('/organizer/notifications', requireRole('organizer'), listOrganizerNotifications);
 router.get('/organizer/email-logs', requireRole('organizer'), listOrganizerEmailLogs);

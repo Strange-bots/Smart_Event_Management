@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   MessageSquare,
@@ -9,47 +9,7 @@ import {
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
-
-const EVENT_STORAGE_KEY = "smart_event_organizer_events";
-const FEEDBACK_STORAGE_KEY = "smart_event_organizer_feedback";
-
-const sampleEvents = [
-  { id: "event-sample-1", title: "AI Career Workshop", organizerEmail: "organizer@demo.com" },
-  { id: "event-sample-2", title: "Campus Networking Evening", organizerEmail: "organizer@demo.com" },
-];
-
-const sampleFeedback = [
-  {
-    id: "feedback-1",
-    eventTitle: "AI Career Workshop",
-    userName: "Sophia Chen",
-    comment: "Very practical and easy to follow. The examples made AI career paths feel much clearer.",
-    rating: 5,
-    dateSubmitted: "6 April 2026",
-    isAnonymous: false,
-    organizerEmail: "organizer@demo.com",
-  },
-  {
-    id: "feedback-2",
-    eventTitle: "Campus Networking Evening",
-    userName: "Anonymous",
-    comment: "Nice atmosphere and good mix of students and professionals. More time for Q&A would help.",
-    rating: 4,
-    dateSubmitted: "5 April 2026",
-    isAnonymous: true,
-    organizerEmail: "organizer@demo.com",
-  },
-  {
-    id: "feedback-3",
-    eventTitle: "AI Career Workshop",
-    userName: "Liam Patel",
-    comment: "Loved the workshop structure. Would be even better with a short resource list afterward.",
-    rating: 4,
-    dateSubmitted: "4 April 2026",
-    isAnonymous: false,
-    organizerEmail: "organizer@demo.com",
-  },
-];
+import { fetchOrganizerFeedback } from "../../services/feedbackService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -76,35 +36,68 @@ function OrganizerFeedback() {
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
   const [searchQuery, setSearchQuery] = useState("");
   const [eventFilter, setEventFilter] = useState("All Events");
+  const [allFeedback, setAllFeedback] = useState([]);
+  const [analytics, setAnalytics] = useState({
+    averageRating: 0,
+    totalReviews: 0,
+    positiveReviews: 0,
+    reviewsByEvent: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const events = useMemo(() => {
-    const storedEvents = JSON.parse(
-      window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]",
-    );
-    const combinedEvents = storedEvents.length > 0 ? storedEvents : sampleEvents;
+  useEffect(() => {
+    let isMounted = true;
 
-    return combinedEvents.filter(
-      (event) =>
-        !currentUser ||
-        event.organizerEmail === currentUser.email ||
-        event.organizerId === currentUser.id,
-    );
+    if (!currentUser || currentUser.role !== "organizer") {
+      return undefined;
+    }
+
+    const loadFeedback = async () => {
+      try {
+        setIsLoading(true);
+        const result = await fetchOrganizerFeedback();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setAllFeedback(result.feedback);
+        setAnalytics(result.analytics);
+        setErrorMessage("");
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setAllFeedback([]);
+        setAnalytics({
+          averageRating: 0,
+          totalReviews: 0,
+          positiveReviews: 0,
+          reviewsByEvent: [],
+        });
+        setErrorMessage(
+          error.message || "Unable to load feedback analytics right now."
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadFeedback();
+
+    return () => {
+      isMounted = false;
+    };
   }, [currentUser]);
 
-  const allFeedback = useMemo(() => {
-    const storedFeedback = JSON.parse(
-      window.localStorage.getItem(FEEDBACK_STORAGE_KEY) || "[]",
-    );
-    const combinedFeedback =
-      storedFeedback.length > 0 ? storedFeedback : sampleFeedback;
-
-    return combinedFeedback.filter(
-      (item) =>
-        !currentUser ||
-        item.organizerEmail === currentUser.email ||
-        item.organizerId === currentUser.id,
-    );
-  }, [currentUser]);
+  const events = useMemo(
+    () => analytics.reviewsByEvent.map((event) => ({ title: event.eventTitle })),
+    [analytics.reviewsByEvent]
+  );
 
   const eventOptions = useMemo(
     () => ["All Events", ...events.map((event) => event.title)],
@@ -127,15 +120,6 @@ function OrganizerFeedback() {
     return <Navigate to="/login" replace />;
   }
 
-  const averageRating = allFeedback.length
-    ? (
-        allFeedback.reduce((sum, item) => sum + Number(item.rating || 0), 0) /
-        allFeedback.length
-      ).toFixed(1)
-    : "0.0";
-
-  const positiveReviews = allFeedback.filter((item) => item.rating >= 4).length;
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -146,6 +130,12 @@ function OrganizerFeedback() {
           </p>
         </div>
 
+        {errorMessage ? (
+          <section className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {errorMessage}
+          </section>
+        ) : null}
+
         <div className="grid gap-4 sm:grid-cols-3">
           <section className="rounded-3xl bg-white p-5 shadow-sm">
             <div className="flex items-center gap-4">
@@ -153,7 +143,9 @@ function OrganizerFeedback() {
                 <Star size={24} className="text-yellow-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">{averageRating}</p>
+                <p className="text-2xl font-bold text-[#0f1e33]">
+                  {Number(analytics.averageRating || 0).toFixed(1)}
+                </p>
                 <p className="text-sm text-[#6b7c93]">Average Rating</p>
               </div>
             </div>
@@ -165,7 +157,9 @@ function OrganizerFeedback() {
                 <MessageSquare size={24} className="text-[#1f4e79]" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">{allFeedback.length}</p>
+                <p className="text-2xl font-bold text-[#0f1e33]">
+                  {analytics.totalReviews}
+                </p>
                 <p className="text-sm text-[#6b7c93]">Total Reviews</p>
               </div>
             </div>
@@ -177,7 +171,9 @@ function OrganizerFeedback() {
                 <TrendingUp size={24} className="text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">{positiveReviews}</p>
+                <p className="text-2xl font-bold text-[#0f1e33]">
+                  {analytics.positiveReviews}
+                </p>
                 <p className="text-sm text-[#6b7c93]">Positive Reviews</p>
               </div>
             </div>
@@ -212,7 +208,17 @@ function OrganizerFeedback() {
           </div>
         </section>
 
-        {filteredFeedback.length > 0 ? (
+        {isLoading ? (
+          <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
+            <MessageSquare size={48} className="mx-auto text-[#9aa9bc]" />
+            <h3 className="mt-4 text-xl font-semibold text-[#0f1e33]">
+              Loading feedback...
+            </h3>
+            <p className="mt-2 text-[#6b7c93]">
+              Fetching attendee reviews and analytics from the backend.
+            </p>
+          </section>
+        ) : filteredFeedback.length > 0 ? (
           <div className="space-y-4">
             {filteredFeedback.map((item) => (
               <section key={item.id} className="rounded-3xl bg-white p-5 shadow-sm">
