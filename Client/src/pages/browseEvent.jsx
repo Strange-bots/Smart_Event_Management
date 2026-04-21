@@ -481,6 +481,8 @@ const PublicBrowseEvents = () => {
                   </div>
                 </div>
               )}
+            </>
+          )}
         </div>
       </section>
 
