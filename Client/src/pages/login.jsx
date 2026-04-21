@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import Navbar from "../components/layout/navbar";
+import AuthPanelDivider from "../components/auth/AuthPanelDivider.jsx";
+import AuthSectionDivider from "../components/auth/AuthSectionDivider.jsx";
+import koiLogo from "../assets/koi-logo.jpg";
 import {
   getCurrentUser,
   getDashboardPath,
@@ -9,6 +12,9 @@ import {
 } from "../utils/auth";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
+const authPanelBackground = {
+  background: "linear-gradient(160deg, #2155C4 0%, #0E2A66 100%)",
+};
 
 const Login = () => {
   const navigate = useNavigate();
@@ -70,7 +76,7 @@ const Login = () => {
         setIsLoading(false);
         navigate(getDashboardPath(data.user.role), { replace: true });
       }, 600);
-    } catch (err) {
+    } catch {
       setIsLoading(false);
       setError("Unable to connect to the server");
     }
@@ -83,27 +89,34 @@ const Login = () => {
   return (
     <>
     <Navbar/>
-    <div className="min-h-screen bg-secondary flex">
-      <div className="hidden lg:flex lg:w-1/2 gradient-primary relative overflow-hidden">
+    <div className="min-h-screen bg-secondary flex relative">
+      <div
+        className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
+        style={authPanelBackground}
+      >
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-10 w-72 h-72 bg-brand-orange rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-ai rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 flex flex-col justify-center p-12">
           <Link to="/" className="flex items-center gap-3 mb-8">
-            <div className="h-14 w-14 rounded bg-card text-primary flex items-center justify-center font-semibold">
-              KOI
-            </div>
+            <img
+              src={koiLogo}
+              alt="KOI Logo"
+              className="h-14 rounded bg-card p-1 shadow-sm"
+            />
           </Link>
-          <h1 className="text-4xl font-heading font-bold text-primary-foreground mb-4">
+          <h1 className="text-4xl font-heading font-bold text-white mb-4">
             Welcome Back!
           </h1>
-          <p className="text-primary-foreground/80 text-lg max-w-md">
+          <p className="text-white/85 text-lg max-w-md">
             Sign in to manage your events, track registrations, and access
             AI-powered insights for your educational activities.
           </p>
         </div>
       </div>
+
+      <AuthPanelDivider />
 
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
@@ -197,7 +210,9 @@ const Login = () => {
                 </button>
               </form>
 
-              <div className="mt-6 text-center">
+              <AuthSectionDivider label="New here?" />
+
+              <div className="text-center">
                 <p className="text-muted-foreground text-sm">
                   Don&apos;t have an account?{" "}
                   <Link
@@ -209,7 +224,9 @@ const Login = () => {
                 </p>
               </div>
 
-              <div className="mt-6 p-4 bg-secondary rounded-lg space-y-3">
+              <AuthSectionDivider label="Quick access" />
+
+              <div className="p-4 bg-secondary rounded-lg space-y-3">
                 <p className="text-xs font-medium text-foreground text-center">
                   Demo Accounts (Click to fill):
                 </p>

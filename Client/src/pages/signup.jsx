@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/navbar";
+import AuthPanelDivider from "../components/auth/AuthPanelDivider.jsx";
+import AuthSectionDivider from "../components/auth/AuthSectionDivider.jsx";
+import koiLogo from "../assets/koi-logo.jpg";
 import {
   getCurrentUser,
   getDashboardPath,
@@ -8,6 +11,9 @@ import {
 } from "../utils/auth";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
+const authPanelBackground = {
+  background: "linear-gradient(160deg, #2155C4 0%, #0E2A66 100%)",
+};
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -78,7 +84,7 @@ const Signup = () => {
         setIsLoading(false);
         navigate("/user/dashboard", { replace: true });
       }, 600);
-    } catch (err) {
+    } catch {
       setIsLoading(false);
       setError("Unable to connect to the server");
     }
@@ -87,27 +93,32 @@ const Signup = () => {
   return (
     <>
     <Navbar/>
-    <div className="min-h-screen bg-secondary flex">
-      <div className="hidden lg:flex lg:w-1/2 gradient-primary relative overflow-hidden">
+    <div className="min-h-screen bg-secondary flex relative">
+      <div
+        className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
+        style={authPanelBackground}
+      >
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-10 w-72 h-72 bg-brand-orange rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-ai rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 flex flex-col justify-center p-12">
           <Link to="/" className="flex items-center gap-3 mb-8">
-            <div className="h-14 w-14 rounded bg-card text-primary flex items-center justify-center font-semibold">
-              KOI
-            </div>
+            <img
+              src={koiLogo}
+              alt="KOI Logo"
+              className="h-14 rounded bg-card p-1 shadow-sm"
+            />
           </Link>
-          <h1 className="text-4xl font-heading font-bold text-primary-foreground mb-4">
+          <h1 className="text-4xl font-heading font-bold text-white mb-4">
             Join Our Community
           </h1>
-          <p className="text-primary-foreground/80 text-lg max-w-md">
+          <p className="text-white/85 text-lg max-w-md">
             Create your account to browse and register for events, receive
             notifications, and connect with the community.
           </p>
           <ul className="mt-8 space-y-3">
-            <li className="flex items-center gap-3 text-primary-foreground/80">
+            <li className="flex items-center gap-3 text-white/85">
               <span className="text-brand-orange">
                 <svg
                   viewBox="0 0 24 24"
@@ -123,7 +134,7 @@ const Signup = () => {
               </span>
               Browse and register for events
             </li>
-            <li className="flex items-center gap-3 text-primary-foreground/80">
+            <li className="flex items-center gap-3 text-white/85">
               <span className="text-brand-orange">
                 <svg
                   viewBox="0 0 24 24"
@@ -139,7 +150,7 @@ const Signup = () => {
               </span>
               Receive event notifications
             </li>
-            <li className="flex items-center gap-3 text-primary-foreground/80">
+            <li className="flex items-center gap-3 text-white/85">
               <span className="text-brand-orange">
                 <svg
                   viewBox="0 0 24 24"
@@ -158,6 +169,8 @@ const Signup = () => {
           </ul>
         </div>
       </div>
+
+      <AuthPanelDivider />
 
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
@@ -361,7 +374,9 @@ const Signup = () => {
                 </button>
               </form>
 
-              <div className="mt-6 text-center">
+              <AuthSectionDivider label="Already registered?" />
+
+              <div className="text-center">
                 <p className="text-muted-foreground text-sm">
                   Already have an account?{" "}
                   <Link
@@ -373,7 +388,9 @@ const Signup = () => {
                 </p>
               </div>
 
-              <div className="mt-4 p-3 bg-secondary rounded-lg">
+              <AuthSectionDivider label="Account type" />
+
+              <div className="p-3 bg-secondary rounded-lg">
                 <p className="text-xs text-muted-foreground text-center">
                   By creating an account, you'll be registered as a{" "}
                   <span className="font-medium text-foreground">User</span> who
