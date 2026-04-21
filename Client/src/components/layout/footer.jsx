@@ -204,9 +204,14 @@ function Footer() {
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f36f21]/20 text-[#f36f21]">
                   📍
                 </div>
-                <span className="leading-relaxed text-white/70">
-                  Level 1, 545 Kent Street, Sydney NSW 2000
-                </span>
+                <a
+                  href="https://www.google.com/maps/place/King's+Own+Institute/@-33.865306,151.2054985,17z/data=!3m1!4b1!4m6!3m5!1s0x6b12ae3c8e58292f:0xc45a57353eb1a64e!8m2!3d-33.865306!4d151.2054985!16s%2Fg%2F1pwfv0yw9?entry=ttu&g_ep=EgoyMDI2MDQxNS4wIKXMDSoASAFQAw%3D%3D"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="leading-relaxed text-white/70 no-underline hover:underline hover:text-white transition-colors"
+                >
+                  Wynyard Green, Level 7-11/11 York St, Sydney NSW 2000
+                </a>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f36f21]/20 text-[#f36f21]">
