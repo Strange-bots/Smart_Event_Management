@@ -1,8 +1,16 @@
 const {
+  getEvents,
   getNextUpcomingEvent,
   getRecommendedEvents,
   getAllApprovedEvents,
 } = require('../services/eventService');
+
+const listEvents = (req, res) => {
+  const { category, search } = req.query ?? {};
+  const events = getEvents({ category, search });
+
+  return res.json({ events });
+};
 
 const getNextEvent = (req, res) => {
   const event = getNextUpcomingEvent();
@@ -38,6 +46,7 @@ const getAllEvents = (req, res) => {
 };
 
 module.exports = {
+  listEvents,
   getNextEvent,
   getRecommendations,
   getAllEvents,

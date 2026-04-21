@@ -31,6 +31,8 @@ import HelpCenter from "./pages/helpCenter.jsx";
 import FAQs from "./pages/faqs.jsx";
 import ReportIssue from "./pages/reportIssue.jsx";
 import Feedback from "./pages/feedback.jsx";
+import TermsOfService from "./components/layout/legal/terms";
+import PrivacyPolicy from "./components/layout/legal/privacy";
 
 function ScrollToHash() {
   const location = useLocation();
@@ -84,6 +86,8 @@ function App() {
           <Route path="/faqs" element={<FAQs />} />
           <Route path="/report" element={<ReportIssue />} />
           <Route path="/feedback" element={<Feedback />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 

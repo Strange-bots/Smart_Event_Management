@@ -47,6 +47,7 @@ const getRecommendedEvents = () => {
     }));
 };
 
+<<<<<<< HEAD
 const getAllApprovedEvents = () => {
   const now = new Date();
 
@@ -57,9 +58,46 @@ const getAllApprovedEvents = () => {
       ...formatEvent(event),
       categoryLabel: event.category,
     }));
+=======
+const normalizeQueryValue = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const getEvents = ({ category, search } = {}) => {
+  const normalizedCategory = normalizeQueryValue(category);
+  const normalizedSearch = normalizeQueryValue(search);
+
+  return events
+    .filter((event) => event.status === 'approved')
+    .filter((event) => {
+      if (!normalizedCategory) {
+        return true;
+      }
+
+      return event.category.toLowerCase() === normalizedCategory;
+    })
+    .filter((event) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const searchableFields = [
+        event.title,
+        event.description,
+        event.category,
+        event.location,
+      ];
+
+      return searchableFields.some((field) =>
+        field?.toLowerCase().includes(normalizedSearch)
+      );
+    })
+    .sort((left, right) => getEventStart(left) - getEventStart(right))
+    .map(formatEvent);
+>>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
 };
 
 module.exports = {
+  getEvents,
   getNextUpcomingEvent,
   getRecommendedEvents,
   getAllApprovedEvents,
