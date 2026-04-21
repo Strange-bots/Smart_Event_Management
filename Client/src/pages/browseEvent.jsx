@@ -1,37 +1,100 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/navbar";
 import Footer from "../components/layout/footer";
 import FeaturedEventsSection from "../components/common/utility/featuresEvents";
+import { fetchEvents } from "../services/eventService.js";
 
 const categoryFilters = [
-  { id: "all", label: "All Events" },
-  { id: "academic", label: "Academic" },
-  { id: "sports", label: "Sports" },
-  { id: "cultural", label: "Cultural" },
-  { id: "tech", label: "Technology" },
-  { id: "career", label: "Career" },
+  { id: "all", label: "All Events", queryValue: "" },
+  { id: "academic", label: "Academic", queryValue: "Academic" },
+  { id: "sports", label: "Sports", queryValue: "Sports" },
+  { id: "cultural", label: "Cultural", queryValue: "Cultural" },
+  { id: "tech", label: "Technology", queryValue: "Technology" },
+  { id: "career", label: "Career", queryValue: "Career" },
+  { id: "workshop", label: "Workshop", queryValue: "Workshop" },
+  { id: "networking", label: "Networking", queryValue: "Networking" },
 ];
+
+const formatEventDate = (dateString) => {
+  if (!dateString) {
+    return "Date to be announced";
+  }
+
+  const parsedDate = new Date(dateString);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(parsedDate);
+};
 
 const PublicBrowseEvents = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
-  const [allEvents] = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const activeCategory = categoryFilters.find(
+      (category) => category.id === categoryFilter
+    )?.queryValue;
+
+    setIsLoading(true);
+
+    const timerId = window.setTimeout(async () => {
+      try {
+        const events = await fetchEvents({
+          category: activeCategory,
+          search: searchQuery,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setAllEvents(
+          events.map((event) => ({
+            ...event,
+            date: formatEventDate(event.date),
+            categoryLabel: event.category,
+          }))
+        );
+        setErrorMessage("");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setAllEvents([]);
+        setErrorMessage("Unable to load events right now. Please try again.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timerId);
+    };
+  }, [categoryFilter, searchQuery]);
 
   const handleCategoryChange = (category) => {
     setCategoryFilter(category);
   };
-
-  const filteredEvents = allEvents.filter((event) => {
-    const matchesSearch =
-      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || event.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
 
   const handleRegister = () => {
     navigate("/login");
@@ -41,18 +104,23 @@ const PublicBrowseEvents = () => {
     <div className="min-h-screen" style={{ backgroundColor: "#F5F7FA" }}>
       <Navbar />
 
-      {/* Hero Section */}
       <section className="pt-24 pb-12" style={{ backgroundColor: "#1F4E79" }}>
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4" style={{ color: "#FFFFFF" }}>
+            <h1
+              className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4"
+              style={{ color: "#FFFFFF" }}
+            >
               Discover Amazing Events
             </h1>
-            <p className="text-lg mb-8" style={{ color: "rgba(255,255,255,0.80)" }}>
-              Explore upcoming events at King's Own Institute. Find workshops, seminars, sports, and cultural events that match your interests.
+            <p
+              className="text-lg mb-8"
+              style={{ color: "rgba(255,255,255,0.80)" }}
+            >
+              Explore upcoming events at King's Own Institute. Find workshops,
+              seminars, sports, and cultural events that match your interests.
             </p>
 
-            {/* Search Bar */}
             <div className="relative max-w-xl mx-auto">
               <input
                 type="text"
@@ -67,8 +135,10 @@ const PublicBrowseEvents = () => {
         </div>
       </section>
 
-      {/* Category Filters */}
-      <section className="border-b sticky top-0 z-40" style={{ backgroundColor: "#FFFFFF" }}>
+      <section
+        className="border-b sticky top-0 z-40"
+        style={{ backgroundColor: "#FFFFFF" }}
+      >
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 py-4 overflow-x-auto">
             {categoryFilters.map((cat) => (
@@ -78,14 +148,26 @@ const PublicBrowseEvents = () => {
                 className="shrink-0 inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium border transition-colors"
                 style={
                   categoryFilter === cat.id
-                    ? { backgroundColor: "#F36F21", color: "#FFFFFF", borderColor: "#F36F21" }
-                    : { backgroundColor: "transparent", color: "#0F1E33", borderColor: "#6B7C93" }
+                    ? {
+                        backgroundColor: "#F36F21",
+                        color: "#FFFFFF",
+                        borderColor: "#F36F21",
+                      }
+                    : {
+                        backgroundColor: "transparent",
+                        color: "#0F1E33",
+                        borderColor: "#6B7C93",
+                      }
                 }
                 onMouseEnter={(e) => {
-                  if (categoryFilter !== cat.id) e.currentTarget.style.backgroundColor = "#F5F7FA";
+                  if (categoryFilter !== cat.id) {
+                    e.currentTarget.style.backgroundColor = "#F5F7FA";
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  if (categoryFilter !== cat.id) e.currentTarget.style.backgroundColor = "transparent";
+                  if (categoryFilter !== cat.id) {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }
                 }}
               >
                 {cat.label}
@@ -93,7 +175,10 @@ const PublicBrowseEvents = () => {
             ))}
 
             <div className="ml-auto flex items-center gap-2 shrink-0">
-              <div className="flex border rounded-lg overflow-hidden" style={{ borderColor: "#6B7C93" }}>
+              <div
+                className="flex border rounded-lg overflow-hidden"
+                style={{ borderColor: "#6B7C93" }}
+              >
                 <button
                   onClick={() => setViewMode("grid")}
                   className="h-8 w-8 inline-flex items-center justify-center text-sm font-medium transition-colors"
@@ -103,7 +188,7 @@ const PublicBrowseEvents = () => {
                       : { backgroundColor: "#FFFFFF", color: "#0F1E33" }
                   }
                 >
-                  ⊞
+                  âŠž
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
@@ -114,7 +199,7 @@ const PublicBrowseEvents = () => {
                       : { backgroundColor: "#FFFFFF", color: "#0F1E33" }
                   }
                 >
-                  ☰
+                  â˜°
                 </button>
               </div>
             </div>
@@ -124,17 +209,21 @@ const PublicBrowseEvents = () => {
 
       <FeaturedEventsSection />
 
-      {/* Events Section */}
       <section className="py-12" style={{ backgroundColor: "#F5F7FA" }}>
         <div className="container mx-auto px-4">
-          {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
             <p style={{ color: "#6B7C93" }}>
-              Showing{" "}
-              <span className="font-semibold" style={{ color: "#0F1E33" }}>
-                {filteredEvents.length}
-              </span>{" "}
-              events
+              {isLoading ? (
+                "Loading events..."
+              ) : (
+                <>
+                  Showing{" "}
+                  <span className="font-semibold" style={{ color: "#0F1E33" }}>
+                    {allEvents.length}
+                  </span>{" "}
+                  events
+                </>
+              )}
               {categoryFilter !== "all" && (
                 <span>
                   {" "}in{" "}
@@ -146,10 +235,39 @@ const PublicBrowseEvents = () => {
             </p>
           </div>
 
-          {/* Events Grid/List */}
-          {viewMode === "grid" ? (
+          {!isLoading && errorMessage ? (
+            <div
+              className="mb-6 rounded-lg border px-4 py-3 text-sm"
+              style={{
+                backgroundColor: "#FFF7ED",
+                borderColor: "#F36F21",
+                color: "#9A3412",
+              }}
+            >
+              {errorMessage}
+            </div>
+          ) : null}
+
+          {isLoading ? (
+            <div
+              className="shadow-sm rounded-lg"
+              style={{ backgroundColor: "#FFFFFF" }}
+            >
+              <div className="p-12 text-center">
+                <h3
+                  className="font-semibold text-xl mb-2"
+                  style={{ color: "#0F1E33" }}
+                >
+                  Loading events...
+                </h3>
+                <p style={{ color: "#6B7C93" }}>
+                  Fetching the latest results from the server.
+                </p>
+              </div>
+            </div>
+          ) : viewMode === "grid" ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEvents.map((event) => (
+              {allEvents.map((event) => (
                 <div
                   key={event.id}
                   className="shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 group h-full flex flex-col rounded-lg"
@@ -164,7 +282,11 @@ const PublicBrowseEvents = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                     <span
                       className="absolute top-3 left-3 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
-                      style={{ backgroundColor: "rgba(255,255,255,0.90)", color: "#0F1E33", borderColor: "#6B7C93" }}
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.90)",
+                        color: "#0F1E33",
+                        borderColor: "#6B7C93",
+                      }}
                     >
                       {event.categoryLabel}
                     </span>
@@ -176,37 +298,56 @@ const PublicBrowseEvents = () => {
                     >
                       {event.title}
                     </h3>
-                    <p className="text-sm mb-4 line-clamp-2" style={{ color: "#6B7C93" }}>
+                    <p
+                      className="text-sm mb-4 line-clamp-2"
+                      style={{ color: "#6B7C93" }}
+                    >
                       {event.description}
                     </p>
-                    <div className="space-y-2 text-sm mb-4" style={{ color: "#6B7C93" }}>
+                    <div
+                      className="space-y-2 text-sm mb-4"
+                      style={{ color: "#6B7C93" }}
+                    >
                       <div className="flex items-center gap-2">
-                        <span style={{ color: "#F36F21" }}>📅</span>
+                        <span style={{ color: "#F36F21" }}>ðŸ“…</span>
                         <span>{event.date}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span style={{ color: "#F36F21" }}>🕐</span>
+                        <span style={{ color: "#F36F21" }}>ðŸ•</span>
                         <span>{event.time}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span style={{ color: "#F36F21" }}>📍</span>
+                        <span style={{ color: "#F36F21" }}>ðŸ“</span>
                         <span>{event.location}</span>
                       </div>
                     </div>
                     <div className="mt-auto">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-1.5 text-sm" style={{ color: "#6B7C93" }}>
-                          <span>👥</span>
-                          <span className="font-medium" style={{ color: "#0F1E33" }}>{event.registrations}</span>
+                        <div
+                          className="flex items-center gap-1.5 text-sm"
+                          style={{ color: "#6B7C93" }}
+                        >
+                          <span>ðŸ‘¥</span>
+                          <span
+                            className="font-medium"
+                            style={{ color: "#0F1E33" }}
+                          >
+                            {event.registrations}
+                          </span>
                           <span>/ {event.capacity}</span>
                         </div>
-                        <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#F5F7FA" }}>
+                        <div
+                          className="w-20 h-1.5 rounded-full overflow-hidden"
+                          style={{ backgroundColor: "#F5F7FA" }}
+                        >
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
                               width: `${(event.registrations / event.capacity) * 100}%`,
                               backgroundColor:
-                                event.registrations / event.capacity > 0.9 ? "#ef4444" : "#F36F21",
+                                event.registrations / event.capacity > 0.9
+                                  ? "#ef4444"
+                                  : "#F36F21",
                             }}
                           />
                         </div>
@@ -214,9 +355,17 @@ const PublicBrowseEvents = () => {
                       <div className="flex gap-2">
                         <button
                           className="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-md border text-sm font-medium transition-colors"
-                          style={{ borderColor: "#1F4E79", color: "#1F4E79", backgroundColor: "transparent" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F7FA")}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                          style={{
+                            borderColor: "#1F4E79",
+                            color: "#1F4E79",
+                            backgroundColor: "transparent",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.backgroundColor = "#F5F7FA")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.backgroundColor = "transparent")
+                          }
                           onClick={() => setSelectedEvent(event)}
                         >
                           View Details
@@ -224,8 +373,12 @@ const PublicBrowseEvents = () => {
                         <button
                           className="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors"
                           style={{ backgroundColor: "#F36F21", color: "#FFFFFF" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FF8A3D")}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#F36F21")}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.backgroundColor = "#FF8A3D")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.backgroundColor = "#F36F21")
+                          }
                           onClick={handleRegister}
                         >
                           Register
@@ -238,7 +391,7 @@ const PublicBrowseEvents = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredEvents.map((event) => (
+              {allEvents.map((event) => (
                 <div
                   key={event.id}
                   className="shadow-sm overflow-hidden hover:shadow-md transition-shadow rounded-lg"
@@ -253,7 +406,11 @@ const PublicBrowseEvents = () => {
                       />
                       <span
                         className="absolute top-3 left-3 md:hidden inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
-                        style={{ backgroundColor: "rgba(255,255,255,0.90)", color: "#0F1E33", borderColor: "#6B7C93" }}
+                        style={{
+                          backgroundColor: "rgba(255,255,255,0.90)",
+                          color: "#0F1E33",
+                          borderColor: "#6B7C93",
+                        }}
                       >
                         {event.categoryLabel}
                       </span>
@@ -263,43 +420,69 @@ const PublicBrowseEvents = () => {
                         <div className="flex-1">
                           <span
                             className="mb-2 hidden md:inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
-                            style={{ backgroundColor: "#F5F7FA", color: "#0F1E33", borderColor: "#6B7C93" }}
+                            style={{
+                              backgroundColor: "#F5F7FA",
+                              color: "#0F1E33",
+                              borderColor: "#6B7C93",
+                            }}
                           >
                             {event.categoryLabel}
                           </span>
-                          <h3 className="font-semibold text-xl mb-2" style={{ color: "#0F1E33" }}>
+                          <h3
+                            className="font-semibold text-xl mb-2"
+                            style={{ color: "#0F1E33" }}
+                          >
                             {event.title}
                           </h3>
-                          <p className="text-sm mb-4 line-clamp-2" style={{ color: "#6B7C93" }}>
+                          <p
+                            className="text-sm mb-4 line-clamp-2"
+                            style={{ color: "#6B7C93" }}
+                          >
                             {event.description}
                           </p>
-                          <div className="flex flex-wrap gap-4 text-sm mb-4" style={{ color: "#6B7C93" }}>
+                          <div
+                            className="flex flex-wrap gap-4 text-sm mb-4"
+                            style={{ color: "#6B7C93" }}
+                          >
                             <div className="flex items-center gap-2">
-                              <span style={{ color: "#F36F21" }}>📅</span>
+                              <span style={{ color: "#F36F21" }}>ðŸ“…</span>
                               <span>{event.date}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span style={{ color: "#F36F21" }}>🕐</span>
+                              <span style={{ color: "#F36F21" }}>ðŸ•</span>
                               <span>{event.time}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span style={{ color: "#F36F21" }}>📍</span>
+                              <span style={{ color: "#F36F21" }}>ðŸ“</span>
                               <span>{event.location}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span style={{ color: "#6B7C93" }}>👥</span>
+                            <span style={{ color: "#6B7C93" }}>ðŸ‘¥</span>
                             <span className="text-sm">
-                              <span className="font-medium" style={{ color: "#0F1E33" }}>{event.registrations}</span>
-                              <span style={{ color: "#6B7C93" }}> / {event.capacity} registered</span>
+                              <span
+                                className="font-medium"
+                                style={{ color: "#0F1E33" }}
+                              >
+                                {event.registrations}
+                              </span>
+                              <span style={{ color: "#6B7C93" }}>
+                                {" "}
+                                / {event.capacity} registered
+                              </span>
                             </span>
-                            <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#F5F7FA" }}>
+                            <div
+                              className="w-24 h-1.5 rounded-full overflow-hidden"
+                              style={{ backgroundColor: "#F5F7FA" }}
+                            >
                               <div
                                 className="h-full rounded-full"
                                 style={{
                                   width: `${(event.registrations / event.capacity) * 100}%`,
                                   backgroundColor:
-                                    event.registrations / event.capacity > 0.9 ? "#ef4444" : "#F36F21",
+                                    event.registrations / event.capacity > 0.9
+                                      ? "#ef4444"
+                                      : "#F36F21",
                                 }}
                               />
                             </div>
@@ -308,9 +491,17 @@ const PublicBrowseEvents = () => {
                         <div className="flex gap-2 shrink-0">
                           <button
                             className="inline-flex items-center justify-center px-4 py-2 rounded-md border text-sm font-medium transition-colors"
-                            style={{ borderColor: "#1F4E79", color: "#1F4E79", backgroundColor: "transparent" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F7FA")}
-                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            style={{
+                              borderColor: "#1F4E79",
+                              color: "#1F4E79",
+                              backgroundColor: "transparent",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.backgroundColor = "#F5F7FA")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.backgroundColor = "transparent")
+                            }
                             onClick={() => setSelectedEvent(event)}
                           >
                             View Details
@@ -318,8 +509,12 @@ const PublicBrowseEvents = () => {
                           <button
                             className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors"
                             style={{ backgroundColor: "#F36F21", color: "#FFFFFF" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FF8A3D")}
-                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#F36F21")}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.backgroundColor = "#FF8A3D")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.backgroundColor = "#F36F21")
+                            }
                             onClick={handleRegister}
                           >
                             Register
@@ -333,18 +528,44 @@ const PublicBrowseEvents = () => {
             </div>
           )}
 
-          {filteredEvents.length === 0 && (
-            <div className="shadow-sm rounded-lg" style={{ backgroundColor: "#FFFFFF" }}>
+          {!isLoading && allEvents.length === 0 && (
+            <div
+              className="shadow-sm rounded-lg"
+              style={{ backgroundColor: "#FFFFFF" }}
+            >
               <div className="p-12 text-center">
-                <span className="block text-5xl mx-auto mb-4" style={{ color: "#6B7C93" }}>📅</span>
-                <h3 className="font-semibold text-xl mb-2" style={{ color: "#0F1E33" }}>No events found</h3>
-                <p className="mb-4" style={{ color: "#6B7C93" }}>Try adjusting your search or filter criteria</p>
+                <span
+                  className="block text-5xl mx-auto mb-4"
+                  style={{ color: "#6B7C93" }}
+                >
+                  ðŸ“…
+                </span>
+                <h3
+                  className="font-semibold text-xl mb-2"
+                  style={{ color: "#0F1E33" }}
+                >
+                  No events found
+                </h3>
+                <p className="mb-4" style={{ color: "#6B7C93" }}>
+                  Try adjusting your search or filter criteria
+                </p>
                 <button
                   className="inline-flex items-center justify-center px-4 py-2 rounded-md border text-sm font-medium transition-colors"
-                  style={{ borderColor: "#1F4E79", color: "#1F4E79", backgroundColor: "transparent" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F7FA")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                  onClick={() => { setSearchQuery(""); handleCategoryChange("all"); }}
+                  style={{
+                    borderColor: "#1F4E79",
+                    color: "#1F4E79",
+                    backgroundColor: "transparent",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#F5F7FA")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "transparent")
+                  }
+                  onClick={() => {
+                    setSearchQuery("");
+                    handleCategoryChange("all");
+                  }}
                 >
                   Clear Filters
                 </button>
@@ -354,30 +575,45 @@ const PublicBrowseEvents = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-16" style={{ backgroundColor: "#FFFFFF" }}>
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4" style={{ color: "#0F1E33" }}>
+          <h2
+            className="text-2xl md:text-3xl font-bold mb-4"
+            style={{ color: "#0F1E33" }}
+          >
             Ready to Join?
           </h2>
           <p className="max-w-xl mx-auto mb-6" style={{ color: "#6B7C93" }}>
-            Create an account to register for events, get personalized AI recommendations, and never miss an opportunity.
+            Create an account to register for events, get personalized AI
+            recommendations, and never miss an opportunity.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <button
               className="inline-flex items-center justify-center px-6 py-3 rounded-md text-sm font-medium transition-colors"
               style={{ backgroundColor: "#F36F21", color: "#FFFFFF" }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FF8A3D")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#F36F21")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#FF8A3D")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "#F36F21")
+              }
               onClick={() => navigate("/signup")}
             >
               Create Account
             </button>
             <button
               className="inline-flex items-center justify-center px-6 py-3 rounded-md border text-sm font-medium transition-colors"
-              style={{ borderColor: "#1F4E79", color: "#1F4E79", backgroundColor: "transparent" }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F7FA")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+              style={{
+                borderColor: "#1F4E79",
+                color: "#1F4E79",
+                backgroundColor: "transparent",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#F5F7FA")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
               onClick={() => navigate("/login")}
             >
               Sign In
@@ -388,7 +624,6 @@ const PublicBrowseEvents = () => {
 
       <Footer />
 
-      {/* Event Details Modal */}
       {selectedEvent && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -402,21 +637,27 @@ const PublicBrowseEvents = () => {
           >
             <div className="p-6 space-y-6">
               <div className="flex items-start justify-between">
-                <h2 className="text-xl font-semibold" style={{ color: "#1F4E79" }}>
+                <h2
+                  className="text-xl font-semibold"
+                  style={{ color: "#1F4E79" }}
+                >
                   {selectedEvent.title}
                 </h2>
                 <button
                   className="text-2xl leading-none transition-colors"
                   style={{ color: "#6B7C93" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#0F1E33")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#6B7C93")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "#0F1E33")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "#6B7C93")
+                  }
                   onClick={() => setSelectedEvent(null)}
                 >
                   &times;
                 </button>
               </div>
 
-              {/* Event Image */}
               <div className="relative aspect-video rounded-lg overflow-hidden">
                 <img
                   src={selectedEvent.image}
@@ -425,23 +666,26 @@ const PublicBrowseEvents = () => {
                 />
                 <span
                   className="absolute top-3 left-3 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
-                  style={{ backgroundColor: "rgba(255,255,255,0.90)", color: "#0F1E33", borderColor: "#6B7C93" }}
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.90)",
+                    color: "#0F1E33",
+                    borderColor: "#6B7C93",
+                  }}
                 >
                   {selectedEvent.categoryLabel}
                 </span>
               </div>
 
-              {/* Event Details */}
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { icon: "📅", label: "Date", value: selectedEvent.date },
-                  { icon: "🕐", label: "Time", value: selectedEvent.time },
-                  { icon: "📍", label: "Location", value: selectedEvent.location },
+                  { icon: "ðŸ“…", label: "Date", value: selectedEvent.date },
+                  { icon: "ðŸ•", label: "Time", value: selectedEvent.time },
                   {
-                    icon: "💲",
-                    label: "Price",
-                    value: selectedEvent.isPaid ? `$${selectedEvent.price}` : "Free",
+                    icon: "ðŸ“",
+                    label: "Location",
+                    value: selectedEvent.location,
                   },
+                  { icon: "ðŸ’²", label: "Price", value: "Check details after login" },
                 ].map(({ icon, label, value }) => (
                   <div
                     key={label}
@@ -450,48 +694,69 @@ const PublicBrowseEvents = () => {
                   >
                     <span style={{ color: "#F36F21" }}>{icon}</span>
                     <div>
-                      <p className="text-xs" style={{ color: "#6B7C93" }}>{label}</p>
-                      <p className="font-medium" style={{ color: "#0F1E33" }}>{value}</p>
+                      <p className="text-xs" style={{ color: "#6B7C93" }}>
+                        {label}
+                      </p>
+                      <p
+                        className="font-medium"
+                        style={{ color: "#0F1E33" }}
+                      >
+                        {value}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Description */}
               <div>
-                <h4 className="font-semibold mb-2" style={{ color: "#0F1E33" }}>About This Event</h4>
+                <h4
+                  className="font-semibold mb-2"
+                  style={{ color: "#0F1E33" }}
+                >
+                  About This Event
+                </h4>
                 <p style={{ color: "#6B7C93" }}>{selectedEvent.description}</p>
               </div>
 
-              {/* Capacity */}
               <div className="p-4 rounded-lg" style={{ backgroundColor: "#F5F7FA" }}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span style={{ color: "#F36F21" }}>👥</span>
-                    <span className="font-medium" style={{ color: "#0F1E33" }}>Registration Status</span>
+                    <span style={{ color: "#F36F21" }}>ðŸ‘¥</span>
+                    <span className="font-medium" style={{ color: "#0F1E33" }}>
+                      Registration Status
+                    </span>
                   </div>
                   <span className="text-sm" style={{ color: "#6B7C93" }}>
-                    {selectedEvent.registrations} / {selectedEvent.capacity} spots filled
+                    {selectedEvent.registrations} / {selectedEvent.capacity} spots
+                    filled
                   </span>
                 </div>
-                <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "#E2E8F0" }}>
+                <div
+                  className="w-full h-2 rounded-full overflow-hidden"
+                  style={{ backgroundColor: "#E2E8F0" }}
+                >
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
                       width: `${(selectedEvent.registrations / selectedEvent.capacity) * 100}%`,
                       backgroundColor:
-                        selectedEvent.registrations / selectedEvent.capacity > 0.9 ? "#ef4444" : "#F36F21",
+                        selectedEvent.registrations / selectedEvent.capacity > 0.9
+                          ? "#ef4444"
+                          : "#F36F21",
                     }}
                   />
                 </div>
               </div>
 
-              {/* Action Button */}
               <button
                 className="w-full inline-flex items-center justify-center px-6 py-3 rounded-md text-sm font-medium transition-colors"
                 style={{ backgroundColor: "#F36F21", color: "#FFFFFF" }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FF8A3D")}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#F36F21")}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#FF8A3D")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#F36F21")
+                }
                 onClick={handleRegister}
               >
                 Register for This Event
