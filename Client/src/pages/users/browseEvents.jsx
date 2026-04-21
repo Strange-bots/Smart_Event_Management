@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
+import { ViewModeToggle } from "../../components/ui/view-mode-toggle";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -215,30 +216,7 @@ const BrowseEvents = () => {
                   ▼
                 </span>
               </div>
-              <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={cn(
-                    "px-3 py-2 text-sm transition-colors",
-                    viewMode === "grid"
-                      ? "bg-[#1f4e79] text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
-                  )}
-                >
-                  ⊞
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={cn(
-                    "px-3 py-2 text-sm transition-colors",
-                    viewMode === "list"
-                      ? "bg-[#1f4e79] text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
-                  )}
-                >
-                  ☰
-                </button>
-              </div>
+              <ViewModeToggle value={viewMode} onValueChange={setViewMode} />
             </div>
           </div>
         </div>
