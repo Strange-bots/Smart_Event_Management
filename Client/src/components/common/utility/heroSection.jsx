@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchHeroImage } from "../../../services/homepageService.js";
+import {
+  fetchEventStats,
+  fetchHeroImage,
+  fetchNextEvent,
+} from "../../../services/homepageService.js";
 
 const fallbackEvent = {
   title: "Next event coming soon",
@@ -45,22 +49,16 @@ function HeroSection() {
 
     const loadStats = async () => {
       try {
-        const response = await fetch("/api/events/stats");
+        const data = await fetchEventStats();
 
-        if (!response.ok) {
-          return;
-        }
-
-        const result = await response.json();
-
-        if (!isMounted || !result?.success || !result?.data) {
+        if (!isMounted || !data) {
           return;
         }
 
         setStats({
-          eventsHosted: result.data.eventsHosted ?? fallbackStats.eventsHosted,
-          participants: result.data.participants ?? fallbackStats.participants,
-          institutions: result.data.institutions ?? fallbackStats.institutions,
+          eventsHosted: data.eventsHosted ?? fallbackStats.eventsHosted,
+          participants: data.participants ?? fallbackStats.participants,
+          institutions: data.institutions ?? fallbackStats.institutions,
         });
       } catch {
         // Keep the default stats when the backend is unavailable.
@@ -93,22 +91,16 @@ function HeroSection() {
 
     const loadNextEvent = async () => {
       try {
-        const response = await fetch("/api/events/next");
+        const event = await fetchNextEvent();
 
-        if (!response.ok) {
-          return;
-        }
-
-        const data = await response.json();
-
-        if (!isMounted || !data?.event) {
+        if (!isMounted || !event) {
           return;
         }
 
         setNextEvent({
-          title: data.event.title || fallbackEvent.title,
-          date: formatEventDate(data.event.date),
-          image: data.event.image || fallbackEvent.image,
+          title: event.title || fallbackEvent.title,
+          date: formatEventDate(event.date),
+          image: event.image || fallbackEvent.image,
         });
       } catch {
         // Keep the fallback content when the backend is unavailable.

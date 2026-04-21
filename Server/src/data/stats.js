@@ -1,7 +1,7 @@
 const stats = {
-  eventsHosted: 5000,
-  participants: 12000,
-  institutions: 50
+  eventsHosted: 13,
+  participants: 130,
+  institutions: 40
 };
 
 module.exports = {
