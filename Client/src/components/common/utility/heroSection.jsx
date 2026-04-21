@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useState, useEffect } from "react";
-=======
 import { useEffect, useState } from "react";
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
 import { Link } from "react-router-dom";
 import { fetchHeroImage } from "../../../services/homepageService.js";
 
@@ -38,10 +34,7 @@ const formatEventDate = (dateString) => {
 };
 
 function HeroSection() {
-<<<<<<< HEAD
-=======
   const [stats, setStats] = useState(fallbackStats);
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
   const [nextEvent, setNextEvent] = useState(fallbackEvent);
   const [heroImage, setHeroImage] = useState(fallbackEvent.image);
   const [isHeroImageLoading, setIsHeroImageLoading] = useState(true);
@@ -65,8 +58,7 @@ function HeroSection() {
         }
 
         setStats({
-          eventsHosted:
-            result.data.eventsHosted ?? fallbackStats.eventsHosted,
+          eventsHosted: result.data.eventsHosted ?? fallbackStats.eventsHosted,
           participants: result.data.participants ?? fallbackStats.participants,
           institutions: result.data.institutions ?? fallbackStats.institutions,
         });
@@ -131,10 +123,7 @@ function HeroSection() {
       isMounted = false;
     };
   }, []);
-<<<<<<< HEAD
-=======
 
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
   return (
     <section className="relative overflow-hidden bg-[#1f4e79] text-white">
       <div className="absolute inset-0 opacity-10">
@@ -172,8 +161,6 @@ function HeroSection() {
                 Create Event
               </button>
             </div>
-<<<<<<< HEAD
-=======
 
             <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/20 pt-8">
               <div className="text-center lg:text-left">
@@ -195,7 +182,6 @@ function HeroSection() {
                 <p className="text-sm text-white/60">Institutions</p>
               </div>
             </div>
->>>>>>> 35aaa4e5ddceb36e52a3557ae950fab40598e54d
           </div>
 
           <div className="relative">
