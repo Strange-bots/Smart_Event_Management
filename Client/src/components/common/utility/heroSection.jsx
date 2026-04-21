@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { fetchHeroImage } from "../../../services/homepageService.js";
 
 const fallbackEvent = {
   title: "Next event coming soon",
@@ -28,9 +29,36 @@ const formatEventDate = (dateString) => {
 
 function HeroSection() {
   const [nextEvent, setNextEvent] = useState(fallbackEvent);
+  const [heroImage, setHeroImage] = useState(fallbackEvent.image);
+  const [isHeroImageLoading, setIsHeroImageLoading] = useState(true);
+  const [heroImageError, setHeroImageError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
+
+    const loadHeroImage = async () => {
+      try {
+        const imageUrl = await fetchHeroImage();
+
+        if (!isMounted || !imageUrl) {
+          return;
+        }
+
+        setHeroImage(imageUrl);
+        setHeroImageError("");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setHeroImage(fallbackEvent.image);
+        setHeroImageError("Unable to load hero image. Showing default image.");
+      } finally {
+        if (isMounted) {
+          setIsHeroImageLoading(false);
+        }
+      }
+    };
 
     const loadNextEvent = async () => {
       try {
@@ -56,6 +84,7 @@ function HeroSection() {
       }
     };
 
+    loadHeroImage();
     loadNextEvent();
 
     return () => {
@@ -117,11 +146,21 @@ function HeroSection() {
           <div className="relative">
             <div className="group relative overflow-hidden rounded-2xl shadow-2xl">
               <img
-                src={nextEvent.image}
+                src={heroImage}
                 alt={nextEvent.title}
                 className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f1e33]/50 to-transparent" />
+              {isHeroImageLoading ? (
+                <div className="absolute inset-x-4 top-4 rounded-lg bg-white/85 px-4 py-2 text-sm font-medium text-[#0f1e33] shadow-md">
+                  Loading hero image...
+                </div>
+              ) : null}
+              {!isHeroImageLoading && heroImageError ? (
+                <div className="absolute inset-x-4 top-4 rounded-lg bg-[#f36f21]/90 px-4 py-2 text-sm font-medium text-white shadow-md">
+                  {heroImageError}
+                </div>
+              ) : null}
             </div>
 
             <div className="absolute -bottom-6 -left-6 rounded-xl bg-white p-4 text-[#0f1e33] shadow-xl">
