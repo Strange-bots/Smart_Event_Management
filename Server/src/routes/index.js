@@ -1,7 +1,7 @@
 const express = require('express');
 
 const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/indexController');
-const { authorizeDashboard, changePassword, login, signup } = require('../controllers/authController');
+const { login, signup } = require('../controllers/authController');
 const { listEvents, getNextEvent, getRecommendations, uploadEventImage } = require('../controllers/eventController');
 const {
   downloadOrganizerRegistrations,
@@ -13,6 +13,7 @@ const { listOrganizerEmailLogs } = require('../controllers/emailLogController');
 const { subscribeToNewsletter } = require('../controllers/newsletterController');
 const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
 const { requireRole } = require('../middleware/requireRole');
+const authRoutes = require('./authRoutes');
 const { getSettings, updateSettings } = require('../controllers/adminSettingsController');
 
 const router = express.Router();
@@ -34,8 +35,7 @@ router.get('/organizer/notifications', requireRole('organizer'), listOrganizerNo
 router.get('/organizer/email-logs', requireRole('organizer'), listOrganizerEmailLogs);
 router.get('/hero-image', getHeroImage);
 router.post('/newsletter/subscribe', subscribeToNewsletter);
-router.post('/auth/authorize-dashboard', authorizeDashboard);
-router.post('/auth/change-password', changePassword);
+router.use('/auth', authRoutes);
 router.post('/login', login);
 router.post('/signup', signup);
 
