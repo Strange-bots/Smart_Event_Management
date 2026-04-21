@@ -4,8 +4,6 @@ import Navbar from "../components/layout/navbar";
 import {
   getCurrentUser,
   getDashboardPath,
-  getRegisteredUsers,
-  saveRegisteredUsers,
   setCurrentUser,
 } from "../utils/auth";
 
@@ -29,7 +27,7 @@ const Signup = () => {
     }
   }, [navigate]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -55,36 +53,33 @@ const Signup = () => {
     setError("");
     setIsLoading(true);
 
-    const normalizedEmail = formData.email.trim().toLowerCase();
-    const existingUsers = getRegisteredUsers();
-    const emailTaken = existingUsers.some(
-      (user) => user.email.toLowerCase() === normalizedEmail,
-    );
+    try {
+      const response = await fetch("http://localhost:5001/api/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
-    if (emailTaken) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Unable to create account");
+        setIsLoading(false);
+        return;
+      }
+
+      setCurrentUser(data.user);
+
+      setTimeout(() => {
+        setIsLoading(false);
+        navigate("/user/dashboard", { replace: true });
+      }, 600);
+    } catch (err) {
       setIsLoading(false);
-      setError("An account with this email already exists");
-      return;
+      setError("Unable to connect to the server");
     }
-
-    const newUser = {
-      name: formData.name.trim(),
-      email: normalizedEmail,
-      password: formData.password,
-      role: "user",
-    };
-
-    saveRegisteredUsers([...existingUsers, newUser]);
-    setCurrentUser({
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-    });
-
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate("/user/dashboard", { replace: true });
-    }, 600);
   };
 
   return (

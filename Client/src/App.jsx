@@ -27,6 +27,10 @@ import OrganizerMessages from "./pages/organizer/organizerMessages.jsx";
 import OrganizerNotifications from "./pages/organizer/organizerNotifications.jsx";
 import OrganizerProfile from "./pages/organizer/organizerProfile.jsx";
 import OrganizerRegistrations from "./pages/organizer/organizerRegistrations.jsx";
+import HelpCenter from "./pages/helpCenter.jsx";
+import FAQs from "./pages/faqs.jsx";
+import ReportIssue from "./pages/reportIssue.jsx";
+import Feedback from "./pages/feedback.jsx";
 
 function ScrollToHash() {
   const location = useLocation();
@@ -76,6 +80,10 @@ function App() {
           <Route path="/browse-events" element={<BrowseEvents />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/help" element={<HelpCenter />} />
+          <Route path="/faqs" element={<FAQs />} />
+          <Route path="/report" element={<ReportIssue />} />
+          <Route path="/feedback" element={<Feedback />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 

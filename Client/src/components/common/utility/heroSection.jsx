@@ -1,7 +1,38 @@
+<<<<<<< HEAD
 import { useState, useEffect } from "react";
+=======
+import { useEffect, useState } from "react";
+>>>>>>> 335cb0278dcc007e526d9fed62bb2b09519d5c5a
 import { Link } from "react-router-dom";
+import { fetchHeroImage } from "../../../services/homepageService.js";
+
+const fallbackEvent = {
+  title: "Next event coming soon",
+  date: "Stay tuned",
+  image:
+    "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80",
+};
+
+const formatEventDate = (dateString) => {
+  if (!dateString) {
+    return fallbackEvent.date;
+  }
+
+  const parsedDate = new Date(dateString);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(parsedDate);
+};
 
 function HeroSection() {
+<<<<<<< HEAD
   const [stats, setStats] = useState({
     eventsHosted: 5000,
     participants: 12000,
@@ -29,6 +60,72 @@ function HeroSection() {
 
     fetchStats();
   }, []);
+=======
+  const [nextEvent, setNextEvent] = useState(fallbackEvent);
+  const [heroImage, setHeroImage] = useState(fallbackEvent.image);
+  const [isHeroImageLoading, setIsHeroImageLoading] = useState(true);
+  const [heroImageError, setHeroImageError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadHeroImage = async () => {
+      try {
+        const imageUrl = await fetchHeroImage();
+
+        if (!isMounted || !imageUrl) {
+          return;
+        }
+
+        setHeroImage(imageUrl);
+        setHeroImageError("");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setHeroImage(fallbackEvent.image);
+        setHeroImageError("Unable to load hero image. Showing default image.");
+      } finally {
+        if (isMounted) {
+          setIsHeroImageLoading(false);
+        }
+      }
+    };
+
+    const loadNextEvent = async () => {
+      try {
+        const response = await fetch("/api/events/next");
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!isMounted || !data?.event) {
+          return;
+        }
+
+        setNextEvent({
+          title: data.event.title || fallbackEvent.title,
+          date: formatEventDate(data.event.date),
+          image: data.event.image || fallbackEvent.image,
+        });
+      } catch {
+        // Keep the fallback content when the backend is unavailable.
+      }
+    };
+
+    loadHeroImage();
+    loadNextEvent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+>>>>>>> 335cb0278dcc007e526d9fed62bb2b09519d5c5a
   return (
     <section className="relative overflow-hidden bg-[#1f4e79] text-white">
       <div className="absolute inset-0 opacity-10">
@@ -83,11 +180,21 @@ function HeroSection() {
           <div className="relative">
             <div className="group relative overflow-hidden rounded-2xl shadow-2xl">
               <img
-                src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80"
-                alt="Educational event with students"
+                src={heroImage}
+                alt={nextEvent.title}
                 className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f1e33]/50 to-transparent" />
+              {isHeroImageLoading ? (
+                <div className="absolute inset-x-4 top-4 rounded-lg bg-white/85 px-4 py-2 text-sm font-medium text-[#0f1e33] shadow-md">
+                  Loading hero image...
+                </div>
+              ) : null}
+              {!isHeroImageLoading && heroImageError ? (
+                <div className="absolute inset-x-4 top-4 rounded-lg bg-[#f36f21]/90 px-4 py-2 text-sm font-medium text-white shadow-md">
+                  {heroImageError}
+                </div>
+              ) : null}
             </div>
 
             <div className="absolute -bottom-6 -left-6 rounded-xl bg-white p-4 text-[#0f1e33] shadow-xl">
@@ -97,8 +204,8 @@ function HeroSection() {
                 </div>
                 <div>
                   <p className="text-xs text-[#6b7c93]">Next Event</p>
-                  <p className="text-sm font-semibold">Tech Summit 2025</p>
-                  <p className="text-xs text-[#f36f21]">Jan 25, 2025</p>
+                  <p className="text-sm font-semibold">{nextEvent.title}</p>
+                  <p className="text-xs text-[#f36f21]">{nextEvent.date}</p>
                 </div>
               </div>
             </div>

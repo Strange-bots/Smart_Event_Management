@@ -14,10 +14,10 @@ function Footer() {
   };
 
   const socialLinks = [
-    { label: "Facebook", href: "#", symbol: "f" },
-    { label: "Twitter", href: "#", symbol: "x" },
-    { label: "LinkedIn", href: "#", symbol: "in" },
-    { label: "Instagram", href: "#", symbol: "ig" },
+    { label: "Facebook", href: "https://www.facebook.com/KOIAustralia", symbol: "f" },
+    { label: "Twitter", href: "https://twitter.com", symbol: "x" },
+    { label: "LinkedIn", href: " https://au.linkedin.com/school/king's-own-institute/  ", symbol: "in" },
+    { label: "Instagram", href: "https://www.instagram.com/koiaustralia/", symbol: "ig" },
   ];
 
   const quickLinks = [
@@ -119,6 +119,8 @@ function Footer() {
                 <a
                   key={link.label}
                   href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white/60 transition-all duration-300 hover:bg-[#f36f21] hover:text-white"
                   aria-label={link.label}
                 >
