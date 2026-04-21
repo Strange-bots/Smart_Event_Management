@@ -12,7 +12,6 @@ const { listOrganizerEmailLogs } = require('../controllers/emailLogController');
 const { subscribeToNewsletter } = require('../controllers/newsletterController');
 const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
 const { requireRole } = require('../middleware/requireRole');
-const contactRoutes = require('./contactRoutes');
 const { getSettings, updateSettings } = require('../controllers/adminSettingsController');
 
 const router = express.Router();
@@ -36,6 +35,5 @@ router.post('/newsletter/subscribe', subscribeToNewsletter);
 router.post('/auth/authorize-dashboard', authorizeDashboard);
 router.post('/login', login);
 router.post('/signup', signup);
-router.use('/contact', contactRoutes);
 
 module.exports = router;
