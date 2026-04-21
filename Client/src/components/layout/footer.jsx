@@ -1,12 +1,30 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { subscribeToNewsletter } from "../../services/newsletterService";
 
 function Footer() {
   const [email, setEmail] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusType, setStatusType] = useState("idle");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubscribe = (event) => {
+  const handleSubscribe = async (event) => {
     event.preventDefault();
-    setEmail("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await subscribeToNewsletter(email);
+      setStatusType("success");
+      setStatusMessage(result.message || "Subscription successful.");
+      setEmail("");
+    } catch (error) {
+      setStatusType("error");
+      setStatusMessage(
+        error.message || "We couldn't save your subscription right now."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const scrollToTop = () => {
@@ -69,22 +87,35 @@ function Footer() {
 
             <form
               onSubmit={handleSubscribe}
-              className="flex w-full max-w-md gap-2"
+              className="flex w-full max-w-md flex-col gap-2"
             >
-              <input
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="flex-1 rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/40 focus:border-[#f36f21] focus:outline-none"
-                required
-              />
-              <button
-                type="submit"
-                className="shrink-0 rounded-lg bg-[#f36f21] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#ff8a3d]"
-              >
-                Subscribe
-              </button>
+              <div className="flex w-full gap-2">
+                <input
+                  type="email"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="flex-1 rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/40 focus:border-[#f36f21] focus:outline-none"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="shrink-0 rounded-lg bg-[#f36f21] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#ff8a3d] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSubmitting ? "Sending..." : "Subscribe"}
+                </button>
+              </div>
+              {statusMessage ? (
+                <p
+                  className="text-sm"
+                  style={{
+                    color: statusType === "success" ? "#86EFAC" : "#FDBA74",
+                  }}
+                >
+                  {statusMessage}
+                </p>
+              ) : null}
             </form>
           </div>
         </div>

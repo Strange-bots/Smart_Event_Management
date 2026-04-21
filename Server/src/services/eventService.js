@@ -46,6 +46,7 @@ const getRecommendedEvents = () => {
       match: getRecommendationMatch(event),
     }));
 };
+
 const getAllApprovedEvents = () => {
   return events
     .filter((event) => event.status === 'approved')
