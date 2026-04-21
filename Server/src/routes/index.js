@@ -20,12 +20,21 @@ const { listOrganizerEmailLogs } = require('../controllers/emailLogController');
 const { subscribeToNewsletter } = require('../controllers/newsletterController');
 const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
 const { requireRole } = require('../middleware/requireRole');
+const upload = require('../middleware/upload');
 const authRoutes = require('./authRoutes');
 const { getSettings, updateSettings } = require('../controllers/adminSettingsController');
 
 const router = express.Router();
 
 router.get('/', getApiStatus);
+
+router.post('/upload', upload.array('images', 5), (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ message: 'No files uploaded' });
+  }
+  const filenames = req.files.map((f) => f.filename);
+  res.json({ message: 'Images uploaded successfully', files: filenames });
+});
 
 router.get('/events/stats', getEventStats);
 router.get('/events', listEvents);

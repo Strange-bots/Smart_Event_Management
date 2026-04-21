@@ -92,6 +92,7 @@ function OrganizerDashboard() {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isSuggestingTime, setIsSuggestingTime] = useState(false);
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [suggestedTimes, setSuggestedTimes] = useState([]);
   const [showTimeSuggestions, setShowTimeSuggestions] = useState(false);
 
@@ -185,9 +186,30 @@ function OrganizerDashboard() {
     setIsSuggestingTags(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     clearNotice();
     if (!validateForm()) return setNotice({ type: "error", message: "Please fix the required fields first." });
+
+    let uploadedFilenames = [];
+    if (uploadedImages.length > 0) {
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        uploadedImages.forEach((img) => formData.append("images", img.file));
+        const response = await fetch("http://localhost:5000/api/upload", { method: "POST", body: formData });
+        if (!response.ok) throw new Error("Upload failed");
+        const data = await response.json();
+        uploadedFilenames = data.files;
+        console.log("Uploaded files:", data.files);
+        setNotice({ type: "success", message: "Images uploaded successfully" });
+        await wait(800);
+      } catch {
+        setIsUploading(false);
+        return setNotice({ type: "error", message: "Image upload failed. Please try again." });
+      }
+      setIsUploading(false);
+    }
+
     const savedEvents = JSON.parse(window.localStorage.getItem(EVENT_STORAGE_KEY) || "[]");
     const newEvent = {
       id: `event-${Date.now()}`,
@@ -204,7 +226,8 @@ function OrganizerDashboard() {
       tags: selectedTags,
       organizerName: currentUser.name || currentUser.email,
       organizerEmail: currentUser.email,
-      imagePreview: uploadedImages[0]?.preview || "",
+      imagePreview: uploadedFilenames[0] ? `http://localhost:5000/uploads/${uploadedFilenames[0]}` : "",
+      images: uploadedFilenames.map((f) => `http://localhost:5000/uploads/${f}`),
       status: "pending",
       createdAt: new Date().toISOString(),
     };
@@ -232,9 +255,9 @@ function OrganizerDashboard() {
               <Eye size={18} />
               Preview
             </button>
-            <button type="button" onClick={handleSubmit} className="inline-flex items-center gap-2 rounded-xl bg-[#f36f21] px-4 py-2.5 font-medium text-white">
-              <Save size={18} />
-              Submit for Approval
+            <button type="button" onClick={handleSubmit} disabled={isUploading} className="inline-flex items-center gap-2 rounded-xl bg-[#f36f21] px-4 py-2.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-70">
+              {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {isUploading ? "Uploading..." : "Submit for Approval"}
             </button>
           </div>
         </div>
