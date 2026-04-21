@@ -10,6 +10,7 @@ const events = [
     category: 'Career',
     capacity: 120,
     registrations: 94,
+    organizerEmail: 'organizer@demo.com',
     status: 'approved',
     image:
       'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=800&q=80',
@@ -25,6 +26,7 @@ const events = [
     category: 'Workshop',
     capacity: 60,
     registrations: 41,
+    organizerEmail: 'events-team@koi.edu.au',
     status: 'pending',
     image:
       'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
@@ -40,6 +42,7 @@ const events = [
     category: 'Technology',
     capacity: 90,
     registrations: 58,
+    organizerEmail: 'organizer@demo.com',
     status: 'approved',
     image:
       'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
