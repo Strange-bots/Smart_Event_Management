@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Switch as UiSwitch } from "@/components/ui/switch";
 import {
   Settings,
   Bell,
@@ -163,6 +164,9 @@ const mergeSettings = (nextSettings = {}) => ({
   security: { ...DEFAULT_SETTINGS.security, ...nextSettings.security },
   appearance: { ...DEFAULT_SETTINGS.appearance, ...nextSettings.appearance },
 });
+
+const settingRowClassName = "flex items-start justify-between gap-4 md:items-center";
+const settingTextClassName = "min-w-0 flex-1 pr-2";
 
 const getSettingsHeaders = () => {
   const currentUser = getCurrentUser();
@@ -501,24 +505,26 @@ const AdminSettings = () => {
                     />
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Require Admin Approval</p>
                     <p className="text-sm text-muted-foreground">Events need admin approval before going live</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.events.requireApproval}
                     onCheckedChange={(checked) => updateEvents("requireApproval", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Allow Waitlist</p>
                     <p className="text-sm text-muted-foreground">Enable waitlist when events are full</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.events.allowWaitlist}
                     onCheckedChange={(checked) => updateEvents("allowWaitlist", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
               </CardContent>
@@ -533,47 +539,51 @@ const AdminSettings = () => {
                 <CardDescription>Configure email notification preferences</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">New Event Registration</p>
                     <p className="text-sm text-muted-foreground">Notify organizers of new registrations</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.notifications.newRegistration}
                     onCheckedChange={(checked) => updateNotifications("newRegistration", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Event Approval Requests</p>
                     <p className="text-sm text-muted-foreground">Notify admins of pending approvals</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.notifications.approvalRequests}
                     onCheckedChange={(checked) => updateNotifications("approvalRequests", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Event Reminders</p>
                     <p className="text-sm text-muted-foreground">Send reminders to registered users</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.notifications.eventReminders}
                     onCheckedChange={(checked) => updateNotifications("eventReminders", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Feedback Requests</p>
                     <p className="text-sm text-muted-foreground">Request feedback after events</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.notifications.feedbackRequests}
                     onCheckedChange={(checked) => updateNotifications("feedbackRequests", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
               </CardContent>
@@ -634,36 +644,39 @@ const AdminSettings = () => {
                 <CardDescription>Configure security and authentication options</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Two-Factor Authentication</p>
                     <p className="text-sm text-muted-foreground">Require 2FA for admin accounts</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.security.twoFactorAuth}
                     onCheckedChange={(checked) => updateSecurity("twoFactorAuth", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Email Verification Required</p>
                     <p className="text-sm text-muted-foreground">Users must verify email to register</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.security.emailVerification}
                     onCheckedChange={(checked) => updateSecurity("emailVerification", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Password Complexity</p>
                     <p className="text-sm text-muted-foreground">Enforce strong password requirements</p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={settings.security.passwordComplexity}
                     onCheckedChange={(checked) => updateSecurity("passwordComplexity", checked)}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
               </CardContent>
@@ -761,20 +774,21 @@ const AdminSettings = () => {
                 <Separator />
 
                 {/* Quick Toggle Switch */}
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className={settingRowClassName}>
+                  <div className={settingTextClassName}>
                     <p className="font-medium text-foreground">Dark Mode</p>
                     <p className="text-sm text-muted-foreground">
                       Quick toggle between light and dark mode
                     </p>
                   </div>
-                  <Switch
+                  <UiSwitch
                     checked={resolvedTheme === "dark"}
                     onCheckedChange={(checked) => {
                       setTheme(checked ? "dark" : "light");
                       updateAppearance("darkMode", checked);
                       toast.success(checked ? "Dark mode enabled" : "Light mode enabled");
                     }}
+                    className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
                   />
                 </div>
 

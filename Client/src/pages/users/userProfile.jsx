@@ -43,13 +43,15 @@ const Toggle = ({ checked, onChange }) => (
     role="switch"
     aria-checked={checked}
     onClick={() => onChange(!checked)}
-    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-      checked ? "bg-[#1f4e79]" : "bg-gray-200"
+    className={`relative inline-flex h-8 w-14 items-center rounded-full border-2 p-[3px] shadow-[0_0_0_2px_rgba(209,219,232,0.9)] transition-all focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 ${
+      checked
+        ? "border-[#1f4e79] bg-[#1f4e79] shadow-[0_0_0_2px_rgba(31,78,121,0.12)]"
+        : "border-[#d1dbe8] bg-[#dbe4ef]"
     }`}
   >
     <span
-      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-        checked ? "translate-x-6" : "translate-x-1"
+      className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${
+        checked ? "translate-x-6" : "translate-x-0"
       }`}
     />
   </button>
