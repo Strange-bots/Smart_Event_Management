@@ -186,9 +186,6 @@ const PublicBrowseEvents = () => {
           </div>
         </div>
       </section>
-
-      <FeaturedEventsSection />
-
       <section className="py-12" style={{ backgroundColor: "#F5F7FA" }}>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
@@ -507,7 +504,7 @@ const PublicBrowseEvents = () => {
               ))}
             </div>
           )}
-
+           <FeaturedEventsSection />
           {!isLoading && allEvents.length === 0 && (
             <div
               className="shadow-sm rounded-lg"

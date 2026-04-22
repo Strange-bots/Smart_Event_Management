@@ -7,6 +7,7 @@ import About from "./pages/about.jsx";
 import Contact from "./pages/contact.jsx";
 import Login from "./pages/login.jsx";
 import Signup from "./pages/signup.jsx";
+import OtpVerification from "./pages/otpVerification.jsx";
 import AdminDashboard from "./pages/admin/adminDashboard.jsx";
 import AdminEvents from "./pages/admin/adminEvents.jsx";
 import AdminGallery from "./pages/admin/adminGallery.jsx";
@@ -95,6 +96,7 @@ function App() {
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-otp" element={<OtpVerification />} />
 
           //AdminRoutes//
           <Route path="/admin/admindashboard" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />

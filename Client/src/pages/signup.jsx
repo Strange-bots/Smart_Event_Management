@@ -7,7 +7,6 @@ import koiLogo from "../assets/koi-logo.jpg";
 import {
   getCurrentUser,
   getDashboardPath,
-  setCurrentUser,
 } from "../utils/auth";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
@@ -67,7 +66,7 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/registrations/users`, {
+      const response = await fetch(`${apiBaseUrl}/api/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,12 +82,16 @@ const Signup = () => {
         return;
       }
 
-      setCurrentUser({ ...data.user, token: data.token });
-
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate("/user/dashboard", { replace: true });
-      }, 600);
+      setIsLoading(false);
+      navigate("/verify-otp", {
+        state: {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          previewOtp: data.previewOtp,
+        },
+      });
     } catch {
       setIsLoading(false);
       setError("Unable to connect to the server");

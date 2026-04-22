@@ -1,92 +1,64 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
+import { fetchMyEventRegistrations } from "../../services/registrationService.js";
 import { submitEventFeedback } from "../../services/feedbackService";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
-const sampleEvents = [
-  {
-    id: 1,
-    registrationId: 101,
-    title: "Annual Technology Summit 2024",
-    description: "A full-day summit bringing together industry leaders, innovators, and students to explore the latest trends in technology.",
-    date: "March 15, 2024",
-    time: "9:00 AM - 5:00 PM",
-    location: "Main Auditorium",
-    status: "upcoming",
-    image: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=300&q=80",
-    tags: ["AI", "Cloud", "Innovation"],
-    capacity: 150,
-    registrations: 120,
-    price: 0,
-    rating: null,
-    hasFeedback: false,
-    certificate: false,
-  },
-  {
-    id: 102,
-    registrationId: 102,
-    title: "Career Networking Evening",
-    description: "Meet mentors, alumni, and hiring partners across business and technology.",
-    date: "May 14, 2026",
-    time: "5:30 PM - 8:00 PM",
-    location: "Innovation Hub",
-    status: "attended",
-    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&q=80",
-    tags: ["Career", "Networking", "Mentorship"],
-    capacity: 120,
-    registrations: 94,
-    price: 0,
-    rating: 4,
-    hasFeedback: true,
-    certificate: true,
-  },
-  {
-    id: 3,
-    registrationId: 103,
-    title: "AI & Machine Learning Seminar",
-    description: "An in-depth seminar on the fundamentals and applications of AI and machine learning.",
-    date: "March 25, 2024",
-    time: "1:00 PM - 4:00 PM",
-    location: "Lecture Hall B",
-    status: "upcoming",
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=300&q=80",
-    tags: ["AI", "Machine Learning"],
-    capacity: 100,
-    registrations: 80,
-    price: 0,
-    rating: null,
-    hasFeedback: false,
-    certificate: false,
-  },
-  {
-    id: 104,
-    registrationId: 104,
-    title: "Data Science Bootcamp",
-    description: "Hands-on labs covering data wrangling, visualization, and machine learning basics.",
-    date: "June 18, 2026",
-    time: "11:00 AM - 3:00 PM",
-    location: "Computer Lab A",
-    status: "attended",
-    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",
-    tags: ["Technology", "Data", "Workshop"],
-    capacity: 90,
-    registrations: 58,
-    price: 0,
-    rating: null,
-    hasFeedback: false,
-    certificate: true,
-  },
-];
-
 const ratingLabels = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Very Good", 5: "Excellent!" };
+
+const formatEventDate = (dateString) => {
+  if (!dateString) {
+    return "Date to be announced";
+  }
+
+  const parsedDate = new Date(dateString);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
+};
+
+const getUserEventStatus = (registration) => {
+  if (registration.attendanceStatus === "attended") {
+    return "attended";
+  }
+
+  if (registration.attendanceStatus === "cancelled") {
+    return "cancelled";
+  }
+
+  return "upcoming";
+};
+
+const mapRegistrationToEvent = (registration) => ({
+  ...registration.event,
+  registrationId: registration.registrationId,
+  date: formatEventDate(registration.event?.date),
+  location: registration.event?.location || registration.event?.venue,
+  status: getUserEventStatus(registration),
+  image: registration.event?.image || registration.event?.imagePreview,
+  tags: registration.event?.tags ?? [],
+  price: Number(registration.event?.price || 0),
+  rating: null,
+  hasFeedback: false,
+  certificate: registration.attendanceStatus === "attended",
+});
 
 const UserEvents = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [userEvents, setUserEvents] = useState(sampleEvents);
+  const [userEvents, setUserEvents] = useState([]);
   const [activeTab, setActiveTab] = useState("upcoming");
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Details modal
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -104,6 +76,39 @@ const UserEvents = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUserEvents = async () => {
+      try {
+        setIsLoading(true);
+        const registrations = await fetchMyEventRegistrations();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setUserEvents(registrations.map(mapRegistrationToEvent));
+        setErrorMessage("");
+      } catch (error) {
+        if (isMounted) {
+          setUserEvents([]);
+          setErrorMessage(error.message || "Unable to load your events right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadUserEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleViewDetails = (event) => {
     setSelectedEvent(event);
@@ -313,7 +318,21 @@ const UserEvents = () => {
           </div>
         </div>
 
+        {errorMessage ? (
+          <div className="rounded-xl border border-rose-200 bg-white p-4 text-sm text-rose-700 shadow-sm">
+            {errorMessage}
+          </div>
+        ) : null}
+
         {/* Tabs */}
+        {isLoading ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <h3 className="font-semibold text-gray-900 mb-2">Loading your events...</h3>
+            <p className="text-gray-500">
+              Fetching your registrations from the server.
+            </p>
+          </div>
+        ) : (
         <div className="space-y-6">
           <div className="flex gap-1 bg-white border rounded-xl p-1 w-fit shadow-sm">
             <button
@@ -386,6 +405,7 @@ const UserEvents = () => {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Event Details Modal */}

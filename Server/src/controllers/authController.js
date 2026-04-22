@@ -158,7 +158,8 @@ const signup = (req, res) => {
 
         return res.status(200).json(response);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Failed to send OTP email:', error.message);
         return res.status(500).json({
           message: 'Failed to send OTP email. Please try again.',
         });

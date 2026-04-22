@@ -99,12 +99,12 @@ function DashboardLayout({ children }) {
             }}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
-              "text-white/70 hover:bg-white/10 hover:text-white"
+              "text-white hover:bg-white/10"
             )}
           >
-            <Icon size={18} />
+            <Icon size={18} className="text-white" />
             {(!isMobile && sidebarOpen) || isMobile ? (
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium text-white">{item.label}</span>
             ) : null}
           </button>
         );
@@ -123,12 +123,12 @@ function DashboardLayout({ children }) {
             "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all",
             isActive
               ? "bg-[#f36f21] text-white"
-              : "text-white/70 hover:bg-white/10 hover:text-white"
+              : "text-white hover:bg-white/10"
           )}
         >
-          <Icon size={18} />
+          <Icon size={18} className="text-white" />
           {(!isMobile && sidebarOpen) || isMobile ? (
-            <span className="font-medium">{item.label}</span>
+            <span className="font-medium text-white">{item.label}</span>
           ) : null}
         </Link>
       );

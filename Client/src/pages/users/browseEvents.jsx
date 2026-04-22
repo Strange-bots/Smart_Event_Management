@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import { ViewModeToggle } from "../../components/ui/view-mode-toggle";
-import { fetchEvents } from "../../services/eventService.js";
+import { fetchEvents, registerForEvent } from "../../services/eventService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -47,6 +47,7 @@ const BrowseEvents = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [allEvents, setAllEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [registeringEventId, setRegisteringEventId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -65,9 +66,9 @@ const BrowseEvents = () => {
           events.map((event) => ({
             ...event,
             date: formatEventDate(event.date),
-            venue: event.location,
-            isPaid: false,
-            price: 0,
+            venue: event.venue || event.location,
+            isPaid: Boolean(event.isPaid),
+            price: Number(event.price || 0),
             tags: event.tags ?? [],
             aiMatch:
               aiScores[String(event.id)] ?? (78 + (Number(event.id) % 18 || 0)),
@@ -120,12 +121,44 @@ const BrowseEvents = () => {
     setShowDetailsModal(true);
   };
 
-  const handleRegister = (event) => {
+  const updateRegisteredEvent = (registeredEvent) => {
+    setAllEvents((currentEvents) =>
+      currentEvents.map((event) =>
+        String(event.id) === String(registeredEvent.id)
+          ? {
+              ...event,
+              registrations: Number(registeredEvent.registrations || event.registrations),
+            }
+          : event
+      )
+    );
+
+    setSelectedEvent((currentEvent) =>
+      currentEvent && String(currentEvent.id) === String(registeredEvent.id)
+        ? {
+            ...currentEvent,
+            registrations: Number(registeredEvent.registrations || currentEvent.registrations),
+          }
+        : currentEvent
+    );
+  };
+
+  const handleRegister = async (event) => {
     if (event.isPaid && event.price > 0) {
       navigate(`/paymentPage?eventId=${event.id}`);
-    } else {
-      alert(`Successfully registered for "${event.title}"!`);
+      return;
+    }
+
+    try {
+      setRegisteringEventId(event.id);
+      const result = await registerForEvent(event.id);
+      updateRegisteredEvent(result.event);
+      alert(result.message || `Successfully registered for "${event.title}"!`);
       setShowDetailsModal(false);
+    } catch (error) {
+      alert(error.message || "Unable to register for this event right now.");
+    } finally {
+      setRegisteringEventId(null);
     }
   };
 
@@ -150,22 +183,22 @@ const BrowseEvents = () => {
             )}
             onClick={() => setShowAiRecommended(!showAiRecommended)}
           >
-            âœ¨ AI Recommended
+            AI Recommended
           </button>
         </div>
 
         <div className="rounded-xl bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                ðŸ”
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">
+                Search
               </span>
               <input
                 type="text"
                 placeholder="Search events..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30"
+                className="w-full rounded-lg border border-gray-300 py-2 pl-16 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30"
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -182,7 +215,7 @@ const BrowseEvents = () => {
                   ))}
                 </select>
                 <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                  â–¼
+                  v
                 </span>
               </div>
               <ViewModeToggle value={viewMode} onValueChange={setViewMode} />
@@ -224,7 +257,7 @@ const BrowseEvents = () => {
                   />
                   {event.aiMatch >= 80 && (
                     <span className="absolute right-2 top-2 rounded-full bg-purple-600 px-2 py-1 text-xs text-white">
-                      âœ¨ {event.aiMatch}% match
+                      {event.aiMatch}% match
                     </span>
                   )}
                 </div>
@@ -237,21 +270,21 @@ const BrowseEvents = () => {
                   </h3>
                   <div className="mb-4 space-y-1.5 text-sm text-gray-500">
                     <div className="flex items-center gap-2">
-                      <span className="text-[#f36f21]">ðŸ“…</span>
+                      <span className="font-medium text-[#f36f21]">Date</span>
                       <span>{event.date}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[#f36f21]">ðŸ•</span>
+                      <span className="font-medium text-[#f36f21]">Time</span>
                       <span>{event.time}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[#f36f21]">ðŸ“</span>
+                      <span className="font-medium text-[#f36f21]">Place</span>
                       <span>{event.venue}</span>
                     </div>
                   </div>
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-sm text-gray-500">
-                      ðŸ‘¥{" "}
+                      Registered{" "}
                       <span className="font-medium text-gray-800">
                         {event.registrations}
                       </span>{" "}
@@ -276,13 +309,16 @@ const BrowseEvents = () => {
                       className="flex-1 rounded-lg border border-gray-300 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50"
                       onClick={() => handleViewDetails(event)}
                     >
-                      ðŸ‘ View
+                      View
                     </button>
                     <button
-                      className="flex-1 rounded-lg bg-[#f36f21] py-1.5 text-sm text-white transition-colors hover:bg-[#e05e10]"
+                      className="flex-1 rounded-lg bg-[#f36f21] py-1.5 text-sm text-white transition-colors hover:bg-[#e05e10] disabled:cursor-not-allowed disabled:bg-gray-300"
                       onClick={() => handleRegister(event)}
+                      disabled={registeringEventId === event.id}
                     >
-                      {event.isPaid ? `$${event.price}` : "Free"} â€” Register
+                      {registeringEventId === event.id
+                        ? "Registering..."
+                        : `${event.isPaid ? `$${event.price}` : "Free"} - Register`}
                     </button>
                   </div>
                 </div>
@@ -305,7 +341,7 @@ const BrowseEvents = () => {
                     />
                     {event.aiMatch >= 80 && (
                       <span className="absolute left-2 top-2 rounded-full bg-purple-600 px-2 py-1 text-xs text-white">
-                        âœ¨ {event.aiMatch}%
+                        {event.aiMatch}%
                       </span>
                     )}
                   </div>
@@ -318,7 +354,7 @@ const BrowseEvents = () => {
                           </span>
                           {event.aiMatch >= 80 && (
                             <span className="rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-700 md:hidden">
-                              âœ¨ {event.aiMatch}% match
+                              {event.aiMatch}% match
                             </span>
                           )}
                         </div>
@@ -326,13 +362,13 @@ const BrowseEvents = () => {
                           {event.title}
                         </h3>
                         <div className="mb-3 flex flex-wrap gap-4 text-sm text-gray-500">
-                          <span>ðŸ“… {event.date}</span>
-                          <span>ðŸ• {event.time}</span>
-                          <span>ðŸ“ {event.venue}</span>
+                          <span>Date: {event.date}</span>
+                          <span>Time: {event.time}</span>
+                          <span>Place: {event.venue}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-gray-500">
-                            ðŸ‘¥{" "}
+                            Registered{" "}
                             <span className="font-medium text-gray-800">
                               {event.registrations}
                             </span>{" "}
@@ -358,13 +394,18 @@ const BrowseEvents = () => {
                           className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
                           onClick={() => handleViewDetails(event)}
                         >
-                          ðŸ‘ Details
+                          Details
                         </button>
                         <button
-                          className="rounded-lg bg-[#f36f21] px-4 py-2 text-sm text-white transition-colors hover:bg-[#e05e10]"
+                          className="rounded-lg bg-[#f36f21] px-4 py-2 text-sm text-white transition-colors hover:bg-[#e05e10] disabled:cursor-not-allowed disabled:bg-gray-300"
                           onClick={() => handleRegister(event)}
+                          disabled={registeringEventId === event.id}
                         >
-                          {event.isPaid ? `$${event.price}` : "Free"}
+                          {registeringEventId === event.id
+                            ? "Registering..."
+                            : event.isPaid
+                              ? `$${event.price}`
+                              : "Free"}
                         </button>
                       </div>
                     </div>
@@ -377,7 +418,9 @@ const BrowseEvents = () => {
 
         {!isLoading && filteredEvents.length === 0 && (
           <div className="rounded-xl bg-white p-12 text-center shadow-sm">
-            <div className="mb-4 text-5xl opacity-40">ðŸ“…</div>
+            <div className="mb-4 text-sm font-medium uppercase tracking-wide text-gray-400">
+              No results
+            </div>
             <h3 className="mb-2 font-semibold text-gray-900">No events found</h3>
             <p className="text-gray-500">
               Try adjusting your search or filter criteria
@@ -406,7 +449,7 @@ const BrowseEvents = () => {
                 onClick={() => setShowDetailsModal(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100"
               >
-                âœ•
+                x
               </button>
             </div>
 
@@ -449,7 +492,7 @@ const BrowseEvents = () => {
               <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-lg">
-                    ðŸ“…
+                    Date
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Date</p>
@@ -460,7 +503,7 @@ const BrowseEvents = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-lg">
-                    ðŸ•
+                    Time
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Time</p>
@@ -471,7 +514,7 @@ const BrowseEvents = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-lg">
-                    ðŸ“
+                    Place
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Location</p>
@@ -482,7 +525,7 @@ const BrowseEvents = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-lg">
-                    ðŸ‘¥
+                    Seats
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Availability</p>
@@ -520,7 +563,7 @@ const BrowseEvents = () => {
                         key={tag}
                         className="rounded-full bg-orange-50 px-2 py-1 text-xs text-[#f36f21]"
                       >
-                        ðŸ· {tag}
+                        {tag}
                       </span>
                     ))}
                   </div>
@@ -528,12 +571,15 @@ const BrowseEvents = () => {
               )}
 
               <button
-                className="w-full rounded-xl bg-[#f36f21] py-3 font-semibold text-white transition-colors hover:bg-[#e05e10]"
+                className="w-full rounded-xl bg-[#f36f21] py-3 font-semibold text-white transition-colors hover:bg-[#e05e10] disabled:cursor-not-allowed disabled:bg-gray-300"
                 onClick={() => handleRegister(selectedEvent)}
+                disabled={registeringEventId === selectedEvent.id}
               >
-                {selectedEvent.isPaid
-                  ? `Register Now â€” $${selectedEvent.price}`
-                  : "Register Now â€” Free"}
+                {registeringEventId === selectedEvent.id
+                  ? "Registering..."
+                  : selectedEvent.isPaid
+                  ? `Register Now - $${selectedEvent.price}`
+                  : "Register Now - Free"}
               </button>
             </div>
           </div>

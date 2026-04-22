@@ -4,6 +4,7 @@ import {
   Clock,
   Download,
   Mail,
+  MessageSquareWarning,
   Search,
   ShieldAlert,
   Users,
@@ -14,6 +15,7 @@ import {
   exportOrganizerRegistrations,
   fetchOrganizerRegistrations,
 } from "../../services/registrationService.js";
+import { reportUserHistory } from "../../services/userHistoryService.js";
 import { getCurrentUser } from "../../utils/auth.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
@@ -90,6 +92,17 @@ function getRiskConfig(registration) {
   };
 }
 
+function getUserRiskBadge(riskLevel = "low") {
+  switch (riskLevel) {
+    case "high":
+      return "bg-red-100 text-red-700 border-red-200";
+    case "medium":
+      return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    default:
+      return "bg-green-100 text-green-700 border-green-200";
+  }
+}
+
 function OrganizerRegistrations() {
   const currentUser = useMemo(() => getCurrentUser(), []);
   const currentUserRole = currentUser?.role ?? null;
@@ -101,6 +114,11 @@ function OrganizerRegistrations() {
   const [isExporting, setIsExporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [allRegistrations, setAllRegistrations] = useState([]);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportRiskLevel, setReportRiskLevel] = useState("medium");
+  const [reportEventPhase, setReportEventPhase] = useState("during");
+  const [reportReason, setReportReason] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -208,6 +226,67 @@ function OrganizerRegistrations() {
       });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const openReportDialog = (registration) => {
+    setReportTarget(registration);
+    setReportRiskLevel(
+      registration.userRiskLevel === "high" ? "high" : "medium",
+    );
+    setReportEventPhase("during");
+    setReportReason("");
+  };
+
+  const closeReportDialog = () => {
+    setReportTarget(null);
+    setReportReason("");
+    setReportRiskLevel("medium");
+    setReportEventPhase("during");
+  };
+
+  const handleSubmitReport = async (event) => {
+    event.preventDefault();
+
+    if (!reportTarget) {
+      return;
+    }
+
+    try {
+      setIsReporting(true);
+      const result = await reportUserHistory({
+        userEmail: reportTarget.attendeeEmail,
+        riskLevel: reportRiskLevel,
+        eventPhase: reportEventPhase,
+        eventId: reportTarget.eventId,
+        eventTitle: reportTarget.eventName,
+        reason: reportReason,
+      });
+
+      setAllRegistrations((currentRegistrations) =>
+        currentRegistrations.map((registration) =>
+          registration.attendeeEmail === reportTarget.attendeeEmail
+            ? {
+                ...registration,
+                userRiskLevel: result.user?.riskLevel || reportRiskLevel,
+              }
+            : registration,
+        ),
+      );
+      setNotice({
+        type: "success",
+        message: `Reported ${reportTarget.attendeeName}. User risk is now ${
+          result.user?.riskLevel || reportRiskLevel
+        }.`,
+      });
+      closeReportDialog();
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.message || "Could not submit misconduct report.",
+      });
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -410,6 +489,9 @@ function OrganizerRegistrations() {
                     <th className="px-4 py-4 text-left text-sm font-semibold text-[#0f1e33]">
                       AI Risk
                     </th>
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-[#0f1e33]">
+                      User History
+                    </th>
                     <th className="px-4 py-4 text-right text-sm font-semibold text-[#0f1e33]">
                       Actions
                     </th>
@@ -485,19 +567,40 @@ function OrganizerRegistrations() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setNotice({
-                                type: "success",
-                                message: `Ready to message ${registration.attendeeName}.`,
-                              })
-                            }
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d9e2ec] text-[#1f4e79]"
+                        <td className="px-4 py-4">
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
+                              getUserRiskBadge(registration.userRiskLevel),
+                            )}
                           >
-                            <Mail size={16} />
-                          </button>
+                            {registration.userRiskLevel || "low"} risk
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openReportDialog(registration)}
+                              className="inline-flex h-9 items-center gap-2 rounded-full border border-rose-200 px-3 text-sm font-medium text-rose-700 transition hover:bg-rose-50"
+                            >
+                              <MessageSquareWarning size={15} />
+                              Report
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setNotice({
+                                  type: "success",
+                                  message: `Ready to message ${registration.attendeeName}.`,
+                                })
+                              }
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d9e2ec] text-[#1f4e79]"
+                              aria-label={`Message ${registration.attendeeName}`}
+                            >
+                              <Mail size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -522,6 +625,93 @@ function OrganizerRegistrations() {
           </section>
         ) : null}
       </div>
+
+      {reportTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <form
+            onSubmit={handleSubmitReport}
+            className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5">
+              <h2 className="text-xl font-bold text-[#0f1e33]">
+                Report attendee misconduct
+              </h2>
+              <p className="mt-1 text-sm text-[#6b7c93]">
+                This report will be added to the user history and visible to admins and organizers.
+              </p>
+            </div>
+
+            <div className="mb-5 rounded-2xl bg-[#f8fafc] p-4">
+              <p className="font-semibold text-[#0f1e33]">
+                {reportTarget.attendeeName}
+              </p>
+              <p className="text-sm text-[#6b7c93]">
+                {reportTarget.attendeeEmail}
+              </p>
+              <p className="mt-2 text-sm text-[#0f1e33]">
+                Event: {reportTarget.eventName}
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="space-y-2 text-sm font-medium text-[#0f1e33]">
+                Risk category
+                <select
+                  value={reportRiskLevel}
+                  onChange={(event) => setReportRiskLevel(event.target.value)}
+                  className="w-full rounded-xl border border-[#d9e2ec] px-3 py-2 outline-none focus:border-[#1f4e79]"
+                >
+                  <option value="medium">Medium risk</option>
+                  <option value="high">High risk</option>
+                </select>
+              </label>
+
+              <label className="space-y-2 text-sm font-medium text-[#0f1e33]">
+                Event phase
+                <select
+                  value={reportEventPhase}
+                  onChange={(event) => setReportEventPhase(event.target.value)}
+                  className="w-full rounded-xl border border-[#d9e2ec] px-3 py-2 outline-none focus:border-[#1f4e79]"
+                >
+                  <option value="before">Before event</option>
+                  <option value="during">During event</option>
+                  <option value="after">After event</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-4 block space-y-2 text-sm font-medium text-[#0f1e33]">
+              Reason
+              <textarea
+                value={reportReason}
+                onChange={(event) => setReportReason(event.target.value)}
+                rows={4}
+                required
+                placeholder="Describe the misconduct or concern..."
+                className="w-full resize-none rounded-xl border border-[#d9e2ec] px-3 py-2 outline-none focus:border-[#1f4e79]"
+              />
+            </label>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeReportDialog}
+                disabled={isReporting}
+                className="rounded-xl border border-[#d9e2ec] px-4 py-2 font-medium text-[#0f1e33]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isReporting}
+                className="rounded-xl bg-rose-600 px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:bg-rose-300"
+              >
+                {isReporting ? "Submitting..." : "Submit report"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </DashboardLayout>
   );
 }

@@ -2,6 +2,36 @@ import { getCurrentUser } from "../utils/auth";
 
 const getApiBaseUrl = () => import.meta.env.VITE_API_URL ?? "";
 
+const parseJsonResponse = async (response, fallbackMessage) => {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || fallbackMessage);
+  }
+
+  return data;
+};
+
+export async function fetchMyEventRegistrations() {
+  const currentUser = getCurrentUser();
+
+  if (!currentUser?.token) {
+    throw new Error("Please sign in to view your events.");
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/api/users/events`, {
+    headers: {
+      Authorization: `Bearer ${currentUser.token}`,
+    },
+  });
+  const data = await parseJsonResponse(
+    response,
+    `User events request failed with status ${response.status}`
+  );
+
+  return data?.events ?? [];
+}
+
 export async function fetchOrganizerRegistrations() {
   const currentUser = getCurrentUser();
 

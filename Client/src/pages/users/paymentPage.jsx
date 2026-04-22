@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Trash2,
 } from "lucide-react";
+import { fetchEventById, registerForEvent } from "../../services/eventService.js";
 
 // ── payment preferences (localStorage) ───────────────────────────────────────
 const PREF_KEY = "sem_payment_prefs";
@@ -23,41 +24,26 @@ const getPaymentPreferences = () => {
 const savePaymentPreferences = (prefs) => localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
 const clearPaymentPreferences = () => localStorage.removeItem(PREF_KEY);
 
-// ── mock event store ──────────────────────────────────────────────────────────
-const MOCK_EVENTS = [
-  {
-    id: 1,
-    title: "Annual Technology Summit 2024",
-    date: "March 15, 2024",
-    time: "9:00 AM – 5:00 PM",
-    venue: "Main Auditorium",
-    price: 50.0,
-    image: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=600&q=80",
-  },
-  {
-    id: 2,
-    title: "Business Analytics Workshop",
-    date: "March 20, 2024",
-    time: "10:00 AM – 2:00 PM",
-    venue: "Room 301",
-    price: 30.0,
-    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80",
-  },
-  {
-    id: 3,
-    title: "AI & Machine Learning Seminar",
-    date: "March 25, 2024",
-    time: "2:00 PM – 6:00 PM",
-    venue: "Lecture Hall B",
-    price: 75.0,
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=600&q=80",
-  },
-];
-
-const getEventById = (id) => MOCK_EVENTS.find((e) => e.id === id) || null;
-
 const generateReceiptId = () =>
   `RCP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100).padStart(3, "0")}`;
+
+const formatEventDate = (dateString) => {
+  if (!dateString) {
+    return "Date to be announced";
+  }
+
+  const parsedDate = new Date(dateString);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
+};
 
 // ── toast ─────────────────────────────────────────────────────────────────────
 const useToast = () => {
@@ -95,8 +81,10 @@ const PaymentPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const eventId = parseInt(searchParams.get("eventId") || "0");
-  const event = getEventById(eventId);
+  const eventId = searchParams.get("eventId") || "";
+  const [event, setEvent] = useState(null);
+  const [isLoadingEvent, setIsLoadingEvent] = useState(true);
+  const [eventError, setEventError] = useState("");
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -125,6 +113,51 @@ const PaymentPage = () => {
     }
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadEvent = async () => {
+      try {
+        setIsLoadingEvent(true);
+        const serverEvent = await fetchEventById(eventId);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!serverEvent) {
+          setEvent(null);
+          setEventError("The event you're trying to pay for doesn't exist.");
+          return;
+        }
+
+        setEvent({
+          ...serverEvent,
+          date: formatEventDate(serverEvent.date),
+          venue: serverEvent.venue || serverEvent.location,
+          price: Number(serverEvent.price || 0),
+          image: serverEvent.image || serverEvent.imagePreview,
+        });
+        setEventError("");
+      } catch (error) {
+        if (isMounted) {
+          setEvent(null);
+          setEventError(error.message || "Unable to load this event right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingEvent(false);
+        }
+      }
+    };
+
+    loadEvent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [eventId]);
+
   const handleClearPreferences = () => {
     clearPaymentPreferences();
     setCardholderName("");
@@ -144,27 +177,44 @@ const PaymentPage = () => {
       return;
     }
 
-    setIsProcessing(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      setIsProcessing(true);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await registerForEvent(event.id);
 
-    if (rememberPreference) {
-      const clean = cardNumber.replace(/\s/g, "");
-      savePaymentPreferences({
-        preferredMethod: "card",
-        cardholderName,
-        lastFourDigits: clean.slice(-4),
-        billingPostcode,
-        rememberPreference: true,
-      });
-      setHasSavedPrefs(true);
+      if (rememberPreference) {
+        const clean = cardNumber.replace(/\s/g, "");
+        savePaymentPreferences({
+          preferredMethod: "card",
+          cardholderName,
+          lastFourDigits: clean.slice(-4),
+          billingPostcode,
+          rememberPreference: true,
+        });
+        setHasSavedPrefs(true);
+      }
+
+      const newReceiptId = generateReceiptId();
+      setReceiptId(newReceiptId);
+      setIsComplete(true);
+      show("Payment successful! Receipt emailed to you.");
+    } catch (error) {
+      show(error.message || "Payment succeeded, but registration could not be confirmed.", "error");
+    } finally {
+      setIsProcessing(false);
     }
-
-    const newReceiptId = generateReceiptId();
-    setReceiptId(newReceiptId);
-    setIsProcessing(false);
-    setIsComplete(true);
-    show("Payment successful! Receipt emailed to you.");
   };
+
+  if (isLoadingEvent) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-xl shadow-sm bg-white p-12 text-center">
+          <h3 className="font-semibold text-gray-900 mb-2">Loading event...</h3>
+          <p className="text-gray-500">Fetching the latest event details from the server.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // ── event not found ───────────────────────────────────────────────────────
   if (!event) {
@@ -173,7 +223,9 @@ const PaymentPage = () => {
         <div className="rounded-xl shadow-sm bg-white p-12 text-center">
           <AlertCircle size={48} className="mx-auto text-gray-300 mb-4" />
           <h3 className="font-semibold text-gray-900 mb-2">Event not found</h3>
-          <p className="text-gray-500 mb-4">The event you're trying to pay for doesn't exist.</p>
+          <p className="text-gray-500 mb-4">
+            {eventError || "The event you're trying to pay for doesn't exist."}
+          </p>
           <button
             onClick={() => navigate("/browseEvents")}
             className="bg-[#f36f21] text-white rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-[#e05e10] transition-colors"

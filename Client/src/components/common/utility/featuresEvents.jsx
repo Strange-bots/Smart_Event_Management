@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { fetchEvents } from "../../../services/eventService.js";
 
 const categoryColors = {
   Technology: "bg-[#f36f21] hover:bg-[#ff8a3d]",
@@ -9,46 +11,25 @@ const categoryColors = {
   Conference: "bg-[#0f1e33] hover:bg-[#1b3354]",
 };
 
-const featuredEvents = [
-  {
-    id: "1",
-    title: "AI Innovation Summit",
-    date: "April 12, 2026",
-    time: "10:00 AM",
-    location: "Sydney Campus Auditorium",
-    attendees: 340,
-    category: "Technology",
-    image:
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&q=80",
-    featured: true,
-  },
-  {
-    id: "2",
-    title: "Student Leadership Forum",
-    date: "April 18, 2026",
-    time: "1:30 PM",
-    location: "Innovation Hub",
-    attendees: 215,
-    category: "Academic",
-    image:
-      "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80",
-    featured: false,
-  },
-  {
-    id: "3",
-    title: "Global Culture Fest",
-    date: "April 25, 2026",
-    time: "4:00 PM",
-    location: "Main Courtyard",
-    attendees: 410,
-    category: "Cultural",
-    image:
-      "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80",
-    featured: false,
-  },
-];
-
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+const formatEventDate = (dateString) => {
+  if (!dateString) {
+    return "Date to be announced";
+  }
+
+  const parsedDate = new Date(dateString);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(parsedDate);
+};
 
 const AnimatedSection = ({ className = "", delay = 0, children }) => (
   <div
@@ -63,6 +44,55 @@ const AnimatedSection = ({ className = "", delay = 0, children }) => (
 );
 
 function FeaturedEventsSection() {
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFeaturedEvents = async () => {
+      try {
+        const events = await fetchEvents();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setFeaturedEvents(
+          events.slice(0, 3).map((event, index) => ({
+            id: event.id,
+            title: event.title,
+            date: formatEventDate(event.date),
+            time: event.time,
+            location: event.venue || event.location,
+            attendees: Number(event.registrations || 0),
+            category: event.category,
+            image: event.image || event.imagePreview,
+            featured: index === 0,
+          }))
+        );
+      } catch {
+        if (isMounted) {
+          setFeaturedEvents([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadFeaturedEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (!isLoading && featuredEvents.length === 0) {
+    return null;
+  }
+
   return (
     <section className="bg-[#f4f0ff] py-16 md:py-24">
       <style>{`
@@ -100,7 +130,7 @@ function FeaturedEventsSection() {
         </AnimatedSection>
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {featuredEvents.map((event, index) => (
+          {(isLoading ? [] : featuredEvents).map((event, index) => (
             <AnimatedSection key={event.id} delay={index * 100}>
               <div
                 className={cn(

@@ -14,9 +14,11 @@ const {
   uploadEventImage,
 } = require('../controllers/eventController');
 const {
+  createEventRegistration,
   createUserRegistration,
   deleteUserRegistration,
   downloadOrganizerRegistrations,
+  listCurrentUserEventRegistrations,
   listUserRegistrations,
   listOrganizerRegistrations,
   updateUserRegistration,
@@ -29,6 +31,10 @@ const { listOrganizerNotifications } = require('../controllers/notificationContr
 const { listOrganizerEmailLogs } = require('../controllers/emailLogController');
 const { subscribeToNewsletter } = require('../controllers/newsletterController');
 const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
+const {
+  createUserHistoryReportRecord,
+  listUserHistoryRecords,
+} = require('../controllers/userHistoryController');
 const { requireRole } = require('../middleware/requireRole');
 const upload = require('../middleware/upload');
 const authRoutes = require('./authRoutes');
@@ -50,6 +56,8 @@ router.get('/events/stats', getEventStats);
 router.get('/events', listEvents);
 router.get('/events/next', getNextEvent);
 router.get('/events/recommendations', getRecommendations);
+router.post('/events/:eventId/registrations', requireRole('user'), createEventRegistration);
+router.get('/users/events', requireRole('user'), listCurrentUserEventRegistrations);
 router.get('/organizer/events', requireRole('organizer'), listOrganizerEvents);
 router.post('/organizer/events', requireRole('organizer'), createOrganizerEventRecord);
 router.put('/organizer/events/:eventId', requireRole('organizer'), updateOrganizerEventRecord);
@@ -67,6 +75,8 @@ router.put('/admin/settings', requireRole('admin'), updateSettings);
 router.get('/organizer/feedback', requireRole('organizer'), listOrganizerFeedback);
 router.post('/feedback', requireRole('user'), createFeedback);
 router.get('/organizer/registrations', requireRole('organizer'), listOrganizerRegistrations);
+router.get('/user-history', requireRole(['admin', 'organizer']), listUserHistoryRecords);
+router.post('/user-history/reports', requireRole(['admin', 'organizer']), createUserHistoryReportRecord);
 router.get('/organizer/notifications', requireRole('organizer'), listOrganizerNotifications);
 router.get('/organizer/email-logs', requireRole('organizer'), listOrganizerEmailLogs);
 router.get('/hero-image', getHeroImage);

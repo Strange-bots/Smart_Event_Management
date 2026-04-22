@@ -1,7 +1,11 @@
 const {
   exportOrganizerRegistrations,
   getOrganizerRegistrationDetails,
+  getRegistrationCountForEvent,
+  getUserEventRegistrationDetails,
 } = require('../services/registrationService');
+const { events } = require('../data/events');
+const { registrations } = require('../data/registrations');
 const { registeredUsers } = require('../data/registeredUsers');
 const {
   createSessionToken,
@@ -15,6 +19,81 @@ const {
 } = require('../validators/authValidator');
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
+
+const getBookableEvents = () => events;
+
+const createEventRegistration = (req, res) => {
+  const user = req.user;
+  const event = getBookableEvents().find(
+    (item) => String(item.id) === String(req.params.eventId),
+  );
+
+  if (!event) {
+    return res.status(404).json({ message: 'Event not found' });
+  }
+
+  if (event.status !== 'approved') {
+    return res.status(400).json({
+      message: 'Only approved events can be booked',
+    });
+  }
+
+  const existingRegistration = registrations.find(
+    (registration) =>
+      String(registration.eventId) === String(event.id) &&
+      normalizeEmail(registration.userEmail) === normalizeEmail(user.email) &&
+      registration.attendanceStatus !== 'cancelled',
+  );
+
+  if (existingRegistration) {
+    return res.status(409).json({
+      message: 'You have already booked this event',
+      registration: existingRegistration,
+    });
+  }
+
+  const currentRegistrations = getRegistrationCountForEvent(event.id);
+  const capacity = Number(event.capacity || 0);
+
+  if (capacity > 0 && currentRegistrations >= capacity) {
+    return res.status(409).json({
+      message: 'This event is already at full capacity',
+    });
+  }
+
+  const registration = {
+    id: `reg-${event.id}-${Date.now()}`,
+    eventId: event.id,
+    userName: user.name,
+    userEmail: user.email,
+    registrationDate: new Date().toISOString().slice(0, 10),
+    paymentStatus: event.isPaid ? 'unpaid' : 'paid',
+    attendanceStatus: 'registered',
+  };
+
+  registrations.push(registration);
+  event.registrations = getRegistrationCountForEvent(event.id);
+
+  return res.status(201).json({
+    message: 'Event booked successfully',
+    registration,
+    event: {
+      id: event.id,
+      title: event.title,
+      registrations: event.registrations,
+      capacity: event.capacity,
+    },
+  });
+};
+
+const listCurrentUserEventRegistrations = (req, res) => {
+  const result = getUserEventRegistrationDetails(req.user?.email);
+
+  return res.status(200).json({
+    message: 'User event registrations fetched successfully',
+    events: result.registrations,
+  });
+};
 
 const createUserRegistration = (req, res) => {
   const sanitizedPayload = sanitizeSignupRequest(req.body);
@@ -151,9 +230,11 @@ const downloadOrganizerRegistrations = (req, res) => {
 };
 
 module.exports = {
+  createEventRegistration,
   createUserRegistration,
   deleteUserRegistration,
   downloadOrganizerRegistrations,
+  listCurrentUserEventRegistrations,
   listUserRegistrations,
   listOrganizerRegistrations,
   updateUserRegistration,

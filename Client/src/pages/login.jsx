@@ -82,10 +82,6 @@ const Login = () => {
     }
   };
 
-  const handleQuickLogin = (email, password) => {
-    setFormData({ email, password });
-  };
-
   return (
     <>
     <Navbar/>
@@ -224,51 +220,6 @@ const Login = () => {
                 </p>
               </div>
 
-              <AuthSectionDivider label="Quick access" />
-
-              <div className="p-4 bg-secondary rounded-lg space-y-3">
-                <p className="text-xs font-medium text-foreground text-center">
-                  Demo Accounts (Click to fill):
-                </p>
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("user@demo.com", "Demo@123")}
-                    className="w-full text-left p-2 rounded border border-border hover:bg-accent transition-colors text-xs"
-                  >
-                    <span className="font-medium text-[#1f4e79]">User:</span>{" "}
-                    <span className="text-muted-foreground">
-                      user@demo.com / Demo@123
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickLogin("organizer@demo.com", "Demo@123")
-                    }
-                    className="w-full text-left p-2 rounded border border-border hover:bg-accent transition-colors text-xs"
-                  >
-                    <span className="font-medium text-brand-orange">
-                      Organizer:
-                    </span>{" "}
-                    <span className="text-muted-foreground">
-                      organizer@demo.com / Demo@123
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickLogin("admin@demo.com", "Demo@123")
-                    }
-                    className="w-full text-left p-2 rounded border border-border hover:bg-accent transition-colors text-xs"
-                  >
-                    <span className="font-medium text-primary">Admin:</span>{" "}
-                    <span className="text-muted-foreground">
-                      admin@demo.com / Demo@123
-                    </span>
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>

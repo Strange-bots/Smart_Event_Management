@@ -20,6 +20,14 @@ const formatFeedbackDate = (dateString) => {
   }).format(parsedDate);
 };
 
+const eventBelongsToOrganizer = (event, organizerEmail) => {
+  const normalizedOrganizer = organizerEmail.toLowerCase();
+
+  return [event.organizerEmail, event.organizerId]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase() === normalizedOrganizer);
+};
+
 const getOrganizerFeedbackDetails = (organizerEmail) => {
   const organizer = findUserByEmail(organizerEmail);
 
@@ -38,7 +46,7 @@ const getOrganizerFeedbackDetails = (organizerEmail) => {
   }
 
   const organizerEvents = events.filter(
-    (event) => event.organizerEmail?.toLowerCase() === organizer.email.toLowerCase(),
+    (event) => eventBelongsToOrganizer(event, organizer.email),
   );
   const organizerEventIds = new Set(organizerEvents.map((event) => event.id));
 

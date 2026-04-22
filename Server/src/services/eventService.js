@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const { events } = require('../data/events');
-const { organizerEvents } = require('../data/organizerEvents');
 const { findUserByEmail } = require('./authService');
+const { getRegistrationCountForEvent } = require('./registrationService');
 
 const getEventStart = (event) => {
   const startTime = event.time?.split('-')[0]?.trim() ?? '12:00 AM';
@@ -20,13 +20,14 @@ const formatEvent = (event) => ({
   venue: event.venue || event.location,
   category: event.category,
   capacity: event.capacity,
-  registrations: event.registrations,
+  registrations: getRegistrationCountForEvent(event.id),
   image: event.image || event.imagePreview,
   imagePreview: event.imagePreview || event.image,
   status: event.status,
   isPaid: event.isPaid,
   price: event.price,
   tags: event.tags,
+  organizerId: event.organizerId,
   organizerName: event.organizerName,
   organizerEmail: event.organizerEmail,
   dateLabel: event.dateLabel,
@@ -34,7 +35,15 @@ const formatEvent = (event) => ({
   updatedAt: event.updatedAt,
 });
 
-const getAllEventRecords = () => [...events, ...organizerEvents];
+const getAllEventRecords = () => events;
+
+const eventBelongsToOrganizer = (event, organizerEmail) => {
+  const normalizedOrganizer = organizerEmail.toLowerCase();
+
+  return [event.organizerEmail, event.organizerId]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase() === normalizedOrganizer);
+};
 
 const getNextUpcomingEvent = () => {
   const now = new Date();
@@ -47,7 +56,11 @@ const getNextUpcomingEvent = () => {
   return nextEvent ? formatEvent(nextEvent) : null;
 };
 
-const getRecommendationMatch = (event) => 78 + (event.id % 18);
+const getRecommendationMatch = (event) => {
+  const numericId = Number(event.id);
+
+  return 78 + (Number.isFinite(numericId) ? numericId % 18 : 0);
+};
 
 const getRecommendedEvents = () => {
   const now = new Date();
@@ -249,8 +262,8 @@ const validateOrganizerEventPayload = (event) => {
 };
 
 const getOrganizerEvents = (organizerEmail) =>
-  organizerEvents
-    .filter((event) => event.organizerEmail === organizerEmail)
+  events
+    .filter((event) => eventBelongsToOrganizer(event, organizerEmail))
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
     .map(formatEvent);
 
@@ -269,6 +282,8 @@ const createOrganizerEvent = ({ organizer, payload }) => {
   const event = {
     id: `event-${Date.now()}`,
     ...normalizedEvent,
+    registrations: 0,
+    organizerId: organizer.id || organizer.email,
     organizerName: organizer.name || organizer.email,
     organizerEmail: organizer.email,
     status: 'pending',
@@ -276,7 +291,7 @@ const createOrganizerEvent = ({ organizer, payload }) => {
     updatedAt: createdAt,
   };
 
-  organizerEvents.unshift(event);
+  events.unshift(event);
 
   return {
     statusCode: 201,
@@ -285,8 +300,8 @@ const createOrganizerEvent = ({ organizer, payload }) => {
 };
 
 const getOrganizerOwnedEvent = ({ organizerEmail, eventId }) =>
-  organizerEvents.find(
-    (event) => String(event.id) === String(eventId) && event.organizerEmail === organizerEmail,
+  events.find(
+    (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizerEmail),
   );
 
 const updateOrganizerEvent = ({ organizerEmail, eventId, payload }) => {
@@ -313,6 +328,7 @@ const updateOrganizerEvent = ({ organizerEmail, eventId, payload }) => {
   }
 
   Object.assign(event, normalizedEvent, {
+    registrations: event.registrations,
     status: 'pending',
     updatedAt: new Date().toISOString(),
   });
@@ -344,8 +360,8 @@ const duplicateOrganizerEvent = ({ organizer, eventId }) => {
 };
 
 const deleteOrganizerEvent = ({ organizerEmail, eventId }) => {
-  const eventIndex = organizerEvents.findIndex(
-    (event) => String(event.id) === String(eventId) && event.organizerEmail === organizerEmail,
+  const eventIndex = events.findIndex(
+    (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizerEmail),
   );
 
   if (eventIndex === -1) {
@@ -355,7 +371,7 @@ const deleteOrganizerEvent = ({ organizerEmail, eventId }) => {
     };
   }
 
-  organizerEvents.splice(eventIndex, 1);
+  events.splice(eventIndex, 1);
 
   return {
     statusCode: 200,
