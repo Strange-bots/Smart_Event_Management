@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import koiLogo from "@/assets/koi-logo.jpg";
 import { useState, useRef, useEffect } from "react";
+import { getCurrentUser } from "@/utils/auth";
 
 // ── Inline Switch ──────────────────────────────────────────────────────────────
 function Switch({ checked, onCheckedChange, className = "" }) {
@@ -114,6 +115,118 @@ function ToastContainer({ toasts }) {
 
 // ── Theme helpers (replaces next-themes) ──────────────────────────────────────
 const THEME_KEY = "sem_theme";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "";
+const DEFAULT_SETTINGS = {
+  organization: {
+    name: "King's Own Institute",
+    email: "events@koi.edu.au",
+    address: "Level 1, 545 Kent Street, Sydney NSW 2000",
+    logo: koiLogo,
+  },
+  events: {
+    defaultCapacity: 100,
+    registrationDeadline: 3,
+    requireApproval: true,
+    allowWaitlist: true,
+  },
+  notifications: {
+    newRegistration: true,
+    approvalRequests: true,
+    eventReminders: true,
+    feedbackRequests: true,
+  },
+  email: {
+    smtpHost: "smtp.koi.edu.au",
+    smtpPort: "587",
+    smtpUser: "events@koi.edu.au",
+    smtpPass: "********",
+  },
+  security: {
+    twoFactorAuth: false,
+    emailVerification: true,
+    passwordComplexity: true,
+    sessionTimeout: 30,
+    maxSessions: 3,
+  },
+  appearance: {
+    darkMode: false,
+    primaryColor: "#1F4E79",
+    accentColor: "#F36F21",
+  },
+};
+
+const mergeSettings = (nextSettings = {}) => ({
+  organization: { ...DEFAULT_SETTINGS.organization, ...nextSettings.organization },
+  events: { ...DEFAULT_SETTINGS.events, ...nextSettings.events },
+  notifications: { ...DEFAULT_SETTINGS.notifications, ...nextSettings.notifications },
+  email: { ...DEFAULT_SETTINGS.email, ...nextSettings.email },
+  security: { ...DEFAULT_SETTINGS.security, ...nextSettings.security },
+  appearance: { ...DEFAULT_SETTINGS.appearance, ...nextSettings.appearance },
+});
+
+const getSettingsHeaders = () => {
+  const currentUser = getCurrentUser();
+
+  if (!currentUser?.email) {
+    throw new Error("Admin session not found. Please log in again.");
+  }
+
+  return {
+    "Content-Type": "application/json",
+    "x-user-email": currentUser.email,
+  };
+};
+
+const fetchAdminSettings = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+    headers: getSettingsHeaders(),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to load admin settings");
+  }
+
+  return data?.settings ?? {};
+};
+
+const saveAdminSettings = async (settings) => {
+  const payload = {
+    events: {
+      requireApproval: settings.events.requireApproval,
+      allowWaitlist: settings.events.allowWaitlist,
+    },
+    notifications: {
+      newRegistration: settings.notifications.newRegistration,
+      approvalRequests: settings.notifications.approvalRequests,
+      eventReminders: settings.notifications.eventReminders,
+      feedbackRequests: settings.notifications.feedbackRequests,
+    },
+    security: {
+      twoFactorAuth: settings.security.twoFactorAuth,
+      emailVerification: settings.security.emailVerification,
+      passwordComplexity: settings.security.passwordComplexity,
+      sessionTimeout: settings.security.sessionTimeout,
+      maxSessions: settings.security.maxSessions,
+    },
+    appearance: {
+      darkMode: settings.appearance.darkMode,
+    },
+  };
+
+  const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+    method: "PUT",
+    headers: getSettingsHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to save admin settings");
+  }
+
+  return data?.settings ?? payload;
+};
 
 function getSystemTheme() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -147,44 +260,45 @@ const AdminSettings = () => {
   const toast = useToast();
   const fileInputRef = useRef(null);
   const [previewLogo, setPreviewLogo] = useState(null);
-  const [settings, setSettings] = useState({
-    organization: {
-      name: "King's Own Institute",
-      email: "events@koi.edu.au",
-      address: "Level 1, 545 Kent Street, Sydney NSW 2000",
-      logo: koiLogo,
-    },
-    events: {
-      defaultCapacity: 100,
-      registrationDeadline: 3,
-      requireApproval: true,
-      allowWaitlist: true,
-    },
-    notifications: {
-      newRegistration: true,
-      approvalRequests: true,
-      eventReminders: true,
-      feedbackRequests: true,
-    },
-    email: {
-      smtpHost: "smtp.koi.edu.au",
-      smtpPort: "587",
-      smtpUser: "events@koi.edu.au",
-      smtpPass: "********",
-    },
-    security: {
-      twoFactorAuth: false,
-      emailVerification: true,
-      passwordComplexity: true,
-      sessionTimeout: 30,
-      maxSessions: 3,
-    },
-    appearance: {
-      darkMode: false,
-      primaryColor: "#1F4E79",
-      accentColor: "#F36F21",
-    },
-  });
+  const [settings, setSettings] = useState(() => mergeSettings());
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSettings = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError("");
+        const backendSettings = await fetchAdminSettings();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSettings((prev) => mergeSettings({ ...prev, ...backendSettings }));
+        if (typeof backendSettings?.appearance?.darkMode === "boolean") {
+          setTheme(backendSettings.appearance.darkMode ? "dark" : "light");
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError(error.message);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [setTheme]);
 
   const handleLogoChange = (e) => {
     const file = e.target.files?.[0];
@@ -194,14 +308,36 @@ const AdminSettings = () => {
     }
   };
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
     if (previewLogo) {
       setSettings((prev) => ({
         ...prev,
         organization: { ...prev.organization, logo: previewLogo },
       }));
     }
-    toast.success("Settings saved successfully!");
+
+    try {
+      setIsSaving(true);
+      const nextSettings = previewLogo
+        ? {
+            ...settings,
+            organization: { ...settings.organization, logo: previewLogo },
+          }
+        : settings;
+      const savedSettings = await saveAdminSettings(nextSettings);
+
+      setSettings((prev) => mergeSettings({ ...prev, ...savedSettings }));
+
+      if (typeof savedSettings?.appearance?.darkMode === "boolean") {
+        setTheme(savedSettings.appearance.darkMode ? "dark" : "light");
+      }
+
+      toast.success("Settings saved successfully!");
+    } catch (error) {
+      setLoadError(error.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateOrganization = (field, value) => {
@@ -239,6 +375,12 @@ const AdminSettings = () => {
           <p className="text-muted-foreground mt-1">
             Configure platform settings and preferences
           </p>
+          {isLoading && (
+            <p className="mt-2 text-sm text-muted-foreground">Loading saved settings...</p>
+          )}
+          {loadError && (
+            <p className="mt-2 text-sm text-red-600">{loadError}</p>
+          )}
         </div>
 
         <TabsRoot defaultValue="general" className="space-y-6">
@@ -708,7 +850,7 @@ const AdminSettings = () => {
         <div className="flex justify-end">
           <Button variant="brand" className="gap-2" onClick={handleSaveChanges}>
             <Save size={18} />
-            Save Changes
+            {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>
