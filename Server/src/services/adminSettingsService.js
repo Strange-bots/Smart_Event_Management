@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS = {
   },
   appearance: {
     darkMode: false,
+    primaryColor: '#1F4E79',
+    accentColor: '#F36F21',
   },
 };
 
@@ -43,12 +45,18 @@ const SETTINGS_SCHEMA = {
     'sessionTimeout',
     'maxSessions',
   ],
-  appearance: ['darkMode'],
+  appearance: ['darkMode', 'primaryColor', 'accentColor'],
 };
 
 const NUMERIC_SETTING_FIELDS = {
   security: ['sessionTimeout', 'maxSessions'],
 };
+
+const COLOR_SETTING_FIELDS = {
+  appearance: ['primaryColor', 'accentColor'],
+};
+
+const HEX_COLOR_REGEX = /^#([0-9A-Fa-f]{6})$/;
 
 const readSettingsFromDisk = () => {
   try {
@@ -138,6 +146,14 @@ const validateTogglePayload = (payload) => {
       if (NUMERIC_SETTING_FIELDS[section]?.includes(field)) {
         if (!Number.isInteger(value) || value <= 0) {
           return `Setting ${section}.${field} must be a positive whole number`;
+        }
+
+        continue;
+      }
+
+      if (COLOR_SETTING_FIELDS[section]?.includes(field)) {
+        if (typeof value !== 'string' || !HEX_COLOR_REGEX.test(value)) {
+          return `Setting ${section}.${field} must be a valid hex color`;
         }
 
         continue;

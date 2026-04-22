@@ -211,6 +211,8 @@ const saveAdminSettings = async (settings) => {
     },
     appearance: {
       darkMode: settings.appearance.darkMode,
+      primaryColor: settings.appearance.primaryColor,
+      accentColor: settings.appearance.accentColor,
     },
   };
 
