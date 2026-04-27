@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/dashboard.jsx";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,8 +59,8 @@ import {
   Shield,
   Calendar,
 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { useAuth } from "@/context/authcontext1.jsx";
+import { cn } from "@/lib/utils";
 
 const USERS_STORAGE_KEY = "sem_users";
 
@@ -69,36 +79,48 @@ const convertAuthUserToAdminUser = (authUser) => ({
   avatar: authUser.avatar || null,
 });
 
-// Simple inline toast
 function useToast() {
   const [toasts, setToasts] = useState([]);
+
   const show = (message, type = "success") => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 3000);
   };
-  return { toasts, success: (msg) => show(msg, "success"), warning: (msg) => show(msg, "warning") };
+
+  return {
+    toasts,
+    success: (message) => show(message, "success"),
+    warning: (message) => show(message, "warning"),
+  };
 }
 
 function ToastContainer({ toasts }) {
-  if (!toasts.length) return null;
+  if (!toasts.length) {
+    return null;
+  }
+
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-      {toasts.map((t) => (
+      {toasts.map((toast) => (
         <div
-          key={t.id}
-          className={`rounded-md px-4 py-3 text-sm font-medium shadow-lg text-white ${
-            t.type === "warning" ? "bg-yellow-500" : "bg-green-600"
+          key={toast.id}
+          className={`rounded-md px-4 py-3 text-sm font-medium text-white shadow-lg ${
+            toast.type === "warning" ? "bg-yellow-500" : "bg-green-600"
           }`}
         >
-          {t.message}
+          {toast.message}
         </div>
       ))}
     </div>
   );
 }
 
-const AdminUsers = () => {
+function AdminUsers() {
+  const storedUser = window.localStorage.getItem("smart_event_user");
+  const currentUser = storedUser ? JSON.parse(storedUser) : null;
   const { getAllUsers } = useAuth();
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,20 +142,24 @@ const AdminUsers = () => {
 
     loadUsers();
 
-    const handleStorageChange = (e) => {
-      if (e.key === USERS_STORAGE_KEY) {
+    const handleStorageChange = (event) => {
+      if (event.key === USERS_STORAGE_KEY) {
         loadUsers();
       }
     };
 
     window.addEventListener("storage", handleStorageChange);
-    const interval = setInterval(loadUsers, 2000);
+    const interval = window.setInterval(loadUsers, 2000);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
+      window.clearInterval(interval);
     };
   }, [getAllUsers]);
+
+  if (!currentUser || currentUser.role !== "admin") {
+    return <Navigate to="/login" replace />;
+  }
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -146,9 +172,17 @@ const AdminUsers = () => {
   const getRoleBadge = (role) => {
     switch (role) {
       case "admin":
-        return <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">Admin</Badge>;
+        return (
+          <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">
+            Admin
+          </Badge>
+        );
       case "organizer":
-        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Organizer</Badge>;
+        return (
+          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+            Organizer
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">User</Badge>;
     }
@@ -157,11 +191,23 @@ const AdminUsers = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Active</Badge>;
+        return (
+          <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+            Active
+          </Badge>
+        );
       case "inactive":
-        return <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">Inactive</Badge>;
+        return (
+          <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">
+            Inactive
+          </Badge>
+        );
       case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">Pending</Badge>;
+        return (
+          <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">
+            Pending
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -179,38 +225,54 @@ const AdminUsers = () => {
   };
 
   const handleSaveEdit = () => {
-    if (selectedUser) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === selectedUser.id
-            ? { ...u, name: editForm.name, email: editForm.email, role: editForm.role }
-            : u
-        )
-      );
-
-      const storedUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-      const updatedUsers = storedUsers.map((u) =>
-        u.id === selectedUser.id
-          ? { ...u, name: editForm.name, email: editForm.email, role: editForm.role }
-          : u
-      );
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-
-      toast.success("User updated successfully!");
-      setIsEditDialogOpen(false);
+    if (!selectedUser) {
+      return;
     }
+
+    setUsers((prev) =>
+      prev.map((user) =>
+        user.id === selectedUser.id
+          ? {
+              ...user,
+              name: editForm.name,
+              email: editForm.email,
+              role: editForm.role,
+            }
+          : user,
+      ),
+    );
+
+    const storedUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
+    const updatedUsers = storedUsers.map((user) =>
+      user.id === selectedUser.id
+        ? {
+            ...user,
+            name: editForm.name,
+            email: editForm.email,
+            role: editForm.role,
+          }
+        : user,
+    );
+
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
+    toast.success("User updated successfully!");
+    setIsEditDialogOpen(false);
   };
 
   const handleApproveUser = (userId) => {
     setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: "active" } : u))
+      prev.map((user) =>
+        user.id === userId ? { ...user, status: "active" } : user,
+      ),
     );
     toast.success("User approved!");
   };
 
   const handleDeactivateUser = (userId) => {
     setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: "inactive" } : u))
+      prev.map((user) =>
+        user.id === userId ? { ...user, status: "inactive" } : user,
+      ),
     );
     toast.warning("User deactivated");
   };
@@ -222,14 +284,15 @@ const AdminUsers = () => {
 
   const confirmDelete = () => {
     if (userToDelete) {
-      setUsers((prev) => prev.filter((u) => u.id !== userToDelete));
+      setUsers((prev) => prev.filter((user) => user.id !== userToDelete));
 
       const storedUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-      const updatedUsers = storedUsers.filter((u) => u.id !== userToDelete);
+      const updatedUsers = storedUsers.filter((user) => user.id !== userToDelete);
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
 
       toast.success("User deleted successfully");
     }
+
     setIsDeleteDialogOpen(false);
     setUserToDelete(null);
   };
@@ -237,13 +300,12 @@ const AdminUsers = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-heading font-bold text-primary">
+            <h1 className="text-2xl font-bold text-primary md:text-3xl">
               User Management
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1 text-muted-foreground">
               Manage all users, roles, and permissions
             </p>
           </div>
@@ -253,11 +315,10 @@ const AdminUsers = () => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-0 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Users size={24} className="text-primary" />
               </div>
               <div>
@@ -267,39 +328,39 @@ const AdminUsers = () => {
             </CardContent>
           </Card>
           <Card className="border-0 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
                 <Shield size={24} className="text-purple-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {users.filter((u) => u.role === "admin").length}
+                  {users.filter((user) => user.role === "admin").length}
                 </p>
                 <p className="text-sm text-muted-foreground">Admins</p>
               </div>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
                 <Calendar size={24} className="text-blue-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {users.filter((u) => u.role === "organizer").length}
+                  {users.filter((user) => user.role === "organizer").length}
                 </p>
                 <p className="text-sm text-muted-foreground">Organizers</p>
               </div>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
                 <UserCheck size={24} className="text-green-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {users.filter((u) => u.status === "active").length}
+                  {users.filter((user) => user.status === "active").length}
                 </p>
                 <p className="text-sm text-muted-foreground">Active Users</p>
               </div>
@@ -307,10 +368,9 @@ const AdminUsers = () => {
           </Card>
         </div>
 
-        {/* Search and Filter */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
               <div className="relative flex-1">
                 <Search
                   size={18}
@@ -319,14 +379,19 @@ const AdminUsers = () => {
                 <Input
                   placeholder="Search users..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   className="pl-10"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={roleFilter === "all" ? "default" : "outline"}
                   size="sm"
+                  className={cn(
+                    roleFilter === "all"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
                   onClick={() => setRoleFilter("all")}
                 >
                   All
@@ -334,6 +399,11 @@ const AdminUsers = () => {
                 <Button
                   variant={roleFilter === "admin" ? "default" : "outline"}
                   size="sm"
+                  className={cn(
+                    roleFilter === "admin"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
                   onClick={() => setRoleFilter("admin")}
                 >
                   Admins
@@ -341,6 +411,11 @@ const AdminUsers = () => {
                 <Button
                   variant={roleFilter === "organizer" ? "default" : "outline"}
                   size="sm"
+                  className={cn(
+                    roleFilter === "organizer"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
                   onClick={() => setRoleFilter("organizer")}
                 >
                   Organizers
@@ -348,6 +423,11 @@ const AdminUsers = () => {
                 <Button
                   variant={roleFilter === "user" ? "default" : "outline"}
                   size="sm"
+                  className={cn(
+                    roleFilter === "user"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
                   onClick={() => setRoleFilter("user")}
                 >
                   Users
@@ -357,114 +437,119 @@ const AdminUsers = () => {
           </CardContent>
         </Card>
 
-        {/* Users Table */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">User</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Role</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Events</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Joined</th>
-                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="border-b transition-colors hover:bg-muted/50">
-                      <td className="p-4 align-middle">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                            <AvatarFallback>
-                              {user.name.split(" ").map((n) => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-foreground">{user.name}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
-                          </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Events</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                          <AvatarFallback>
+                            {user.name
+                              .split(" ")
+                              .map((part) => part[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-foreground">{user.name}</p>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
                         </div>
-                      </td>
-                      <td className="p-4 align-middle">{getRoleBadge(user.role)}</td>
-                      <td className="p-4 align-middle">{getStatusBadge(user.status)}</td>
-                      <td className="p-4 align-middle">{user.eventsRegistered}</td>
-                      <td className="p-4 align-middle">{user.joinDate}</td>
-                      <td className="p-4 align-middle text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal size={16} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                      </div>
+                    </TableCell>
+                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>{getStatusBadge(user.status)}</TableCell>
+                    <TableCell>{user.eventsRegistered}</TableCell>
+                    <TableCell>{user.joinDate}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={() => handleViewProfile(user)}
+                          >
+                            <Eye size={14} /> View Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            <Edit size={14} /> Edit User
+                          </DropdownMenuItem>
+                          {user.status === "pending" ? (
                             <DropdownMenuItem
-                              className="gap-2"
-                              onClick={() => handleViewProfile(user)}
+                              className="gap-2 text-green-600"
+                              onClick={() => handleApproveUser(user.id)}
                             >
-                              <Eye size={14} /> View Profile
+                              <UserCheck size={14} /> Approve
                             </DropdownMenuItem>
+                          ) : null}
+                          {user.status === "active" ? (
                             <DropdownMenuItem
-                              className="gap-2"
-                              onClick={() => handleEditUser(user)}
+                              className="gap-2 text-yellow-600"
+                              onClick={() => handleDeactivateUser(user.id)}
                             >
-                              <Edit size={14} /> Edit User
+                              <UserX size={14} /> Deactivate
                             </DropdownMenuItem>
-                            {user.status === "pending" && (
-                              <DropdownMenuItem
-                                className="gap-2 text-green-600"
-                                onClick={() => handleApproveUser(user.id)}
-                              >
-                                <UserCheck size={14} /> Approve
-                              </DropdownMenuItem>
-                            )}
-                            {user.status === "active" && (
-                              <DropdownMenuItem
-                                className="gap-2 text-yellow-600"
-                                onClick={() => handleDeactivateUser(user.id)}
-                              >
-                                <UserX size={14} /> Deactivate
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              className="gap-2 text-destructive"
-                              onClick={() => handleDeleteUser(user.id)}
-                            >
-                              <Trash2 size={14} /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          ) : null}
+                          <DropdownMenuItem
+                            className="gap-2 text-destructive"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            <Trash2 size={14} /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
 
-      {/* View Profile Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>User Profile</DialogTitle>
             <DialogDescription>View user details</DialogDescription>
           </DialogHeader>
-          {selectedUser && (
+          {selectedUser ? (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedUser.avatar || undefined} alt={selectedUser.name} />
+                  <AvatarImage
+                    src={selectedUser.avatar || undefined}
+                    alt={selectedUser.name}
+                  />
                   <AvatarFallback className="text-lg">
-                    {selectedUser.name.split(" ").map((n) => n[0]).join("")}
+                    {selectedUser.name
+                      .split(" ")
+                      .map((part) => part[0])
+                      .join("")}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-semibold text-lg">{selectedUser.name}</h3>
+                  <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
                   <p className="text-muted-foreground">{selectedUser.email}</p>
                 </div>
               </div>
@@ -478,7 +563,9 @@ const AdminUsers = () => {
                   {getStatusBadge(selectedUser.status)}
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Events Registered</p>
+                  <p className="text-sm text-muted-foreground">
+                    Events Registered
+                  </p>
                   <p className="font-medium">{selectedUser.eventsRegistered}</p>
                 </div>
                 <div>
@@ -487,16 +574,21 @@ const AdminUsers = () => {
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
               Close
             </Button>
             <Button
               variant="brand"
               onClick={() => {
                 setIsViewDialogOpen(false);
-                if (selectedUser) handleEditUser(selectedUser);
+                if (selectedUser) {
+                  handleEditUser(selectedUser);
+                }
               }}
             >
               Edit User
@@ -505,7 +597,6 @@ const AdminUsers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -518,7 +609,9 @@ const AdminUsers = () => {
               <Input
                 id="editName"
                 value={editForm.name}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, name: event.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
@@ -527,16 +620,20 @@ const AdminUsers = () => {
                 id="editEmail"
                 type="email"
                 value={editForm.email}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, email: event.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="editRole">Role</Label>
               <Select
                 value={editForm.role}
-                onValueChange={(value) => setEditForm((prev) => ({ ...prev, role: value }))}
+                onValueChange={(value) =>
+                  setEditForm((prev) => ({ ...prev, role: value }))
+                }
               >
-                <SelectTrigger>
+                <SelectTrigger id="editRole">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -548,7 +645,10 @@ const AdminUsers = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button variant="brand" onClick={handleSaveEdit}>
@@ -558,13 +658,16 @@ const AdminUsers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this user? This action cannot be undone.
+              Are you sure you want to delete this user? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -582,6 +685,6 @@ const AdminUsers = () => {
       <ToastContainer toasts={toast.toasts} />
     </DashboardLayout>
   );
-};
+}
 
 export default AdminUsers;
