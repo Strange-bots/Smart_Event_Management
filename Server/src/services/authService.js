@@ -2,11 +2,28 @@ const { demoUsers } = require('../data/demoUsers');
 const { registeredUsers } = require('../data/registeredUsers');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
 const SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000;
 const SESSION_SECRET =
   process.env.SESSION_SECRET || 'smart-event-management-dev-session-secret';
+const PASSWORD_SALT_ROUNDS = 10;
+
+const isBcryptHash = (value = '') =>
+  typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
+
+const ensureHashedPassword = (user) => {
+  if (!user || isBcryptHash(user.password)) {
+    return user;
+  }
+
+  user.password = bcrypt.hashSync(user.password, PASSWORD_SALT_ROUNDS);
+  return user;
+};
+
+demoUsers.forEach(ensureHashedPassword);
+registeredUsers.forEach(ensureHashedPassword);
 
 const sanitizeUser = (user) => ({
   name: user.name,
@@ -244,19 +261,27 @@ const findUserByEmail = (email) => {
   );
 };
 
-const findUserByCredentials = (email, password) => {
+const findUserByCredentials = async (email, password) => {
   const normalizedEmail = normalizeEmail(email);
-
-  return [...demoUsers, ...registeredUsers].find(
-    (user) => user.email.toLowerCase() === normalizedEmail && user.password === password,
+  const matchedUser = [...demoUsers, ...registeredUsers].find(
+    (user) => user.email.toLowerCase() === normalizedEmail,
   );
+
+  if (!matchedUser) {
+    return null;
+  }
+
+  ensureHashedPassword(matchedUser);
+
+  const passwordMatches = await bcrypt.compare(password, matchedUser.password);
+  return passwordMatches ? matchedUser : null;
 };
 
-const createUser = ({ name, email, password }) => {
+const createUser = async ({ name, email, password }) => {
   const newUser = {
     name: name.trim(),
     email: normalizeEmail(email),
-    password,
+    password: await bcrypt.hash(password, PASSWORD_SALT_ROUNDS),
     role: 'user',
   };
 
@@ -265,7 +290,7 @@ const createUser = ({ name, email, password }) => {
   return sanitizeUser(newUser);
 };
 
-const updateUserPassword = ({ email, newPassword }) => {
+const updateUserPassword = async ({ email, newPassword }) => {
   const normalizedEmail = normalizeEmail(email);
   const user = [...demoUsers, ...registeredUsers].find(
     (item) => item.email.toLowerCase() === normalizedEmail,
@@ -275,7 +300,7 @@ const updateUserPassword = ({ email, newPassword }) => {
     return null;
   }
 
-  user.password = newPassword;
+  user.password = await bcrypt.hash(newPassword, PASSWORD_SALT_ROUNDS);
 
   return sanitizeUser(user);
 };

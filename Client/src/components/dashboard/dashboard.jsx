@@ -136,9 +136,16 @@ function DashboardLayout({ children }) {
 
   return (
     <div className="flex min-h-screen w-full bg-[#f5f7fa]">
+      <div
+        className={cn(
+          "hidden shrink-0 transition-all duration-300 md:block",
+          sidebarOpen ? "w-64" : "w-20"
+        )}
+      />
+
       <aside
         className={cn(
-          "hidden flex-col bg-gradient-to-b from-[#1f4e79] via-[#163a5a] to-[#0f1e33] transition-all duration-300 md:flex",
+          "fixed inset-y-0 left-0 z-40 hidden flex-col bg-gradient-to-b from-[#1f4e79] via-[#163a5a] to-[#0f1e33] transition-all duration-300 md:flex",
           sidebarOpen ? "w-64" : "w-20"
         )}
       >
@@ -160,7 +167,9 @@ function DashboardLayout({ children }) {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 p-4">{renderNavItems(false)}</nav>
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+          {renderNavItems(false)}
+        </nav>
       </aside>
 
       {mobileMenuOpen ? (

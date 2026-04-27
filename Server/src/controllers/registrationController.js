@@ -12,6 +12,7 @@ const {
   createUser,
   findUserByEmail,
   sanitizeUser,
+  updateUserPassword,
 } = require('../services/authService');
 const {
   sanitizeSignupRequest,
@@ -95,7 +96,7 @@ const listCurrentUserEventRegistrations = (req, res) => {
   });
 };
 
-const createUserRegistration = (req, res) => {
+const createUserRegistration = async (req, res) => {
   const sanitizedPayload = sanitizeSignupRequest(req.body);
   const validationError = validateSignupPayload({
     name: sanitizedPayload.name,
@@ -114,7 +115,7 @@ const createUserRegistration = (req, res) => {
     });
   }
 
-  const user = createUser({
+  const user = await createUser({
     name: sanitizedPayload.name,
     email: sanitizedPayload.email,
     password: sanitizedPayload.password,
@@ -135,7 +136,7 @@ const listUserRegistrations = (req, res) => {
   });
 };
 
-const updateUserRegistration = (req, res) => {
+const updateUserRegistration = async (req, res) => {
   const email = normalizeEmail(req.params.email);
   const user = registeredUsers.find((item) => normalizeEmail(item.email) === email);
 
@@ -151,7 +152,10 @@ const updateUserRegistration = (req, res) => {
   }
 
   if (nextPassword) {
-    user.password = nextPassword;
+    await updateUserPassword({
+      email: user.email,
+      newPassword: nextPassword,
+    });
   }
 
   user.role = 'user';
