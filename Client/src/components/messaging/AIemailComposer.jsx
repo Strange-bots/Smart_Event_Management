@@ -101,6 +101,11 @@ const AIEmailComposer = ({
                   type="button"
                   variant={selectedTone === tone.value ? "default" : "outline"}
                   size="sm"
+                  className={cn(
+                    selectedTone === tone.value
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
                   onClick={() => onToneChange(tone.value)}
                 >
                   {tone.label}
@@ -111,16 +116,16 @@ const AIEmailComposer = ({
         )}
 
         {/* AI Templates */}
-        <Card className="border border-brand-ai/30 bg-brand-ai/5">
+        <Card className="border border-[#5b3b6f]/25 bg-[#5b3b6f]/6">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Sparkles size={16} className="text-brand-ai" />
+              <Sparkles size={16} className="text-[#5b3b6f]" />
               AI Recommended Templates
               {onRegenerate && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="ml-auto h-7 text-xs gap-1"
+                  className="ml-auto h-7 gap-1 text-xs hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
                   onClick={handleRegenerate}
                   disabled={isRegenerating}
                 >
@@ -144,7 +149,9 @@ const AIEmailComposer = ({
                   size="sm"
                   className={cn(
                     "h-auto py-2 px-3 text-left justify-start",
-                    subject === template.subject && "border-brand-ai bg-brand-ai/10"
+                    subject === template.subject
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm [&_p]:text-white"
+                      : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white hover:[&_p]:text-white"
                   )}
                   onClick={() => handleSelectTemplate(template)}
                 >
@@ -191,7 +198,7 @@ const AIEmailComposer = ({
             <Button
               type="button"
               variant="outline"
-              className="gap-2"
+              className="gap-2 hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
               onClick={() => setShowPreview(true)}
               disabled={!subject || !body}
             >
@@ -251,7 +258,11 @@ const AIEmailComposer = ({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
+            <Button
+              variant="outline"
+              className="hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+              onClick={() => setShowPreview(false)}
+            >
               Edit
             </Button>
             <Button
