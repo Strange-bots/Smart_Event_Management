@@ -37,3 +37,26 @@ button {
 #root {
   min-height: 100vh;
 }
+
+.auth-hero-shell {
+  position: relative;
+  background: var(--color-header);
+}
+
+.auth-hero-panel {
+  background: var(--color-header);
+}
+
+.auth-hero-glow-primary {
+  background: var(--color-primary);
+}
+
+.auth-hero-glow-ai {
+  background: var(--color-ai);
+}
+
+@media (min-width: 1024px) {
+  .auth-hero-shell {
+    background: var(--color-section);
+  }
+}

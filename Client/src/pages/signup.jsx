@@ -10,9 +10,6 @@ import {
 } from "../utils/auth";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
-const authPanelBackground = {
-  background: "linear-gradient(160deg, #2155C4 0%, #0E2A66 100%)",
-};
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -101,14 +98,17 @@ const Signup = () => {
   return (
     <>
     <Navbar/>
-    <div className="min-h-screen bg-secondary flex relative">
+    <div className="auth-hero-shell min-h-screen flex relative">
+      <div className="absolute inset-0 opacity-10 lg:hidden">
+        <div className="auth-hero-glow-primary absolute left-10 top-20 h-72 w-72 rounded-full blur-3xl" />
+        <div className="auth-hero-glow-ai absolute bottom-10 right-10 h-96 w-96 rounded-full blur-3xl" />
+      </div>
       <div
-        className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
-        style={authPanelBackground}
+        className="auth-hero-panel hidden lg:flex lg:w-1/2 relative overflow-hidden"
       >
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-brand-orange rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-ai rounded-full blur-3xl" />
+          <div className="auth-hero-glow-primary absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl" />
+          <div className="auth-hero-glow-ai absolute bottom-20 right-10 w-96 h-96 rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 flex flex-col justify-center p-12">
           <Link to="/" className="flex items-center gap-3 mb-8">
@@ -180,7 +180,7 @@ const Signup = () => {
 
       <AuthPanelDivider />
 
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="relative z-10 flex-1 flex items-center justify-center p-6 lg:bg-secondary">
         <div className="w-full max-w-md">
           <Link
             to="/"
