@@ -66,8 +66,10 @@ function TabsTrigger({ value, className = "", children, _active, _setActive }) {
   return (
     <button
       onClick={() => _setActive(value)}
-      className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-        isActive ? "bg-background text-foreground shadow-sm" : "hover:bg-muted/50"
+        className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+        isActive
+          ? "border border-[#f36f21] bg-[#f36f21] text-white shadow-sm"
+          : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
       } ${className}`}
     >
       {children}
@@ -730,7 +732,9 @@ const AdminSettings = () => {
                     <Button
                       variant={theme === "light" ? "default" : "outline"}
                       className={`flex flex-col items-center gap-2 h-auto py-4 ${
-                        theme === "light" ? "bg-primary text-primary-foreground" : ""
+                        theme === "light"
+                          ? "border-[#f36f21] bg-[#f36f21] text-white shadow-sm"
+                          : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
                       }`}
                       onClick={() => {
                         setTheme("light");
@@ -744,7 +748,9 @@ const AdminSettings = () => {
                     <Button
                       variant={theme === "dark" ? "default" : "outline"}
                       className={`flex flex-col items-center gap-2 h-auto py-4 ${
-                        theme === "dark" ? "bg-primary text-primary-foreground" : ""
+                        theme === "dark"
+                          ? "border-[#f36f21] bg-[#f36f21] text-white shadow-sm"
+                          : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
                       }`}
                       onClick={() => {
                         setTheme("dark");
@@ -758,7 +764,9 @@ const AdminSettings = () => {
                     <Button
                       variant={theme === "system" ? "default" : "outline"}
                       className={`flex flex-col items-center gap-2 h-auto py-4 ${
-                        theme === "system" ? "bg-primary text-primary-foreground" : ""
+                        theme === "system"
+                          ? "border-[#f36f21] bg-[#f36f21] text-white shadow-sm"
+                          : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
                       }`}
                       onClick={() => {
                         setTheme("system");
