@@ -6,16 +6,12 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const localAppData = process.env.LOCALAPPDATA || __dirname;
 
 // https://vite.dev/config/
 export default defineConfig({
-  cacheDir: path.join(localAppData, "SmartEventManagement", "vite-cache-v2"),
+  cacheDir: path.resolve(__dirname, ".vite", "vite-cache-v2"),
   build: {
     emptyOutDir: false,
-  },
-  optimizeDeps: {
-    noDiscovery: true,
   },
   plugins: [react(), tailwindcss()],
   server: {

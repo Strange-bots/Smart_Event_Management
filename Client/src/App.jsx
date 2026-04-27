@@ -98,7 +98,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<OtpVerification />} />
 
-          //AdminRoutes//
+          {/* Admin routes */}
           <Route path="/admin/admindashboard" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/adminevents" element={<ProtectedRoute role="admin"><AdminEvents /></ProtectedRoute>} />
           <Route path="/admin/admingallery" element={<ProtectedRoute role="admin"><AdminGallery /></ProtectedRoute>} />
@@ -106,7 +106,7 @@ function App() {
           <Route path="/admin/adminmessage" element={<ProtectedRoute role="admin"><AdminMessage /></ProtectedRoute>} />
           <Route path="/admin/adminsettings" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
 
-          //UsersRoutes//
+          {/* User routes */}
           <Route path="/user/dashboard" element={<ProtectedRoute role="user"><UserDashboard /></ProtectedRoute>} />
           <Route path="/browseEvents" element={<ProtectedRoute role="user"><BrowseEventsPage /></ProtectedRoute>} />
           <Route path="/userEvents" element={<ProtectedRoute role="user"><UserEvents /></ProtectedRoute>} />
@@ -115,7 +115,7 @@ function App() {
           <Route path="/userPayments" element={<ProtectedRoute role="user"><UserPayments /></ProtectedRoute>} />
           <Route path="/payment" element={<ProtectedRoute role="user"><PaymentPage /></ProtectedRoute>} />
 
-          //OrganizerRoutes//
+          {/* Organizer routes */}
           <Route
             path="/organizer/organizerdashboard"
             element={<ProtectedRoute role="organizer"><OrganizerDashboard /></ProtectedRoute>}
