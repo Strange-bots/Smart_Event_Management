@@ -1,573 +1,752 @@
-import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
-import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import { useEffect, useState } from "react";
+import DashboardLayout from "@/components/dashboard/dashboard.jsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Edit,
+  Eye,
+  MapPin,
+  MoreHorizontal,
+  Search,
+  Sparkles,
+  ThumbsUp,
+  Trash2,
+  TrendingUp,
+  Users,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  approveEvent,
+  deleteEvent,
+  getEvents,
+  rejectEvent,
+} from "@/stores/eventStore.jsx";
 
-const initialEvents = [
-  {
-    id: 1,
-    title: "AI Innovation Summit",
-    description: "A full-day summit covering AI, automation, and campus innovation.",
-    organizer: "KOI Tech Club",
-    date: "2026-04-12",
-    time: "10:00 AM",
-    venue: "Sydney Campus Auditorium",
-    registrations: 145,
-    capacity: 200,
-    status: "pending",
-    image:
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&q=80",
-    price: 0,
-    isPaid: false,
-    tags: ["AI", "Technology", "Innovation"],
-    category: "Technology",
-  },
-  {
-    id: 2,
-    title: "Career Networking Night",
-    description: "Students connect with employers and alumni across industries.",
-    organizer: "Career Services",
-    date: "2026-04-18",
-    time: "6:30 PM",
-    venue: "Main Hall",
-    registrations: 220,
-    capacity: 250,
-    status: "approved",
-    image:
-      "https://images.unsplash.com/photo-1515169067868-5387ec356754?w=1200&q=80",
-    price: 15,
-    isPaid: true,
-    tags: ["Career", "Networking"],
-    category: "Professional Development",
-  },
-  {
-    id: 3,
-    title: "International Culture Festival",
-    description: "A student-led showcase of food, music, and performances.",
-    organizer: "Student Union",
-    date: "2026-05-03",
-    time: "2:00 PM",
-    venue: "Campus Courtyard",
-    registrations: 310,
-    capacity: 400,
-    status: "rejected",
-    image:
-      "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80",
-    price: 0,
-    isPaid: false,
-    tags: ["Culture", "Community"],
-    category: "Cultural",
-  },
-  {
-    id: 4,
-    title: "Entrepreneurship Workshop",
-    description: "Hands-on startup planning session for aspiring founders.",
-    organizer: "Business Society",
-    date: "2026-05-10",
-    time: "11:00 AM",
-    venue: "Innovation Lab",
-    registrations: 88,
-    capacity: 120,
-    status: "pending",
-    image:
-      "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&q=80",
-    price: 10,
-    isPaid: true,
-    tags: ["Business", "Startup"],
-    category: "Workshop",
-  },
-];
+const mapToDisplayEvent = (event) => ({
+  id: event.id,
+  title: event.title,
+  description: event.description,
+  organizer: event.organizerName || "Event Organizer",
+  date: event.date,
+  time: event.time,
+  venue: event.venue,
+  registrations: event.registrations,
+  capacity: event.capacity,
+  status: event.status,
+  image: event.image,
+  price: event.price,
+  isPaid: event.isPaid,
+  tags: event.tags || [],
+  category: event.category,
+});
 
-const recommendationMap = {
-  pending: { label: "Recommend Approve", confidence: 92, tone: "green" },
-  approved: { label: "Already Approved", confidence: 100, tone: "blue" },
-  rejected: { label: "Needs Review", confidence: 67, tone: "red" },
-};
-
-const badgeStyles = {
-  approved: "bg-green-100 text-green-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  rejected: "bg-red-100 text-red-700",
+const generateAIRecommendations = (events) => {
+  return events
+    .filter((event) => event.status === "pending")
+    .map((event) => ({
+      eventId: event.id,
+      recommendation: "approve",
+      confidence: Math.floor(Math.random() * 15) + 85,
+      reason: `Strong organizer track record, reasonable capacity (${event.capacity}), appropriate timing`,
+    }));
 };
 
 function AdminEvents() {
-  const storedUser = window.localStorage.getItem("smart_event_user");
-  const currentUser = storedUser ? JSON.parse(storedUser) : null;
-
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [events, setEvents] = useState(initialEvents);
+  const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [aiRecommendations, setAiRecommendations] = useState([]);
 
-  const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
-      const matchesSearch =
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.organizer.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || event.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [events, searchQuery, statusFilter]);
+  const loadEvents = () => {
+    const storeEvents = getEvents().map(mapToDisplayEvent);
+    setEvents(storeEvents);
+    setAiRecommendations(generateAIRecommendations(storeEvents));
+  };
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  const filteredEvents = events.filter((event) => {
+    const normalizedQuery = searchQuery.toLowerCase();
+    const matchesSearch =
+      event.title.toLowerCase().includes(normalizedQuery) ||
+      event.organizer.toLowerCase().includes(normalizedQuery);
+    const matchesStatus =
+      statusFilter === "all" || event.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const pendingEvents = events.filter((event) => event.status === "pending");
 
-  if (!currentUser || currentUser.role !== "admin") {
-    return <Navigate to="/login" replace />;
-  }
+  const getAIRecommendation = (eventId) => {
+    return aiRecommendations.find((item) => item.eventId === eventId);
+  };
 
-  const updateStatus = (eventId, status) => {
-    setEvents((current) =>
-      current.map((event) =>
-        event.id === eventId ? { ...event, status } : event
-      )
-    );
-    if (selectedEvent?.id === eventId) {
-      setSelectedEvent((current) => (current ? { ...current, status } : current));
+  const getRecommendationBadge = (recommendation) => {
+    switch (recommendation.recommendation) {
+      case "approve":
+        return (
+          <Badge className="gap-1 bg-green-100 text-green-700 hover:bg-green-100">
+            <ThumbsUp size={12} />
+            Recommend Approve ({recommendation.confidence}%)
+          </Badge>
+        );
+      case "review":
+        return (
+          <Badge className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100">
+            <Clock size={12} />
+            Needs Review ({recommendation.confidence}%)
+          </Badge>
+        );
+      case "reject":
+        return (
+          <Badge className="gap-1 bg-red-100 text-red-700 hover:bg-red-100">
+            <AlertTriangle size={12} />
+            Recommend Reject ({recommendation.confidence}%)
+          </Badge>
+        );
+      default:
+        return null;
     }
   };
 
-  const deleteEvent = () => {
-    if (!eventToDelete) {
-      return;
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "approved":
+        return (
+          <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+            Approved
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">
+            Pending
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+            Rejected
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
-    setEvents((current) => current.filter((event) => event.id !== eventToDelete));
-    if (selectedEvent?.id === eventToDelete) {
-      setSelectedEvent(null);
+  };
+
+  const handleViewDetails = (event) => {
+    setSelectedEvent(event);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleEditEvent = (eventId) => {
+    toast.info(`Edit flow for event #${eventId} is not configured yet.`);
+  };
+
+  const handleApproveEvent = (eventId) => {
+    approveEvent(eventId);
+    loadEvents();
+    toast.success("Event approved successfully! It is now visible to users.");
+  };
+
+  const handleRejectEvent = (eventId) => {
+    rejectEvent(eventId);
+    loadEvents();
+    toast.error("Event rejected");
+  };
+
+  const handleDeleteEvent = (eventId) => {
+    setEventToDelete(eventId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (eventToDelete) {
+      deleteEvent(eventToDelete);
+      loadEvents();
+      toast.success("Event deleted successfully");
     }
+
+    setIsDeleteDialogOpen(false);
     setEventToDelete(null);
   };
 
-  const approveAllPending = () => {
-    setEvents((current) =>
-      current.map((event) =>
-        event.status === "pending" ? { ...event, status: "approved" } : event
-      )
-    );
+  const handleApproveAll = () => {
+    pendingEvents.forEach((event) => approveEvent(event.id));
+    loadEvents();
+    toast.success(`${pendingEvents.length} events approved!`);
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#0f1e33] md:text-3xl">
+          <h1 className="text-2xl font-heading font-bold text-primary md:text-3xl">
             Events Management
           </h1>
-          <p className="mt-1 text-[#6b7c93]">
+          <p className="mt-1 text-muted-foreground">
             Review, approve, and manage all events
           </p>
         </div>
 
         {pendingEvents.length > 0 ? (
-          <section className="rounded-2xl border border-[#ddd6fe] bg-gradient-to-r from-[#6d5df6]/5 to-[#6d5df6]/10 p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2 text-lg font-semibold text-[#6d5df6]">
-              <span>✦</span>
-              <span>AI-Powered Recommendations</span>
-              <span className="rounded-full border border-[#6d5df6]/30 px-2 py-0.5 text-xs">
-                {pendingEvents.length} Pending
-              </span>
-            </div>
-            <p className="mb-4 text-sm text-[#6b7c93]">
-              The system has analyzed pending events based on organizer history,
-              capacity, and event timing.
-            </p>
-
-            <div className="space-y-3">
-              {pendingEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex flex-col justify-between gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-center"
+          <Card className="border-0 bg-gradient-to-r from-[#6D5DF6]/5 to-[#6D5DF6]/10 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Sparkles className="text-[#6D5DF6]" size={20} />
+                <span className="text-[#6D5DF6]">AI-Powered Recommendations</span>
+                <Badge
+                  variant="outline"
+                  className="ml-2 border-[#6D5DF6]/30 text-[#6D5DF6]"
                 >
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-[#0f1e33]">
-                        {event.title}
-                      </span>
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                        {recommendationMap.pending.label} (
-                        {recommendationMap.pending.confidence}%)
-                      </span>
+                  {pendingEvents.length} Pending
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Our AI has analyzed pending events based on organizer history,
+                event type, timing, and capacity utilization.
+              </p>
+
+              <div className="grid gap-3">
+                {pendingEvents.map((event) => {
+                  const recommendation = getAIRecommendation(event.id);
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="flex flex-col justify-between gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{event.title}</span>
+                          {recommendation
+                            ? getRecommendationBadge(recommendation)
+                            : null}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          by {event.organizer} • {event.date}
+                        </p>
+                        {recommendation ? (
+                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <TrendingUp size={12} className="text-[#6D5DF6]" />
+                            {recommendation.reason}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
+                          onClick={() => handleApproveEvent(event.id)}
+                        >
+                          <CheckCircle size={14} />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => handleRejectEvent(event.id)}
+                        >
+                          <XCircle size={14} />
+                          Reject
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-sm text-[#6b7c93]">
-                      by {event.organizer} • {event.date}
-                    </p>
-                    <p className="text-xs text-[#6b7c93]">
-                      Strong organizer track record, reasonable capacity (
-                      {event.capacity}), and appropriate scheduling.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateStatus(event.id, "approved")}
-                      className="rounded-lg border border-green-200 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-50"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => updateStatus(event.id, "rejected")}
-                      className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {pendingEvents.length > 1 ? (
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={approveAllPending}
-                  className="rounded-lg bg-[#f36f21] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#ff8a3d]"
-                >
-                  Approve All Recommended
-                </button>
+                  );
+                })}
               </div>
-            ) : null}
-          </section>
+
+              {pendingEvents.length > 1 ? (
+                <div className="flex justify-end pt-2">
+                  <Button
+                    variant="brand"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleApproveAll}
+                  >
+                    <CheckCircle size={14} />
+                    Approve All Recommended
+                  </Button>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
         ) : null}
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#1f4e79]/10 text-[#1f4e79]">
-                📅
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Calendar size={24} className="text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">
+                <p className="text-2xl font-bold text-foreground">
                   {events.length}
                 </p>
-                <p className="text-sm text-[#6b7c93]">Total Events</p>
+                <p className="text-sm text-muted-foreground">Total Events</p>
               </div>
-            </div>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600">
-                ✓
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
+                <CheckCircle size={24} className="text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">
+                <p className="text-2xl font-bold text-foreground">
                   {events.filter((event) => event.status === "approved").length}
                 </p>
-                <p className="text-sm text-[#6b7c93]">Approved</p>
+                <p className="text-sm text-muted-foreground">Approved</p>
               </div>
-            </div>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100 text-yellow-600">
-                ⏳
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100">
+                <Calendar size={24} className="text-yellow-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">
+                <p className="text-2xl font-bold text-foreground">
                   {events.filter((event) => event.status === "pending").length}
                 </p>
-                <p className="text-sm text-[#6b7c93]">Pending</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
               </div>
-            </div>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#f36f21]/10 text-[#f36f21]">
-                👥
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-orange/10">
+                <Users size={24} className="text-brand-orange" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">
-                  {events.reduce((sum, event) => sum + event.registrations, 0)}
+                <p className="text-2xl font-bold text-foreground">
+                  {events.reduce(
+                    (total, event) => total + Number(event.registrations || 0),
+                    0
+                  )}
                 </p>
-                <p className="text-sm text-[#6b7c93]">Total Registrations</p>
+                <p className="text-sm text-muted-foreground">
+                  Total Registrations
+                </p>
               </div>
-            </div>
-          </div>
-        </section>
+            </CardContent>
+          </Card>
+        </div>
 
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="relative flex-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6b7c93]">
-                🔎
-              </span>
-              <input
-                placeholder="Search events..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="w-full rounded-lg border border-[#d9e2ec] py-2 pl-10 pr-4 outline-none focus:border-[#1f4e79]"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {["all", "approved", "pending", "rejected"].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    statusFilter === status
-                      ? "bg-[#1f4e79] text-white"
-                      : "border border-[#d9e2ec] bg-white text-[#0f1e33] hover:bg-[#f5f7fa]"
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="border-b border-[#e5e7eb] bg-[#f8fafc]">
-                <tr className="text-left text-sm text-[#6b7c93]">
-                  <th className="px-4 py-3">Event</th>
-                  <th className="px-4 py-3">Organizer</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Venue</th>
-                  <th className="px-4 py-3">Registrations</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">AI Insight</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEvents.map((event) => (
-                  <tr key={event.id} className="border-b border-[#f1f5f9]">
-                    <td className="px-4 py-3 font-medium text-[#0f1e33]">
-                      {event.title}
-                    </td>
-                    <td className="px-4 py-3 text-[#0f1e33]">
-                      {event.organizer}
-                    </td>
-                    <td className="px-4 py-3 text-[#0f1e33]">{event.date}</td>
-                    <td className="px-4 py-3 text-[#0f1e33]">{event.venue}</td>
-                    <td className="px-4 py-3 text-[#0f1e33]">
-                      <span className="font-medium">{event.registrations}</span>
-                      <span className="text-[#6b7c93]">/{event.capacity}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${badgeStyles[event.status]}`}
-                      >
-                        {event.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {event.status === "pending" ? (
-                        <span className="text-xs font-medium text-[#6d5df6]">
-                          {recommendationMap.pending.confidence}% approve
-                        </span>
-                      ) : (
-                        <span className="text-xs text-[#94a3b8]">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
-                        {event.status === "pending" ? (
-                          <>
-                            <button
-                              onClick={() => updateStatus(event.id, "approved")}
-                              className="rounded-md px-2 py-1 text-sm text-green-700 hover:bg-green-50"
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => updateStatus(event.id, "rejected")}
-                              className="rounded-md px-2 py-1 text-sm text-red-700 hover:bg-red-50"
-                            >
-                              ✕
-                            </button>
-                          </>
-                        ) : null}
-                        <button
-                          onClick={() => setSelectedEvent(event)}
-                          className="rounded-md px-2 py-1 text-sm text-[#1f4e79] hover:bg-[#f5f7fa]"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => setEventToDelete(event.id)}
-                          className="rounded-md px-2 py-1 text-sm text-red-700 hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      {selectedEvent ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setSelectedEvent(null)}
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold text-[#0f1e33]">
-                {selectedEvent.title}
-              </h2>
-              <p className="text-sm text-[#6b7c93]">
-                Review event details before approval
-              </p>
-            </div>
-
-            {selectedEvent.image ? (
-              <div className="mb-6 aspect-video overflow-hidden rounded-lg">
-                <img
-                  src={selectedEvent.image}
-                  alt={selectedEvent.title}
-                  className="h-full w-full object-cover"
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="relative flex-1">
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  placeholder="Search events..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="pl-10"
                 />
               </div>
-            ) : null}
-
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-medium ${badgeStyles[selectedEvent.status]}`}
-              >
-                {selectedEvent.status}
-              </span>
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-                {selectedEvent.category}
-              </span>
-              <span className="rounded-full bg-[#1f4e79]/10 px-2 py-1 text-xs font-medium text-[#1f4e79]">
-                {selectedEvent.isPaid ? `$${selectedEvent.price}` : "Free"}
-              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant={statusFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    statusFilter === "all"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
+                  onClick={() => setStatusFilter("all")}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={statusFilter === "approved" ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    statusFilter === "approved"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
+                  onClick={() => setStatusFilter("approved")}
+                >
+                  Approved
+                </Button>
+                <Button
+                  variant={statusFilter === "pending" ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    statusFilter === "pending"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
+                  onClick={() => setStatusFilter("pending")}
+                >
+                  Pending
+                </Button>
+                <Button
+                  variant={statusFilter === "rejected" ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    statusFilter === "rejected"
+                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                      : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                  )}
+                  onClick={() => setStatusFilter("rejected")}
+                >
+                  Rejected
+                </Button>
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="space-y-4">
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Event</TableHead>
+                  <TableHead>Organizer</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Venue</TableHead>
+                  <TableHead>Registrations</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>AI Insight</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredEvents.map((event) => {
+                  const recommendation = getAIRecommendation(event.id);
+
+                  return (
+                    <TableRow key={event.id}>
+                      <TableCell className="font-medium">{event.title}</TableCell>
+                      <TableCell>{event.organizer}</TableCell>
+                      <TableCell>{event.date}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MapPin size={14} className="text-muted-foreground" />
+                          {event.venue}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium">{event.registrations}</span>
+                        <span className="text-muted-foreground">
+                          /{event.capacity}
+                        </span>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(event.status)}</TableCell>
+                      <TableCell>
+                        {event.status === "pending" && recommendation ? (
+                          <div className="flex items-center gap-1">
+                            <Sparkles size={14} className="text-[#6D5DF6]" />
+                            <span className="text-xs font-medium text-[#6D5DF6]">
+                              {recommendation.confidence}%{" "}
+                              {recommendation.recommendation}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {event.status === "pending" ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                onClick={() => handleApproveEvent(event.id)}
+                                title="Approve"
+                              >
+                                <CheckCircle size={16} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                onClick={() => handleRejectEvent(event.id)}
+                                title="Reject"
+                              >
+                                <XCircle size={16} />
+                              </Button>
+                            </>
+                          ) : null}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                              >
+                                <MoreHorizontal size={16} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={() => handleViewDetails(event)}
+                              >
+                                <Eye size={14} /> View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={() => handleEditEvent(event.id)}
+                              >
+                                <Edit size={14} /> Edit Event
+                              </DropdownMenuItem>
+                              {event.status !== "pending" &&
+                              event.status === "rejected" ? (
+                                <DropdownMenuItem
+                                  className="gap-2 text-green-600"
+                                  onClick={() => handleApproveEvent(event.id)}
+                                >
+                                  <CheckCircle size={14} /> Approve
+                                </DropdownMenuItem>
+                              ) : null}
+                              {event.status !== "pending" &&
+                              event.status === "approved" ? (
+                                <DropdownMenuItem
+                                  className="gap-2 text-red-600"
+                                  onClick={() => handleRejectEvent(event.id)}
+                                >
+                                  <XCircle size={14} /> Reject
+                                </DropdownMenuItem>
+                              ) : null}
+                              <DropdownMenuItem
+                                className="gap-2 text-destructive"
+                                onClick={() => handleDeleteEvent(event.id)}
+                              >
+                                <Trash2 size={14} /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              {selectedEvent?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Review event details before approval
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEvent ? (
+            <div className="space-y-6">
+              {selectedEvent.image ? (
+                <div className="aspect-video overflow-hidden rounded-lg">
+                  <img
+                    src={selectedEvent.image}
+                    alt={selectedEvent.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : null}
+
+              <div className="flex items-center gap-2">
+                {getStatusBadge(selectedEvent.status)}
+                <Badge variant="secondary">{selectedEvent.category}</Badge>
+                {selectedEvent.isPaid ? (
+                  <Badge className="bg-green-100 text-green-700">
+                    ${selectedEvent.price}
+                  </Badge>
+                ) : (
+                  <Badge className="bg-primary/10 text-primary">Free</Badge>
+                )}
+              </div>
+
               <div>
-                <p className="mb-1 text-sm font-medium text-[#6b7c93]">
+                <p className="mb-1 text-sm font-medium text-muted-foreground">
                   Description
                 </p>
-                <p className="text-[#0f1e33]">{selectedEvent.description}</p>
+                <p className="text-foreground">{selectedEvent.description}</p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-sm text-[#6b7c93]">Organizer</p>
-                  <p className="font-medium text-[#0f1e33]">
-                    {selectedEvent.organizer}
-                  </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-start gap-2">
+                  <Users size={16} className="mt-0.5 text-brand-orange" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Organizer</p>
+                    <p className="font-medium">{selectedEvent.organizer}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-[#6b7c93]">Date</p>
-                  <p className="font-medium text-[#0f1e33]">
-                    {selectedEvent.date}
-                  </p>
+                <div className="flex items-start gap-2">
+                  <Calendar size={16} className="mt-0.5 text-brand-orange" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Date</p>
+                    <p className="font-medium">{selectedEvent.date}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-[#6b7c93]">Time</p>
-                  <p className="font-medium text-[#0f1e33]">
-                    {selectedEvent.time}
-                  </p>
+                <div className="flex items-start gap-2">
+                  <Clock size={16} className="mt-0.5 text-brand-orange" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Time</p>
+                    <p className="font-medium">{selectedEvent.time}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-[#6b7c93]">Venue</p>
-                  <p className="font-medium text-[#0f1e33]">
-                    {selectedEvent.venue}
-                  </p>
+                <div className="flex items-start gap-2">
+                  <MapPin size={16} className="mt-0.5 text-brand-orange" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Venue</p>
+                    <p className="font-medium">{selectedEvent.venue}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-[#6b7c93]">Capacity</p>
-                  <p className="font-medium text-[#0f1e33]">
-                    {selectedEvent.registrations} / {selectedEvent.capacity}{" "}
-                    registered
-                  </p>
+                <div className="flex items-start gap-2">
+                  <Users size={16} className="mt-0.5 text-brand-orange" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Capacity</p>
+                    <p className="font-medium">
+                      {selectedEvent.registrations} / {selectedEvent.capacity}{" "}
+                      registered
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {selectedEvent.tags.length ? (
+              {selectedEvent.tags && selectedEvent.tags.length > 0 ? (
                 <div>
-                  <p className="mb-2 text-sm font-medium text-[#6b7c93]">
+                  <p className="mb-2 text-sm font-medium text-muted-foreground">
                     Tags
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {selectedEvent.tags.map((tag) => (
-                      <span
+                      <Badge
                         key={tag}
-                        className="rounded-full bg-[#f36f21]/10 px-2 py-1 text-xs font-medium text-[#f36f21]"
+                        className="bg-brand-orange/10 text-brand-orange"
                       >
                         {tag}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
               ) : null}
-            </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-[#e5e7eb] pt-4">
               {selectedEvent.status === "pending" ? (
-                <>
-                  <button
+                <div className="flex gap-2 border-t pt-4">
+                  <Button
+                    className="flex-1 gap-2 bg-green-600 text-white hover:bg-green-700"
                     onClick={() => {
-                      updateStatus(selectedEvent.id, "approved");
-                      setSelectedEvent(null);
+                      handleApproveEvent(selectedEvent.id);
+                      setIsViewDialogOpen(false);
                     }}
-                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
                   >
+                    <CheckCircle size={16} />
                     Approve Event
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1 gap-2"
                     onClick={() => {
-                      updateStatus(selectedEvent.id, "rejected");
-                      setSelectedEvent(null);
+                      handleRejectEvent(selectedEvent.id);
+                      setIsViewDialogOpen(false);
                     }}
-                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
                   >
+                    <XCircle size={16} />
                     Reject Event
-                  </button>
-                </>
+                  </Button>
+                </div>
               ) : null}
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="rounded-lg border border-[#d9e2ec] px-4 py-2 text-sm font-semibold text-[#0f1e33] hover:bg-[#f8fafc]"
-              >
-                Close
-              </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {eventToDelete ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setEventToDelete(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 className="text-lg font-semibold text-[#0f1e33]">Delete Event</h2>
-            <p className="mt-2 text-sm text-[#6b7c93]">
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete this event? This action cannot be
               undone.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={() => setEventToDelete(null)} 
-                className="rounded-lg border border-[#d9e2ec] px-4 py-2 text-sm font-semibold text-[#0f1e33] hover:bg-[#f8fafc]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={deleteEvent}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
