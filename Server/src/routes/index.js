@@ -6,6 +6,7 @@ const {
   createOrganizerEventRecord,
   deleteOrganizerEventRecord,
   duplicateOrganizerEventRecord,
+  getFeaturedEventsList,
   listEvents,
   getNextEvent,
   getRecommendations,
@@ -55,6 +56,7 @@ router.post('/upload', upload.array('images', 5), (req, res) => {
 router.get('/events/stats', getEventStats);
 router.get('/events', listEvents);
 router.get('/events/next', getNextEvent);
+router.get('/events/featured', getFeaturedEventsList);
 router.get('/events/recommendations', getRecommendations);
 router.post('/events/:eventId/registrations', requireRole('user'), createEventRegistration);
 router.get('/users/events', requireRole('user'), listCurrentUserEventRegistrations);

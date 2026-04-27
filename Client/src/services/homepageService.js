@@ -29,6 +29,10 @@ export async function fetchEventStats() {
 export async function fetchNextEvent() {
   const response = await fetch(`${getApiBaseUrl()}/api/events/next`);
 
+  if (response.status === 404) {
+    return null;
+  }
+
   if (!response.ok) {
     throw new Error(`Next event request failed with status ${response.status}`);
   }
@@ -36,6 +40,24 @@ export async function fetchNextEvent() {
   const data = await response.json();
 
   return data?.event ?? null;
+}
+
+export async function fetchFeaturedEvents() {
+  const response = await fetch(`${getApiBaseUrl()}/api/events/featured`);
+
+  if (response.status === 404) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Featured events request failed with status ${response.status}`
+    );
+  }
+
+  const data = await response.json();
+
+  return data?.featuredEvents ?? [];
 }
 
 export async function fetchRecommendedEvents() {

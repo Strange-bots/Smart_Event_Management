@@ -41,6 +41,8 @@ function HeroSection() {
   const [stats, setStats] = useState(fallbackStats);
   const [nextEvent, setNextEvent] = useState(fallbackEvent);
   const [heroImage, setHeroImage] = useState(fallbackEvent.image);
+  const [isNextEventLoading, setIsNextEventLoading] = useState(true);
+  const [nextEventError, setNextEventError] = useState("");
   const [isHeroImageLoading, setIsHeroImageLoading] = useState(true);
   const [heroImageError, setHeroImageError] = useState("");
 
@@ -93,7 +95,13 @@ function HeroSection() {
       try {
         const event = await fetchNextEvent();
 
-        if (!isMounted || !event) {
+        if (!isMounted) {
+          return;
+        }
+
+        if (!event) {
+          setNextEvent(fallbackEvent);
+          setNextEventError("No upcoming event is scheduled yet.");
           return;
         }
 
@@ -102,8 +110,18 @@ function HeroSection() {
           date: formatEventDate(event.date),
           image: event.image || fallbackEvent.image,
         });
+        setNextEventError("");
       } catch {
-        // Keep the fallback content when the backend is unavailable.
+        if (!isMounted) {
+          return;
+        }
+
+        setNextEvent(fallbackEvent);
+        setNextEventError("Unable to load the next event. Showing fallback content.");
+      } finally {
+        if (isMounted) {
+          setIsNextEventLoading(false);
+        }
       }
     };
 
@@ -205,6 +223,16 @@ function HeroSection() {
                   <p className="text-xs text-[#6b7c93]">Next Event</p>
                   <p className="text-sm font-semibold">{nextEvent.title}</p>
                   <p className="text-xs text-[#f36f21]">{nextEvent.date}</p>
+                  {isNextEventLoading ? (
+                    <p className="mt-1 text-[11px] text-[#6b7c93]">
+                      Loading event details...
+                    </p>
+                  ) : null}
+                  {!isNextEventLoading && nextEventError ? (
+                    <p className="mt-1 max-w-[220px] text-[11px] text-[#6b7c93]">
+                      {nextEventError}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>

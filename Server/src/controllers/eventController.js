@@ -3,6 +3,7 @@ const {
   deleteOrganizerEvent,
   duplicateOrganizerEvent,
   getEvents,
+  getFeaturedEvents,
   getNextUpcomingEvent,
   getOrganizerEvents,
   getRecommendedEvents,
@@ -40,6 +41,19 @@ const getRecommendations = (req, res) => {
   }
 
   return res.json({ recommendations });
+};
+
+const getFeaturedEventsList = (req, res) => {
+  const featuredEvents = getFeaturedEvents();
+
+  if (!featuredEvents.length) {
+    return res.status(404).json({
+      message: 'No featured events available',
+      featuredEvents: [],
+    });
+  }
+
+  return res.json({ featuredEvents });
 };
 
 const getAllEvents = (req, res) => {
@@ -154,6 +168,7 @@ module.exports = {
   createOrganizerEventRecord,
   deleteOrganizerEventRecord,
   duplicateOrganizerEventRecord,
+  getFeaturedEventsList,
   listEvents,
   getNextEvent,
   getRecommendations,

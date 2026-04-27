@@ -77,6 +77,30 @@ const getRecommendedEvents = () => {
     }));
 };
 
+const getFeaturedEvents = () => {
+  const now = new Date();
+
+  return getAllEventRecords()
+    .filter((event) => event.status === 'approved')
+    .filter((event) => getEventStart(event).getTime() > now.getTime())
+    .sort((left, right) => {
+      const registrationDifference =
+        getRegistrationCountForEvent(right.id) - getRegistrationCountForEvent(left.id);
+
+      if (registrationDifference !== 0) {
+        return registrationDifference;
+      }
+
+      return getEventStart(left) - getEventStart(right);
+    })
+    .slice(0, 6)
+    .map((event, index) => ({
+      ...formatEvent(event),
+      attendees: getRegistrationCountForEvent(event.id),
+      featured: index === 0,
+    }));
+};
+
 const getAllApprovedEvents = () => {
   return getAllEventRecords()
     .filter((event) => event.status === 'approved')
@@ -383,6 +407,7 @@ module.exports = {
   deleteOrganizerEvent,
   duplicateOrganizerEvent,
   getEvents,
+  getFeaturedEvents,
   getNextUpcomingEvent,
   getOrganizerEvents,
   getRecommendedEvents,
