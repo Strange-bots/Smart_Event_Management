@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, Trash2, Download, Search, Grid, List, Filter, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -81,17 +82,7 @@ const AdminGallery = () => {
   const [imageToDelete, setImageToDelete] = useState(null);
   const [uploadData, setUploadData] = useState({ title: "", category: "" });
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [notice, setNotice] = useState(null);
   const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (!notice) {
-      return undefined;
-    }
-
-    const timer = window.setTimeout(() => setNotice(null), 2500);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
 
   const toggleImageSelection = (id) => {
     setSelectedImages(prev =>
@@ -114,10 +105,7 @@ const AdminGallery = () => {
 
   const handleUpload = () => {
     if (!uploadData.title || !uploadData.category || !previewUrl) {
-      setNotice({
-        type: "error",
-        message: "Please fill in all fields and select an image.",
-      });
+      toast.error("Please fill in all fields and select an image");
       return;
     }
 
@@ -133,7 +121,7 @@ const AdminGallery = () => {
     setIsUploadDialogOpen(false);
     setUploadData({ title: "", category: "" });
     setPreviewUrl(null);
-    setNotice({ type: "success", message: "Image uploaded successfully." });
+    toast.success("Image uploaded successfully!");
   };
 
   const handleDownload = (image) => {
@@ -144,7 +132,7 @@ const AdminGallery = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setNotice({ type: "success", message: `Downloading ${image.title}.` });
+    toast.success(`Downloading ${image.title}`);
   };
 
   const handleDeleteSingle = (id) => {
@@ -156,7 +144,7 @@ const AdminGallery = () => {
     if (imageToDelete) {
       setGalleryImages(prev => prev.filter(img => img.id !== imageToDelete));
       setSelectedImages(prev => prev.filter(id => id !== imageToDelete));
-      setNotice({ type: "success", message: "Image deleted successfully." });
+      toast.success("Image deleted successfully");
     }
     setIsDeleteDialogOpen(false);
     setImageToDelete(null);
@@ -164,29 +152,13 @@ const AdminGallery = () => {
 
   const handleBulkDelete = () => {
     setGalleryImages(prev => prev.filter(img => !selectedImages.includes(img.id)));
-    setNotice({
-      type: "success",
-      message: `${selectedImages.length} image(s) deleted successfully.`,
-    });
+    toast.success(`${selectedImages.length} image(s) deleted successfully`);
     setSelectedImages([]);
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {notice ? (
-          <div
-            className={cn(
-              "rounded-md border px-4 py-3 text-sm",
-              notice.type === "error"
-                ? "border-destructive/40 bg-destructive/10 text-destructive"
-                : "border-green-600/20 bg-green-50 text-green-700"
-            )}
-          >
-            {notice.message}
-          </div>
-        ) : null}
-
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-heading font-bold text-primary">
@@ -196,7 +168,11 @@ const AdminGallery = () => {
               Manage event photos and media files
             </p>
           </div>
-          <Button variant="brand" className="gap-2" onClick={() => setIsUploadDialogOpen(true)}>
+          <Button
+            variant="brand"
+            className="gap-2 bg-[#f36f21] hover:bg-[#ff8a3d] text-white"
+            onClick={() => setIsUploadDialogOpen(true)}
+          >
             <Upload size={18} />
             Upload Images
           </Button>
@@ -215,7 +191,11 @@ const AdminGallery = () => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                >
                   <Filter size={18} />
                 </Button>
                 <div className="flex border rounded-lg">
@@ -223,7 +203,12 @@ const AdminGallery = () => {
                     variant={viewMode === "grid" ? "default" : "ghost"}
                     size="icon"
                     onClick={() => setViewMode("grid")}
-                    className="rounded-r-none"
+                    className={cn(
+                      "rounded-r-none",
+                      viewMode === "grid"
+                        ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                        : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                    )}
                   >
                     <Grid size={18} />
                   </Button>
@@ -231,7 +216,12 @@ const AdminGallery = () => {
                     variant={viewMode === "list" ? "default" : "ghost"}
                     size="icon"
                     onClick={() => setViewMode("list")}
-                    className="rounded-l-none"
+                    className={cn(
+                      "rounded-l-none",
+                      viewMode === "list"
+                        ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                        : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                    )}
                   >
                     <List size={18} />
                   </Button>
