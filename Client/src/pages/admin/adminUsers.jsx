@@ -318,8 +318,8 @@ function AdminUsers() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-0 shadow-sm">
             <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Users size={24} className="text-primary" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#f36f21]/12">
+                <Users size={24} className="text-[#f36f21]" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{users.length}</p>
