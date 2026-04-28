@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import CurrentAccountStatus from "./CurrentAccountStatus";
+import { fetchPublicBrandingSettings } from "../../services/publicSettingsService.js";
 
 function Navbar() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [brandName, setBrandName] = useState("Smart Events");
   const navLinkClass =
     "relative inline-block pb-1 text-white transition-colors duration-200 hover:text-[#ff8a3d] after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:w-0 after:-translate-x-1/2 after:bg-[#ff8a3d] after:transition-all after:duration-200 hover:after:w-full";
   const mobileNavLinkClass =
@@ -14,6 +16,49 @@ function Navbar() {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname, location.hash]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBranding = async () => {
+      try {
+        const branding = await fetchPublicBrandingSettings();
+
+        if (isMounted) {
+          setBrandName(branding?.organization?.name || "Smart Events");
+        }
+      } catch {
+        if (isMounted) {
+          setBrandName("Smart Events");
+        }
+      }
+    };
+
+    loadBranding();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const brandInitials = brandName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "SE";
+
+  const renderBrandInitials = () => {
+    const first = brandInitials[0] || "S";
+    const second = brandInitials[1] || "";
+
+    return (
+      <span>
+        <span className="text-[#1f4e79]">{first}</span>
+        {second ? <span className="text-[#f36f21]">{second}</span> : null}
+      </span>
+    );
+  };
 
   return (
     <>
@@ -39,7 +84,7 @@ function Navbar() {
                   mobileMenuOpen ? "h-9 w-9 text-base" : "h-11 w-11 text-lg"
                 }`}
               >
-                SE
+                {renderBrandInitials()}
               </div>
               <div className="min-w-0">
                 <p
@@ -47,7 +92,7 @@ function Navbar() {
                     mobileMenuOpen ? "text-base" : "text-lg"
                   }`}
                 >
-                  Smart Events
+                  {brandName}
                 </p>
                 <p
                   className={`truncate font-medium uppercase text-slate-200 transition-all duration-200 ${

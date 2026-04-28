@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   CalendarDays,
@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { fetchPublicBrandingSettings } from "@/services/publicSettingsService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 const CollapseIcon = ({ collapsed }) => (
@@ -70,6 +71,7 @@ function DashboardLayout({ children }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [brandName, setBrandName] = useState("Smart Events");
   const storedUser = window.localStorage.getItem("smart_event_user");
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
   const userRole = currentUser?.role ?? "user";
@@ -79,6 +81,49 @@ function DashboardLayout({ children }) {
   const handleLogout = () => {
     window.localStorage.removeItem("smart_event_user");
     navigate("/login");
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBranding = async () => {
+      try {
+        const branding = await fetchPublicBrandingSettings();
+
+        if (isMounted) {
+          setBrandName(branding?.organization?.name || "Smart Events");
+        }
+      } catch {
+        if (isMounted) {
+          setBrandName("Smart Events");
+        }
+      }
+    };
+
+    loadBranding();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const brandInitials = brandName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "SE";
+
+  const renderBrandInitials = () => {
+    const first = brandInitials[0] || "S";
+    const second = brandInitials[1] || "";
+
+    return (
+      <span>
+        <span className="text-[#1f4e79]">{first}</span>
+        {second ? <span className="text-[#f36f21]">{second}</span> : null}
+      </span>
+    );
   };
 
   const renderNavItems = (isMobile = false) =>
@@ -152,10 +197,10 @@ function DashboardLayout({ children }) {
         <div className="flex items-center justify-between border-b border-white/10 p-4">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded bg-white p-1 font-black text-[#1f4e79]">
-              SE
+              {renderBrandInitials()}
             </div>
             {sidebarOpen ? (
-              <span className="font-semibold text-white">Smart Events</span>
+              <span className="font-semibold text-white">{brandName}</span>
             ) : null}
           </Link>
           <button
@@ -188,9 +233,9 @@ function DashboardLayout({ children }) {
         <div className="flex items-center justify-between border-b border-white/10 p-4">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded bg-white p-1 font-black text-[#1f4e79]">
-              SE
+              {renderBrandInitials()}
             </div>
-            <span className="font-semibold text-white">Smart Events</span>
+            <span className="font-semibold text-white">{brandName}</span>
           </Link>
           <button
             onClick={() => setMobileMenuOpen(false)}
@@ -217,7 +262,7 @@ function DashboardLayout({ children }) {
             <div className="flex items-center gap-2">
               <span className="text-sm text-[#6b7c93]">@</span>
               <span className="font-semibold text-[#0f1e33]">
-                KOI Smart Events
+                {brandName}
               </span>
             </div>
           </div>

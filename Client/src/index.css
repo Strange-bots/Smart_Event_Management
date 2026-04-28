@@ -2,15 +2,30 @@
 
 :root {
   --color-header: #1f4e79;
-  --color-primary: #f36f21;
-  --color-primary-hover: #ff8a3d;
+  --color-primary: #1f4e79;
+  --color-primary-hover: #2e6da4;
+  --color-primary-foreground: #ffffff;
+  --color-brand-orange: #f36f21;
+  --color-brand-orange-hover: #ff8a3d;
   --color-body: #0f1e33;
+  --color-foreground: #0f1e33;
   --color-subtext: #6b7c93;
+  --color-muted-foreground: #6b7c93;
   --color-background: #f5f7fa;
+  --color-input: #d9e2ec;
   --color-card: #ffffff;
+  --color-card-foreground: #0f1e33;
   --color-section: #f5f7fa;
+  --color-secondary: #f5f7fa;
+  --color-secondary-foreground: #0f1e33;
+  --color-accent: #f5f7fa;
+  --color-accent-foreground: #0f1e33;
   --color-ai: #6d5df6;
   --color-footer: #0f1e33;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 html {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,11 +38,10 @@ import AIEmailComposer from "@/components/messaging/AIemailComposer.jsx";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  addAdminEmailLog,
-  addNotification,
-  getAdminEmailLogs,
-  getRegistrations,
-} from "@/stores/eventStore.jsx";
+  fetchAdminMessageLogs,
+  sendAdminMessage,
+} from "@/services/messagingService.js";
+import { fetchAdminUsers } from "@/services/adminUserService.js";
 
 const getAdminAITemplates = (tone) => {
   const templates = {
@@ -194,43 +193,79 @@ function AdminMessage() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [emailLogs, setEmailLogs] = useState(() => getAdminEmailLogs());
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const allUsers = useMemo(() => {
-    const registrations = getRegistrations();
-    const userMap = new Map();
+  useEffect(() => {
+    let isMounted = true;
 
-    registrations.forEach((registration) => {
-      if (!userMap.has(registration.userId)) {
-        userMap.set(registration.userId, {
-          id: registration.userId,
-          name: registration.userName,
-          email: registration.userEmail,
-        });
+    const loadMessagingData = async () => {
+      try {
+        setIsLoading(true);
+        const [logs, users] = await Promise.all([
+          fetchAdminMessageLogs(),
+          fetchAdminUsers(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setEmailLogs(logs);
+        setAllUsers(users);
+        setError("");
+      } catch (loadError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setEmailLogs([]);
+        setAllUsers([]);
+        setError(loadError.message || "Unable to load message history.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-    });
+    };
 
-    return Array.from(userMap.values());
+    loadMessagingData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
+  const totalUsers = useMemo(
+    () => allUsers.filter((user) => user.role === "user").length,
+    [allUsers]
+  );
+
+  const totalOrganizers = useMemo(
+    () => allUsers.filter((user) => user.role === "organizer").length,
+    [allUsers]
+  );
+
   const recipientOptions = [
-    { value: "all-users", label: "All Users", count: allUsers.length },
-    { value: "all-organizers", label: "All Organizers", count: 3 },
-    { value: "all", label: "Everyone", count: allUsers.length + 3 },
+    { value: "all-users", label: "All Users", count: totalUsers },
+    { value: "all-organizers", label: "All Organizers", count: totalOrganizers },
+    { value: "all", label: "Everyone", count: totalUsers + totalOrganizers },
   ];
 
   const recipientCount = useMemo(() => {
     switch (selectedRecipients) {
       case "all-users":
-        return allUsers.length;
+        return totalUsers;
       case "all-organizers":
-        return 3;
+        return totalOrganizers;
       case "all":
-        return allUsers.length + 3;
+        return totalUsers + totalOrganizers;
       default:
         return 0;
     }
-  }, [selectedRecipients, allUsers.length]);
+  }, [selectedRecipients, totalOrganizers, totalUsers]);
 
   const templates = useMemo(
     () => getAdminAITemplates(selectedTone),
@@ -250,47 +285,25 @@ function AdminMessage() {
       return;
     }
 
-    setIsSending(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    addAdminEmailLog({
-      recipientGroup: selectedRecipients,
-      recipientCount,
-      subject,
-      body,
-      sentAt: new Date().toLocaleDateString("en-AU", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      status: "sent",
-    });
-
-    allUsers.forEach((user) => {
-      addNotification({
-        userId: user.id,
-        type: "admin",
-        title: subject,
-        message: body.substring(0, 200) + (body.length > 200 ? "..." : ""),
-        date: new Date().toLocaleDateString("en-AU", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        }),
-        isRead: false,
-        from: "Smart Events Admin",
+    try {
+      setIsSending(true);
+      const result = await sendAdminMessage({
+        recipientGroup: selectedRecipients,
+        subject,
+        body,
       });
-    });
 
-    setEmailLogs(getAdminEmailLogs());
-    setIsSending(false);
-    setSubject("");
-    setBody("");
-    setSelectedRecipients("");
-    setActiveTab("sent");
-    toast.success(`Email sent to ${recipientCount} recipient(s)!`);
+      setEmailLogs((prev) => [result.log, ...prev]);
+      setSubject("");
+      setBody("");
+      setSelectedRecipients("");
+      setActiveTab("sent");
+      toast.success(`Email sent to ${result.recipientCount} recipient(s)!`);
+    } catch (sendError) {
+      toast.error(sendError.message || "Could not send message.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const filteredLogs = emailLogs.filter((log) => {
@@ -326,6 +339,12 @@ function AdminMessage() {
           </p>
         </div>
 
+        {error ? (
+          <Card className="border border-rose-200 bg-rose-50 shadow-sm">
+            <CardContent className="p-4 text-sm text-rose-700">{error}</CardContent>
+          </Card>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="border-0 shadow-sm">
             <CardContent className="flex items-center gap-4 p-4">
@@ -347,7 +366,7 @@ function AdminMessage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {allUsers.length}
+                  {totalUsers}
                 </p>
                 <p className="text-sm text-muted-foreground">Total Users</p>
               </div>
@@ -465,7 +484,7 @@ function AdminMessage() {
                       {filteredLogs.map((log) => (
                         <TableRow key={log.id}>
                           <TableCell className="text-sm text-muted-foreground">
-                            {log.sentAt}
+                            {log.sentAtLabel || log.sentAt}
                           </TableCell>
                           <TableCell className="max-w-xs truncate font-medium">
                             {log.subject}
@@ -505,10 +524,12 @@ function AdminMessage() {
                       className="mx-auto mb-4 text-muted-foreground"
                     />
                     <h3 className="mb-2 font-heading font-semibold text-foreground">
-                      No emails sent yet
+                      {isLoading ? "Loading emails..." : "No emails sent yet"}
                     </h3>
                     <p className="text-muted-foreground">
-                      Compose your first email to get started
+                      {isLoading
+                        ? "Fetching message history from the backend."
+                        : "Compose your first email to get started"}
                     </p>
                   </div>
                 )}
@@ -530,7 +551,7 @@ function AdminMessage() {
                   <span className="text-muted-foreground">Sent:</span>
                   <p className="mt-1 flex items-center gap-2 font-medium">
                     <Calendar size={14} />
-                    {selectedLog.sentAt}
+                    {selectedLog.sentAtLabel || selectedLog.sentAt}
                   </p>
                 </div>
                 <div>

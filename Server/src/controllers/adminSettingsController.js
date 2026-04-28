@@ -1,10 +1,11 @@
 const {
   getAdminSettings,
+  getPublicBrandingSettings,
   saveAdminSettings,
 } = require('../services/adminSettingsService');
 
 const getSettings = (req, res) => {
-  const adminEmail = req.headers['x-user-email'];
+  const adminEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!adminEmail) {
     return res.status(401).json({
@@ -28,7 +29,7 @@ const getSettings = (req, res) => {
 };
 
 const updateSettings = (req, res) => {
-  const adminEmail = req.headers['x-user-email'];
+  const adminEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!adminEmail) {
     return res.status(401).json({
@@ -51,7 +52,17 @@ const updateSettings = (req, res) => {
   });
 };
 
+const getPublicSettings = (req, res) => {
+  const result = getPublicBrandingSettings();
+
+  return res.status(200).json({
+    message: 'Public branding settings fetched successfully',
+    branding: result.branding,
+  });
+};
+
 module.exports = {
+  getPublicSettings,
   getSettings,
   updateSettings,
 };

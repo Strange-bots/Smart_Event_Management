@@ -1,4 +1,3 @@
-const { demoUsers } = require('../data/demoUsers');
 const { registeredUsers } = require('../data/registeredUsers');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
@@ -22,13 +21,14 @@ const ensureHashedPassword = (user) => {
   return user;
 };
 
-demoUsers.forEach(ensureHashedPassword);
 registeredUsers.forEach(ensureHashedPassword);
 
 const sanitizeUser = (user) => ({
+  id: user.id,
   name: user.name,
   email: user.email,
   role: user.role,
+  status: user.status,
 });
 
 const encodeBase64Url = (value) =>
@@ -256,14 +256,14 @@ const verifyOTP = (email, otp) => {
 const findUserByEmail = (email) => {
   const normalizedEmail = normalizeEmail(email);
 
-  return [...demoUsers, ...registeredUsers].find(
+  return registeredUsers.find(
     (user) => user.email.toLowerCase() === normalizedEmail,
   );
 };
 
 const findUserByCredentials = async (email, password) => {
   const normalizedEmail = normalizeEmail(email);
-  const matchedUser = [...demoUsers, ...registeredUsers].find(
+  const matchedUser = registeredUsers.find(
     (user) => user.email.toLowerCase() === normalizedEmail,
   );
 
@@ -277,12 +277,16 @@ const findUserByCredentials = async (email, password) => {
   return passwordMatches ? matchedUser : null;
 };
 
-const createUser = async ({ name, email, password }) => {
+const createUser = async ({ name, email, password, role = 'user', status = 'active' }) => {
   const newUser = {
+    id: `user-${Date.now()}`,
     name: name.trim(),
     email: normalizeEmail(email),
     password: await bcrypt.hash(password, PASSWORD_SALT_ROUNDS),
-    role: 'user',
+    role,
+    status,
+    createdAt: new Date().toISOString(),
+    avatar: null,
   };
 
   registeredUsers.push(newUser);
@@ -292,7 +296,7 @@ const createUser = async ({ name, email, password }) => {
 
 const updateUserPassword = async ({ email, newPassword }) => {
   const normalizedEmail = normalizeEmail(email);
-  const user = [...demoUsers, ...registeredUsers].find(
+  const user = registeredUsers.find(
     (item) => item.email.toLowerCase() === normalizedEmail,
   );
 

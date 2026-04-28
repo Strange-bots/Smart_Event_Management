@@ -32,14 +32,38 @@ export async function fetchMyEventRegistrations() {
   return data?.events ?? [];
 }
 
-export async function fetchOrganizerRegistrations() {
+export async function fetchOrganizerRegistrations({
+  search,
+  eventName,
+  paymentStatus,
+  riskLevel,
+} = {}) {
   const currentUser = getCurrentUser();
 
   if (!currentUser?.token) {
     throw new Error("Authentication is required");
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/api/organizer/registrations`, {
+  const params = new URLSearchParams();
+
+  if (search?.trim()) {
+    params.set("search", search.trim());
+  }
+
+  if (eventName && eventName !== "All Events") {
+    params.set("eventName", eventName);
+  }
+
+  if (paymentStatus && paymentStatus !== "all") {
+    params.set("paymentStatus", paymentStatus);
+  }
+
+  if (riskLevel && riskLevel !== "all") {
+    params.set("riskLevel", riskLevel);
+  }
+
+  const queryString = params.toString();
+  const response = await fetch(`${getApiBaseUrl()}/api/organizer/registrations${queryString ? `?${queryString}` : ""}`, {
     headers: {
       Authorization: `Bearer ${currentUser.token}`,
     },
@@ -53,6 +77,20 @@ export async function fetchOrganizerRegistrations() {
 
   return {
     registrations: data?.registrations ?? [],
+    summary: data?.summary ?? {
+      total: 0,
+      paid: 0,
+      unpaid: 0,
+      attended: 0,
+      redList: 0,
+    },
+    eventOptions: data?.eventOptions ?? ["All Events"],
+    filters: data?.filters ?? {
+      search: "",
+      eventName: "All Events",
+      paymentStatus: "all",
+      riskLevel: "all",
+    },
   };
 }
 

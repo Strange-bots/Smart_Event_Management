@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   BarChart,
@@ -27,65 +28,14 @@ import {
   CardTitle,
 } from "../../components/ui/card.jsx";
 import { Button } from "../../components/ui/button.jsx";
+import { fetchAdminDashboardOverview } from "../../services/adminDashboardService.js";
 
-const salesData = [
-  { month: "Jan", sales: 4000 },
-  { month: "Feb", sales: 3000 },
-  { month: "Mar", sales: 5000 },
-  { month: "Apr", sales: 4500 },
-  { month: "May", sales: 6000 },
-  { month: "Jun", sales: 5500 },
-];
-
-const venueData = [
-  { name: "Main Auditorium", value: 35, color: "#1F4E79" },
-  { name: "Conference Hall", value: 25, color: "#F36F21" },
-  { name: "Room 301", value: 20, color: "#6D5DF6" },
-  { name: "Exhibition Hall", value: 20, color: "#6B7C93" },
-];
-
-const adminCalendarEvents = [
-  {
-    id: "admin-event-1",
-    title: "AI Innovation Summit",
-    date: "2026-05-12",
-    time: "10:00 AM",
-    venue: "Main Auditorium",
-    status: "approved",
-    registrations: 145,
-    capacity: 200,
-  },
-  {
-    id: "admin-event-2",
-    title: "Career Networking Night",
-    date: "2026-05-15",
-    time: "6:30 PM",
-    venue: "Conference Hall",
-    status: "pending",
-    registrations: 220,
-    capacity: 250,
-  },
-  {
-    id: "admin-event-3",
-    title: "Industry Meetup",
-    date: "2026-05-15",
-    time: "2:00 PM",
-    venue: "Room 301",
-    status: "approved",
-    registrations: 80,
-    capacity: 120,
-  },
-  {
-    id: "admin-event-4",
-    title: "Startup Pitch Day",
-    date: "2026-05-21",
-    time: "1:00 PM",
-    venue: "Exhibition Hall",
-    status: "rejected",
-    registrations: 45,
-    capacity: 100,
-  },
-];
+const formatCurrency = (value, currency = "AUD") =>
+  new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 
 function StatCard({ title, value, subtitle, icon: Icon, trend }) {
   return (
@@ -125,13 +75,67 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const storedUser = window.localStorage.getItem("smart_event_user");
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
+  const [overview, setOverview] = useState({
+    stats: null,
+    eventsByMonth: [],
+    venueDistribution: [],
+    calendarEvents: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   if (!currentUser || currentUser.role !== "admin") {
     return <Navigate to="/login" replace />;
   }
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDashboardOverview = async () => {
+      try {
+        setIsLoading(true);
+        const data = await fetchAdminDashboardOverview();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setOverview(data);
+        setError("");
+      } catch (loadError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setError(loadError.message || "Unable to load admin dashboard data.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadDashboardOverview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleEventClick = () => {
     navigate("/admin/adminevents");
+  };
+
+  const stats = overview.stats ?? {
+    totalEvents: 0,
+    eventsThisMonth: 0,
+    totalUsers: 0,
+    approvedEvents: 0,
+    totalRevenue: 0,
+    currency: "AUD",
+    paidRegistrationCount: 0,
+    activeVenues: 0,
+    pendingEvents: 0,
   };
 
   return (
@@ -146,32 +150,37 @@ function AdminDashboard() {
           </p>
         </div>
 
+        {error ? (
+          <Card className="border border-rose-200 bg-rose-50 shadow-sm">
+            <CardContent className="p-5 text-sm text-rose-700">
+              {error}
+            </CardContent>
+          </Card>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Events"
-            value="48"
-            subtitle="12 this month"
+            value={isLoading ? "..." : String(stats.totalEvents)}
+            subtitle={`${stats.eventsThisMonth} this month`}
             icon={Calendar}
-            trend={{ value: 12, isPositive: true }}
           />
           <StatCard
             title="Total Users"
-            value="2,340"
-            subtitle="156 new this week"
+            value={isLoading ? "..." : String(stats.totalUsers)}
+            subtitle={`${stats.approvedEvents} approved events`}
             icon={Users}
-            trend={{ value: 8, isPositive: true }}
           />
           <StatCard
             title="Revenue"
-            value="$12,450"
-            subtitle="From registrations"
+            value={isLoading ? "..." : formatCurrency(stats.totalRevenue, stats.currency)}
+            subtitle={`${stats.paidRegistrationCount} paid registrations`}
             icon={DollarSign}
-            trend={{ value: 23, isPositive: true }}
           />
           <StatCard
             title="Active Venues"
-            value="8"
-            subtitle="2 pending approval"
+            value={isLoading ? "..." : String(stats.activeVenues)}
+            subtitle={`${stats.pendingEvents} pending events`}
             icon={MapPin}
           />
         </div>
@@ -181,15 +190,15 @@ function AdminDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <TrendingUp size={20} className="text-[#f36f21]" />
-                Sales Performance
+                Events by Month
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={salesData}>
+                  <BarChart data={overview.eventsByMonth}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#6b7c93" />
+                    <XAxis dataKey="label" stroke="#6b7c93" />
                     <YAxis stroke="#6b7c93" />
                     <Tooltip
                       contentStyle={{
@@ -199,7 +208,7 @@ function AdminDashboard() {
                       }}
                     />
                     <Bar
-                      dataKey="sales"
+                      dataKey="events"
                       fill="#f36f21"
                       radius={[6, 6, 0, 0]}
                     />
@@ -222,7 +231,7 @@ function AdminDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={venueData}
+                        data={overview.venueDistribution}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -230,7 +239,7 @@ function AdminDashboard() {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {venueData.map((entry) => (
+                        {overview.venueDistribution.map((entry) => (
                           <Cell key={entry.name} fill={entry.color} />
                         ))}
                       </Pie>
@@ -246,7 +255,7 @@ function AdminDashboard() {
                 </div>
 
                 <div className="space-y-3">
-                  {venueData.map((venue) => (
+                  {overview.venueDistribution.map((venue) => (
                     <div
                       key={venue.name}
                       className="flex items-center gap-3 text-sm"
@@ -255,7 +264,9 @@ function AdminDashboard() {
                         className="h-3 w-3 rounded-full"
                         style={{ backgroundColor: venue.color }}
                       />
-                      <span className="text-[#6b7c93]">{venue.name}</span>
+                      <span className="text-[#6b7c93]">
+                        {venue.name} ({venue.value})
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -299,7 +310,7 @@ function AdminDashboard() {
         </Card>
 
         <EventCalendar
-          events={adminCalendarEvents}
+          events={overview.calendarEvents}
           onEventClick={handleEventClick}
         />
       </div>

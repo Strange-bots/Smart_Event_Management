@@ -35,6 +35,17 @@ const formatEvent = (event) => ({
   updatedAt: event.updatedAt,
 });
 
+const formatGalleryItem = (event) => ({
+  id: String(event.id),
+  eventId: event.id,
+  title: event.title,
+  date: event.date,
+  category: event.category,
+  organizerName: event.organizerName,
+  organizerEmail: event.organizerEmail,
+  url: event.image || event.imagePreview || '',
+});
+
 const getAllEventRecords = () => events;
 
 const eventBelongsToOrganizer = (event, organizerEmail) => {
@@ -291,6 +302,46 @@ const getOrganizerEvents = (organizerEmail) =>
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
     .map(formatEvent);
 
+const getAdminEvents = () =>
+  events
+    .filter((event) => Boolean(event.organizerEmail || event.organizerId))
+    .slice()
+    .sort((left, right) => {
+      const rightTimestamp = new Date(right.updatedAt || right.createdAt || right.date).getTime();
+      const leftTimestamp = new Date(left.updatedAt || left.createdAt || left.date).getTime();
+      return rightTimestamp - leftTimestamp;
+    })
+    .map(formatEvent);
+
+const getAdminGalleryImages = () =>
+  events
+    .filter((event) => Boolean(event.organizerEmail || event.organizerId))
+    .filter((event) => Boolean(event.image || event.imagePreview))
+    .sort((left, right) => getEventStart(right) - getEventStart(left))
+    .map(formatGalleryItem);
+
+const getAdminManagedEvent = (eventId) =>
+  events.find((event) => String(event.id) === String(eventId));
+
+const updateAdminEventStatus = ({ eventId, status }) => {
+  const event = getAdminManagedEvent(eventId);
+
+  if (!event) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  event.status = status;
+  event.updatedAt = new Date().toISOString();
+
+  return {
+    statusCode: 200,
+    event: formatEvent(event),
+  };
+};
+
 const createOrganizerEvent = ({ organizer, payload }) => {
   const normalizedEvent = normalizeOrganizerEventPayload(payload);
   const validationError = validateOrganizerEventPayload(normalizedEvent);
@@ -402,8 +453,49 @@ const deleteOrganizerEvent = ({ organizerEmail, eventId }) => {
   };
 };
 
+const deleteAdminEvent = (eventId) => {
+  const eventIndex = events.findIndex((event) => String(event.id) === String(eventId));
+
+  if (eventIndex === -1) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  events.splice(eventIndex, 1);
+
+  return {
+    statusCode: 200,
+  };
+};
+
+const deleteAdminEventImage = (eventId) => {
+  const event = getAdminManagedEvent(eventId);
+
+  if (!event) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  event.image = '';
+  event.imagePreview = '';
+  event.updatedAt = new Date().toISOString();
+
+  return {
+    statusCode: 200,
+    event: formatEvent(event),
+  };
+};
+
 module.exports = {
+  getAdminEvents,
+  getAdminGalleryImages,
   createOrganizerEvent,
+  deleteAdminEvent,
+  deleteAdminEventImage,
   deleteOrganizerEvent,
   duplicateOrganizerEvent,
   getEvents,
@@ -412,6 +504,7 @@ module.exports = {
   getOrganizerEvents,
   getRecommendedEvents,
   getAllApprovedEvents,
+  updateAdminEventStatus,
   updateOrganizerEvent,
   uploadAdminEventImage,
 };

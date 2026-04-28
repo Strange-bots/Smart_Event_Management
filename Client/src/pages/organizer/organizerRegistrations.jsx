@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle,
   Clock,
@@ -19,27 +19,6 @@ import { reportUserHistory } from "../../services/userHistoryService.js";
 import { getCurrentUser } from "../../utils/auth.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
-
-function calculateAttendanceRisk(registration) {
-  if (registration.attendanceStatus === "no-show") {
-    return "red";
-  }
-  if (registration.paymentStatus === "unpaid" || registration.attendanceStatus === "cancelled") {
-    return "amber";
-  }
-  return "green";
-}
-
-function getRiskReason(registration) {
-  const risk = calculateAttendanceRisk(registration);
-  if (risk === "red") {
-    return "This attendee has a no-show status, which suggests a higher attendance risk.";
-  }
-  if (risk === "amber") {
-    return "This attendee has an unpaid or cancelled registration that may need attention.";
-  }
-  return "This attendee appears low risk based on current registration and attendance data.";
-}
 
 function getPaymentBadge(status) {
   switch (status) {
@@ -69,16 +48,15 @@ function getAttendanceBadge(status) {
   }
 }
 
-function getRiskConfig(registration) {
-  const risk = calculateAttendanceRisk(registration);
-  if (risk === "red") {
+function getRiskConfig(riskLevel = "green") {
+  if (riskLevel === "red") {
     return {
       label: "High Risk",
       className: "bg-red-100 text-red-700 border-red-200",
       icon: <ShieldAlert size={12} />,
     };
   }
-  if (risk === "amber") {
+  if (riskLevel === "amber") {
     return {
       label: "Medium Risk",
       className: "bg-yellow-100 text-yellow-700 border-yellow-200",
@@ -104,7 +82,7 @@ function getUserRiskBadge(riskLevel = "low") {
 }
 
 function OrganizerRegistrations() {
-  const currentUser = useMemo(() => getCurrentUser(), []);
+  const currentUser = getCurrentUser();
   const currentUserRole = currentUser?.role ?? null;
   const [searchQuery, setSearchQuery] = useState("");
   const [eventFilter, setEventFilter] = useState("All Events");
@@ -114,6 +92,14 @@ function OrganizerRegistrations() {
   const [isExporting, setIsExporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [allRegistrations, setAllRegistrations] = useState([]);
+  const [summary, setSummary] = useState({
+    total: 0,
+    paid: 0,
+    unpaid: 0,
+    attended: 0,
+    redList: 0,
+  });
+  const [eventOptions, setEventOptions] = useState(["All Events"]);
   const [reportTarget, setReportTarget] = useState(null);
   const [reportRiskLevel, setReportRiskLevel] = useState("medium");
   const [reportEventPhase, setReportEventPhase] = useState("during");
@@ -130,13 +116,20 @@ function OrganizerRegistrations() {
     const loadRegistrations = async () => {
       try {
         setIsLoading(true);
-        const result = await fetchOrganizerRegistrations();
+        const result = await fetchOrganizerRegistrations({
+          search: searchQuery,
+          eventName: eventFilter,
+          paymentStatus: statusFilter,
+          riskLevel: riskFilter,
+        });
 
         if (!isMounted) {
           return;
         }
 
         setAllRegistrations(result.registrations);
+        setSummary(result.summary);
+        setEventOptions(result.eventOptions);
         setNotice(null);
       } catch (error) {
         if (!isMounted) {
@@ -144,6 +137,14 @@ function OrganizerRegistrations() {
         }
 
         setAllRegistrations([]);
+        setSummary({
+          total: 0,
+          paid: 0,
+          unpaid: 0,
+          attended: 0,
+          redList: 0,
+        });
+        setEventOptions(["All Events"]);
         setNotice({
           type: "error",
           message: error.message || "Could not load registrations right now.",
@@ -160,42 +161,11 @@ function OrganizerRegistrations() {
     return () => {
       isMounted = false;
     };
-  }, [currentUserRole]);
-
-  const events = useMemo(
-    () =>
-      Array.from(
-        new Set(allRegistrations.map((registration) => registration.eventName))
-      ).map((eventName) => ({ title: eventName })),
-    [allRegistrations]
-  );
-
-  const eventOptions = ["All Events", ...events.map((event) => event.title)];
-
-  const filteredRegistrations = useMemo(
-    () =>
-      allRegistrations.filter((registration) => {
-        const haystack = `${registration.attendeeName} ${registration.attendeeEmail}`.toLowerCase();
-        const matchesSearch = haystack.includes(searchQuery.toLowerCase());
-        const matchesEvent =
-          eventFilter === "All Events" || registration.eventName === eventFilter;
-        const matchesStatus =
-          statusFilter === "all" || registration.paymentStatus === statusFilter;
-        const matchesRisk =
-          riskFilter === "all" || calculateAttendanceRisk(registration) === riskFilter;
-        return matchesSearch && matchesEvent && matchesStatus && matchesRisk;
-      }),
-    [allRegistrations, searchQuery, eventFilter, statusFilter, riskFilter],
-  );
+  }, [currentUserRole, eventFilter, riskFilter, searchQuery, statusFilter]);
 
   if (currentUserRole !== "organizer") {
     return <Navigate to="/login" replace />;
   }
-
-  const redListCount = allRegistrations.filter(
-    (registration) => calculateAttendanceRisk(registration) === "red",
-  ).length;
-
   const handleExport = async () => {
     setIsExporting(true);
 
@@ -217,7 +187,7 @@ function OrganizerRegistrations() {
 
       setNotice({
         type: "success",
-        message: `Downloaded ${filteredRegistrations.length} registration record(s) from the backend.`,
+        message: `Downloaded ${allRegistrations.length} registration record(s) from the backend.`,
       });
     } catch (error) {
       setNotice({
@@ -331,7 +301,7 @@ function OrganizerRegistrations() {
                 <Users size={24} className="text-[#1f4e79]" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">{allRegistrations.length}</p>
+                <p className="text-2xl font-bold text-[#0f1e33]">{summary.total}</p>
                 <p className="text-sm text-[#6b7c93]">Total</p>
               </div>
             </div>
@@ -343,9 +313,7 @@ function OrganizerRegistrations() {
                 <CheckCircle size={24} className="text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">
-                  {allRegistrations.filter((item) => item.paymentStatus === "paid").length}
-                </p>
+                <p className="text-2xl font-bold text-[#0f1e33]">{summary.paid}</p>
                 <p className="text-sm text-[#6b7c93]">Paid</p>
               </div>
             </div>
@@ -357,9 +325,7 @@ function OrganizerRegistrations() {
                 <Clock size={24} className="text-yellow-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">
-                  {allRegistrations.filter((item) => item.paymentStatus === "unpaid").length}
-                </p>
+                <p className="text-2xl font-bold text-[#0f1e33]">{summary.unpaid}</p>
                 <p className="text-sm text-[#6b7c93]">Unpaid</p>
               </div>
             </div>
@@ -371,9 +337,7 @@ function OrganizerRegistrations() {
                 <CheckCircle size={24} className="text-[#f36f21]" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">
-                  {allRegistrations.filter((item) => item.attendanceStatus === "attended").length}
-                </p>
+                <p className="text-2xl font-bold text-[#0f1e33]">{summary.attended}</p>
                 <p className="text-sm text-[#6b7c93]">Attended</p>
               </div>
             </div>
@@ -385,7 +349,7 @@ function OrganizerRegistrations() {
                 <ShieldAlert size={24} className="text-red-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#0f1e33]">{redListCount}</p>
+                <p className="text-2xl font-bold text-[#0f1e33]">{summary.redList}</p>
                 <p className="text-sm text-[#6b7c93]">Red List</p>
               </div>
             </div>
@@ -465,7 +429,7 @@ function OrganizerRegistrations() {
           </section>
         ) : null}
 
-        {!isLoading && filteredRegistrations.length > 0 ? (
+        {!isLoading && allRegistrations.length > 0 ? (
           <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-[#e8eef5]">
@@ -498,15 +462,13 @@ function OrganizerRegistrations() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eef2f7]">
-                  {filteredRegistrations.map((registration) => {
-                    const risk = getRiskConfig(registration);
+                  {allRegistrations.map((registration) => {
+                    const risk = getRiskConfig(registration.risk?.level);
                     return (
                       <tr
                         key={registration.id}
                         className={cn(
-                          calculateAttendanceRisk(registration) === "red"
-                            ? "bg-red-50/50"
-                            : "",
+                          registration.risk?.level === "red" ? "bg-red-50/50" : "",
                         )}
                       >
                         <td className="px-4 py-4">
@@ -555,7 +517,10 @@ function OrganizerRegistrations() {
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <div title={getRiskReason(registration)} className="inline-flex items-center gap-2">
+                          <div
+                            title={registration.risk?.reason || "Risk data unavailable."}
+                            className="inline-flex items-center gap-2"
+                          >
                             <span
                               className={cn(
                                 "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold",
@@ -563,7 +528,7 @@ function OrganizerRegistrations() {
                               )}
                             >
                               {risk.icon}
-                              {risk.label}
+                              {registration.risk?.label || risk.label}
                             </span>
                           </div>
                         </td>
@@ -611,7 +576,7 @@ function OrganizerRegistrations() {
           </section>
         ) : null}
 
-        {!isLoading && filteredRegistrations.length === 0 ? (
+        {!isLoading && allRegistrations.length === 0 ? (
           <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
             <Users size={48} className="mx-auto mb-4 text-[#9aa9bc]" />
             <h3 className="text-xl font-semibold text-[#0f1e33]">

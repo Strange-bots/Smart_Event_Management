@@ -48,11 +48,15 @@ const getNotificationsForUser = (userEmail, requiredRole) => {
       id: notification.id,
       title: notification.title,
       message: notification.message,
+      body: notification.body || notification.message,
       type: notification.type,
       isRead: notification.isRead,
       createdAt: notification.createdAt,
       createdAtLabel: formatNotificationDateTime(notification.createdAt),
       from: notification.from,
+      fromEmail: notification.fromEmail || null,
+      recipientName: user.name,
+      recipientEmail: user.email,
       relatedEntityType: notification.relatedEntityType || null,
       relatedEntityId: notification.relatedEntityId || null,
     }));
@@ -64,6 +68,86 @@ const getNotificationsForUser = (userEmail, requiredRole) => {
   };
 };
 
+const markNotificationAsRead = (userEmail, notificationId, requiredRole) => {
+  const user = findUserByEmail(userEmail);
+
+  if (!user) {
+    return {
+      error: 'User account not found',
+      statusCode: 404,
+    };
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return {
+      error: `Only ${requiredRole}s can update this notification feed`,
+      statusCode: 403,
+    };
+  }
+
+  const notification = notifications.find(
+    (item) =>
+      item.id === notificationId &&
+      item.userEmail.toLowerCase() === user.email.toLowerCase(),
+  );
+
+  if (!notification) {
+    return {
+      error: 'Notification not found',
+      statusCode: 404,
+    };
+  }
+
+  notification.isRead = true;
+
+  return {
+    statusCode: 200,
+    user: sanitizeUser(user),
+    notification: {
+      id: notification.id,
+      isRead: notification.isRead,
+    },
+  };
+};
+
+const markAllNotificationsAsRead = (userEmail, requiredRole) => {
+  const user = findUserByEmail(userEmail);
+
+  if (!user) {
+    return {
+      error: 'User account not found',
+      statusCode: 404,
+    };
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return {
+      error: `Only ${requiredRole}s can update this notification feed`,
+      statusCode: 403,
+    };
+  }
+
+  let updatedCount = 0;
+
+  notifications.forEach((notification) => {
+    if (
+      notification.userEmail.toLowerCase() === user.email.toLowerCase() &&
+      !notification.isRead
+    ) {
+      notification.isRead = true;
+      updatedCount += 1;
+    }
+  });
+
+  return {
+    statusCode: 200,
+    user: sanitizeUser(user),
+    updatedCount,
+  };
+};
+
 module.exports = {
   getNotificationsForUser,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
 };

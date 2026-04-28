@@ -1,34 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar, Eye, Mail, Send, Users, X } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
-
-const EMAIL_LOG_STORAGE_KEY = "smart_event_organizer_email_logs";
-
-const sampleEmailLogs = [
-  {
-    id: "email-1",
-    organizerEmail: "organizer@demo.com",
-    eventTitle: "AI Career Workshop",
-    subject: "Important update for registered attendees",
-    audience: "all",
-    recipientCount: 48,
-    sentAt: "7 April 2026, 10:30 AM",
-    body:
-      "Hello everyone,\n\nWe are excited to see you at the AI Career Workshop tomorrow. Please arrive 15 minutes early for check-in and bring your student ID.\n\nBest regards,\nEvent Organizer",
-  },
-  {
-    id: "email-2",
-    organizerEmail: "organizer@demo.com",
-    eventTitle: "Campus Networking Evening",
-    subject: "Venue reminder and agenda",
-    audience: "paid",
-    recipientCount: 22,
-    sentAt: "5 April 2026, 4:15 PM",
-    body:
-      "Hi attendees,\n\nThis is a quick reminder that the event will take place in the Conference Hall. Networking starts at 5:00 PM followed by light refreshments.\n\nSee you there,\nEvent Organizer",
-  },
-];
+import { fetchOrganizerMessageLogs } from "../../services/messagingService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -61,22 +35,40 @@ function OrganizerEmailLog() {
   const storedUser = window.localStorage.getItem("smart_event_user");
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
   const [selectedEmail, setSelectedEmail] = useState(null);
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const emailLogs = useMemo(() => {
-    const storedLogs = JSON.parse(
-      window.localStorage.getItem(EMAIL_LOG_STORAGE_KEY) || "[]",
-    );
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== "organizer") {
+      return undefined;
+    }
 
-    const combinedLogs =
-      storedLogs.length > 0 ? storedLogs : sampleEmailLogs;
+    let isMounted = true;
 
-    return combinedLogs.filter(
-      (log) =>
-        !currentUser ||
-        log.organizerEmail === currentUser.email ||
-        log.organizerId === currentUser.id,
-    );
-  }, [currentUser]);
+    fetchOrganizerMessageLogs()
+      .then((logs) => {
+        if (isMounted) {
+          setEmailLogs(logs);
+          setError("");
+        }
+      })
+      .catch((loadError) => {
+        if (isMounted) {
+          setEmailLogs([]);
+          setError(loadError.message || "Unable to load email history.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.email, currentUser?.role]);
 
   if (!currentUser || currentUser.role !== "organizer") {
     return <Navigate to="/login" replace />;
@@ -96,6 +88,12 @@ function OrganizerEmailLog() {
             View the history of emails sent to your event attendees.
           </p>
         </div>
+
+        {error ? (
+          <section className="rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 shadow-sm">
+            {error}
+          </section>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <section className="rounded-3xl bg-white p-5 shadow-sm">
@@ -181,7 +179,7 @@ function OrganizerEmailLog() {
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2 text-sm text-[#6b7c93]">
                             <Calendar size={14} />
-                            <span>{log.sentAt}</span>
+                            <span>{log.sentAtLabel || log.sentAt}</span>
                           </div>
                         </td>
                         <td className="px-5 py-4 text-right">
@@ -204,10 +202,12 @@ function OrganizerEmailLog() {
           <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
             <Send size={48} className="mx-auto text-[#9aa9bc]" />
             <h3 className="mt-4 text-xl font-semibold text-[#0f1e33]">
-              No emails sent yet
+              {isLoading ? "Loading email history..." : "No emails sent yet"}
             </h3>
             <p className="mt-2 text-[#6b7c93]">
-              Emails you send to event attendees will appear here.
+              {isLoading
+                ? "Fetching organizer mail history from the backend."
+                : "Emails you send to event attendees will appear here."}
             </p>
           </section>
         )}
@@ -223,7 +223,7 @@ function OrganizerEmailLog() {
                 </h2>
                 <p className="mt-1 text-sm text-[#6b7c93]">
                   Sent to {selectedEmail.recipientCount} recipients on{" "}
-                  {selectedEmail.sentAt}
+                  {selectedEmail.sentAtLabel || selectedEmail.sentAt}
                 </p>
               </div>
               <button

@@ -19,7 +19,16 @@ import {
 } from "lucide-react";
 import koiLogo from "@/assets/koi-logo.jpg";
 import { useState, useRef, useEffect } from "react";
-import { getCurrentUser } from "@/utils/auth";
+import {
+  fetchAdminSettings,
+  saveAdminSettings,
+} from "@/services/adminSettingsService.js";
+import {
+  applyAppearanceSettings,
+  getDefaultAppearance,
+  getSystemTheme,
+  resolveThemeMode,
+} from "@/utils/appearance.js";
 
 // ── Inline Switch ──────────────────────────────────────────────────────────────
 function Switch({ checked, onCheckedChange, className = "" }) {
@@ -116,13 +125,11 @@ function ToastContainer({ toasts }) {
   );
 }
 
-// ── Theme helpers (replaces next-themes) ──────────────────────────────────────
-const THEME_KEY = "sem_theme";
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "";
 const DEFAULT_SETTINGS = {
   organization: {
     name: "King's Own Institute",
     email: "events@koi.edu.au",
+    phone: "+61 2 9283 3583",
     address: "Level 1, 545 Kent Street, Sydney NSW 2000",
     logo: koiLogo,
   },
@@ -152,6 +159,7 @@ const DEFAULT_SETTINGS = {
     maxSessions: 3,
   },
   appearance: {
+    themeMode: "light",
     darkMode: false,
     primaryColor: "#1F4E79",
     accentColor: "#F36F21",
@@ -159,7 +167,11 @@ const DEFAULT_SETTINGS = {
 };
 
 const mergeSettings = (nextSettings = {}) => ({
-  organization: { ...DEFAULT_SETTINGS.organization, ...nextSettings.organization },
+  organization: {
+    ...DEFAULT_SETTINGS.organization,
+    ...nextSettings.organization,
+    logo: nextSettings?.organization?.logo || DEFAULT_SETTINGS.organization.logo,
+  },
   events: { ...DEFAULT_SETTINGS.events, ...nextSettings.events },
   notifications: { ...DEFAULT_SETTINGS.notifications, ...nextSettings.notifications },
   email: { ...DEFAULT_SETTINGS.email, ...nextSettings.email },
@@ -170,101 +182,8 @@ const mergeSettings = (nextSettings = {}) => ({
 const settingRowClassName = "flex items-start justify-between gap-4 md:items-center";
 const settingTextClassName = "min-w-0 flex-1 pr-2";
 
-const getSettingsHeaders = () => {
-  const currentUser = getCurrentUser();
-
-  if (!currentUser?.email) {
-    throw new Error("Admin session not found. Please log in again.");
-  }
-
-  return {
-    "Content-Type": "application/json",
-    "x-user-email": currentUser.email,
-  };
-};
-
-const fetchAdminSettings = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
-    headers: getSettingsHeaders(),
-  });
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to load admin settings");
-  }
-
-  return data?.settings ?? {};
-};
-
-const saveAdminSettings = async (settings) => {
-  const payload = {
-    events: {
-      requireApproval: settings.events.requireApproval,
-      allowWaitlist: settings.events.allowWaitlist,
-    },
-    notifications: {
-      newRegistration: settings.notifications.newRegistration,
-      approvalRequests: settings.notifications.approvalRequests,
-      eventReminders: settings.notifications.eventReminders,
-      feedbackRequests: settings.notifications.feedbackRequests,
-    },
-    security: {
-      twoFactorAuth: settings.security.twoFactorAuth,
-      emailVerification: settings.security.emailVerification,
-      passwordComplexity: settings.security.passwordComplexity,
-      sessionTimeout: settings.security.sessionTimeout,
-      maxSessions: settings.security.maxSessions,
-    },
-    appearance: {
-      darkMode: settings.appearance.darkMode,
-      primaryColor: settings.appearance.primaryColor,
-      accentColor: settings.appearance.accentColor,
-    },
-  };
-
-  const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
-    method: "PUT",
-    headers: getSettingsHeaders(),
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to save admin settings");
-  }
-
-  return data?.settings ?? payload;
-};
-
-function getSystemTheme() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function applyTheme(theme) {
-  const resolved = theme === "system" ? getSystemTheme() : theme;
-  document.documentElement.classList.toggle("dark", resolved === "dark");
-}
-
-function useTheme() {
-  const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || "system");
-  const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
-
-  const setTheme = (t) => {
-    setThemeState(t);
-    localStorage.setItem(THEME_KEY, t);
-    applyTheme(t);
-  };
-
-  useEffect(() => {
-    applyTheme(theme);
-  }, []);
-
-  return { theme, setTheme, resolvedTheme };
-}
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 const AdminSettings = () => {
-  const { theme, setTheme, resolvedTheme } = useTheme();
   const toast = useToast();
   const fileInputRef = useRef(null);
   const [previewLogo, setPreviewLogo] = useState(null);
@@ -272,6 +191,8 @@ const AdminSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const themeMode = settings.appearance.themeMode || "light";
+  const resolvedTheme = resolveThemeMode(themeMode);
 
   useEffect(() => {
     let isMounted = true;
@@ -287,9 +208,11 @@ const AdminSettings = () => {
         }
 
         setSettings((prev) => mergeSettings({ ...prev, ...backendSettings }));
-        if (typeof backendSettings?.appearance?.darkMode === "boolean") {
-          setTheme(backendSettings.appearance.darkMode ? "dark" : "light");
-        }
+        const nextAppearance = {
+          ...getDefaultAppearance(),
+          ...backendSettings?.appearance,
+        };
+        applyAppearanceSettings(nextAppearance);
       } catch (error) {
         if (isMounted) {
           setLoadError(error.message);
@@ -306,26 +229,42 @@ const AdminSettings = () => {
     return () => {
       isMounted = false;
     };
-  }, [setTheme]);
+  }, []);
+
+  useEffect(() => {
+    if (themeMode !== "system") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      applyAppearanceSettings(settings.appearance);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, [settings.appearance, themeMode]);
 
   const handleLogoChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewLogo(url);
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setPreviewLogo(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSaveChanges = async () => {
-    if (previewLogo) {
-      setSettings((prev) => ({
-        ...prev,
-        organization: { ...prev.organization, logo: previewLogo },
-      }));
-    }
-
     try {
       setIsSaving(true);
+      setLoadError("");
       const nextSettings = previewLogo
         ? {
             ...settings,
@@ -335,10 +274,8 @@ const AdminSettings = () => {
       const savedSettings = await saveAdminSettings(nextSettings);
 
       setSettings((prev) => mergeSettings({ ...prev, ...savedSettings }));
-
-      if (typeof savedSettings?.appearance?.darkMode === "boolean") {
-        setTheme(savedSettings.appearance.darkMode ? "dark" : "light");
-      }
+      setPreviewLogo(null);
+      applyAppearanceSettings(savedSettings?.appearance);
 
       toast.success("Settings saved successfully!");
     } catch (error) {
@@ -369,7 +306,28 @@ const AdminSettings = () => {
   };
 
   const updateAppearance = (field, value) => {
-    setSettings((prev) => ({ ...prev, appearance: { ...prev.appearance, [field]: value } }));
+    setSettings((prev) => {
+      const nextSettings = {
+        ...prev,
+        appearance: { ...prev.appearance, [field]: value },
+      };
+      applyAppearanceSettings(nextSettings.appearance);
+      return nextSettings;
+    });
+  };
+
+  const updateAppearanceFields = (fields) => {
+    setSettings((prev) => {
+      const nextSettings = {
+        ...prev,
+        appearance: {
+          ...prev.appearance,
+          ...fields,
+        },
+      };
+      applyAppearanceSettings(nextSettings.appearance);
+      return nextSettings;
+    });
   };
 
   return (
@@ -433,6 +391,14 @@ const AdminSettings = () => {
                       onChange={(e) => updateOrganization("email", e.target.value)}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="orgPhone">Contact Phone</Label>
+                    <Input
+                      id="orgPhone"
+                      value={settings.organization.phone}
+                      onChange={(e) => updateOrganization("phone", e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="orgAddress">Address</Label>
@@ -460,6 +426,7 @@ const AdminSettings = () => {
                       />
                       {previewLogo && (
                         <Button
+                          type="button"
                           size="icon"
                           variant="destructive"
                           className="absolute -top-2 -right-2 h-6 w-6"
@@ -470,6 +437,7 @@ const AdminSettings = () => {
                       )}
                     </div>
                     <Button
+                      type="button"
                       variant="outline"
                       className="gap-2"
                       onClick={() => fileInputRef.current?.click()}
@@ -730,15 +698,18 @@ const AdminSettings = () => {
                   </p>
                   <div className="grid grid-cols-3 gap-3">
                     <Button
-                      variant={theme === "light" ? "default" : "outline"}
+                      type="button"
+                      variant={themeMode === "light" ? "default" : "outline"}
                       className={`flex flex-col items-center gap-2 h-auto py-4 ${
-                        theme === "light"
+                        themeMode === "light"
                           ? "border-[#f36f21] bg-[#f36f21] text-white shadow-sm"
                           : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
                       }`}
                       onClick={() => {
-                        setTheme("light");
-                        updateAppearance("darkMode", false);
+                        updateAppearanceFields({
+                          themeMode: "light",
+                          darkMode: false,
+                        });
                         toast.success("Light theme applied");
                       }}
                     >
@@ -746,15 +717,18 @@ const AdminSettings = () => {
                       <span className="text-sm font-medium">Light</span>
                     </Button>
                     <Button
-                      variant={theme === "dark" ? "default" : "outline"}
+                      type="button"
+                      variant={themeMode === "dark" ? "default" : "outline"}
                       className={`flex flex-col items-center gap-2 h-auto py-4 ${
-                        theme === "dark"
+                        themeMode === "dark"
                           ? "border-[#f36f21] bg-[#f36f21] text-white shadow-sm"
                           : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
                       }`}
                       onClick={() => {
-                        setTheme("dark");
-                        updateAppearance("darkMode", true);
+                        updateAppearanceFields({
+                          themeMode: "dark",
+                          darkMode: true,
+                        });
                         toast.success("Dark theme applied");
                       }}
                     >
@@ -762,14 +736,18 @@ const AdminSettings = () => {
                       <span className="text-sm font-medium">Dark</span>
                     </Button>
                     <Button
-                      variant={theme === "system" ? "default" : "outline"}
+                      type="button"
+                      variant={themeMode === "system" ? "default" : "outline"}
                       className={`flex flex-col items-center gap-2 h-auto py-4 ${
-                        theme === "system"
+                        themeMode === "system"
                           ? "border-[#f36f21] bg-[#f36f21] text-white shadow-sm"
                           : "hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
                       }`}
                       onClick={() => {
-                        setTheme("system");
+                        updateAppearanceFields({
+                          themeMode: "system",
+                          darkMode: getSystemTheme() === "dark",
+                        });
                         toast.success("System theme applied");
                       }}
                     >
@@ -792,8 +770,10 @@ const AdminSettings = () => {
                   <UiSwitch
                     checked={resolvedTheme === "dark"}
                     onCheckedChange={(checked) => {
-                      setTheme(checked ? "dark" : "light");
-                      updateAppearance("darkMode", checked);
+                      updateAppearanceFields({
+                        themeMode: checked ? "dark" : "light",
+                        darkMode: checked,
+                      });
                       toast.success(checked ? "Dark mode enabled" : "Light mode enabled");
                     }}
                     className="mt-1 border-[#c7d2e0] bg-[#dbe4ef] shadow-sm data-[state=checked]:border-[#1f4e79] data-[state=checked]:bg-[#1f4e79] md:mt-0"
@@ -872,7 +852,7 @@ const AdminSettings = () => {
 
         {/* Save Button */}
         <div className="flex justify-end">
-          <Button variant="brand" className="gap-2" onClick={handleSaveChanges}>
+          <Button type="button" variant="brand" className="gap-2" onClick={handleSaveChanges} disabled={isSaving || isLoading}>
             <Save size={18} />
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>

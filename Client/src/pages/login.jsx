@@ -5,6 +5,7 @@ import Navbar from "../components/layout/navbar";
 import AuthPanelDivider from "../components/auth/AuthPanelDivider.jsx";
 import AuthSectionDivider from "../components/auth/AuthSectionDivider.jsx";
 import koiLogo from "../assets/koi-logo.jpg";
+import { fetchPublicBrandingSettings } from "../services/publicSettingsService.js";
 import {
   getCurrentUser,
   getDashboardPath,
@@ -18,6 +19,12 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [branding, setBranding] = useState({
+    organization: {
+      name: "KOI Smart Events",
+      logo: koiLogo,
+    },
+  });
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -30,6 +37,40 @@ const Login = () => {
       navigate(getDashboardPath(currentUser.role), { replace: true });
     }
   }, [navigate]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBranding = async () => {
+      try {
+        const nextBranding = await fetchPublicBrandingSettings();
+
+        if (isMounted) {
+          setBranding({
+            organization: {
+              name: nextBranding?.organization?.name || "KOI Smart Events",
+              logo: nextBranding?.organization?.logo || koiLogo,
+            },
+          });
+        }
+      } catch {
+        if (isMounted) {
+          setBranding({
+            organization: {
+              name: "KOI Smart Events",
+              logo: koiLogo,
+            },
+          });
+        }
+      }
+    };
+
+    loadBranding();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -97,8 +138,8 @@ const Login = () => {
         <div className="relative z-10 flex flex-col justify-center p-12">
           <Link to="/" className="flex items-center gap-3 mb-8">
             <img
-              src={koiLogo}
-              alt="KOI Logo"
+              src={branding.organization.logo}
+              alt={branding.organization.name}
               className="h-14 rounded bg-card p-1 shadow-sm"
             />
           </Link>
@@ -128,7 +169,11 @@ const Login = () => {
             <div className="text-center pb-0 p-6">
               <div className="lg:hidden flex justify-center mb-4">
                 <div className="h-12 w-12 rounded bg-card text-primary flex items-center justify-center font-semibold">
-                  KOI
+                  <img
+                    src={branding.organization.logo}
+                    alt={branding.organization.name}
+                    className="h-12 w-12 rounded object-cover"
+                  />
                 </div>
               </div>
               <div className="text-2xl font-heading">Sign In</div>

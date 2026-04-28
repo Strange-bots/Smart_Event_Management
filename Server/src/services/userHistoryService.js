@@ -1,4 +1,3 @@
-const { demoUsers } = require('../data/demoUsers');
 const { registrations } = require('../data/registrations');
 const { registeredUsers } = require('../data/registeredUsers');
 const { userHistoryReports } = require('../data/userHistory');
@@ -10,7 +9,7 @@ const VALID_EVENT_PHASES = new Set(['before', 'during', 'after']);
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
 
 const getAllUsers = () =>
-  [...demoUsers, ...registeredUsers].filter((user) => user.role === 'user');
+  registeredUsers.filter((user) => user.role === 'user');
 
 const buildFallbackUser = ({ name, email }) => ({
   name,

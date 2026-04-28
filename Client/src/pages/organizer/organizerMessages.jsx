@@ -14,23 +14,10 @@ import {
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
 import { fetchOrganizerEvents } from "../../services/organizerEventService.js";
-
-const EMAIL_LOG_STORAGE_KEY = "smart_event_organizer_email_logs";
-const NOTIFICATION_STORAGE_KEY = "smart_event_notifications";
-
-const sampleEmailLogs = [
-  {
-    id: "email-1",
-    organizerEmail: "organizer@demo.com",
-    eventId: "event-sample-1",
-    eventTitle: "AI Career Workshop",
-    audience: "all",
-    subject: "Reminder: AI Career Workshop is approaching",
-    body: "Dear Attendee,\n\nThis is a reminder that the workshop starts at 10:00 AM in the Conference Hall.\n\nBest regards,\nEvent Organizer",
-    sentAt: "7 April 2026, 10:30 AM",
-    recipientCount: 48,
-  },
-];
+import {
+  fetchOrganizerMessageLogs,
+  sendOrganizerMessage,
+} from "../../services/messagingService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -147,6 +134,7 @@ function OrganizerMessages() {
   const [isSending, setIsSending] = useState(false);
   const [notice, setNotice] = useState(null);
   const [events, setEvents] = useState([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "organizer") {
@@ -172,19 +160,40 @@ function OrganizerMessages() {
     };
   }, [currentUser?.email, currentUser?.role]);
 
-  const [emailLogs, setEmailLogs] = useState(() => {
-    const storedLogs = JSON.parse(
-      window.localStorage.getItem(EMAIL_LOG_STORAGE_KEY) || "[]",
-    );
-    const combinedLogs = storedLogs.length > 0 ? storedLogs : sampleEmailLogs;
+  const [emailLogs, setEmailLogs] = useState([]);
 
-    return combinedLogs.filter(
-      (log) =>
-        !currentUser ||
-        log.organizerEmail === currentUser.email ||
-        log.organizerId === currentUser.id,
-    );
-  });
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== "organizer") {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    fetchOrganizerMessageLogs()
+      .then((logs) => {
+        if (isMounted) {
+          setEmailLogs(logs);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setEmailLogs([]);
+          setNotice({
+            type: "error",
+            message: error.message || "Unable to load email history.",
+          });
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingLogs(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.email, currentUser?.role]);
 
   const selectedEvent =
     events.find((event) => String(event.id) === selectedEventId) || null;
@@ -238,64 +247,32 @@ function OrganizerMessages() {
       return;
     }
 
-    setIsSending(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+    try {
+      setIsSending(true);
+      const result = await sendOrganizerMessage({
+        eventId: selectedEvent.id,
+        audience: selectedAudience,
+        subject: subject.trim(),
+        body: body.trim(),
+      });
 
-    const nextLog = {
-      id: `email-${Date.now()}`,
-      organizerEmail: currentUser.email,
-      organizerId: currentUser.id,
-      eventId: selectedEvent.id,
-      eventTitle: selectedEvent.title,
-      audience: selectedAudience,
-      subject: subject.trim(),
-      body: body.trim(),
-      sentAt: new Intl.DateTimeFormat("en-AU", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(new Date()),
-      recipientCount,
-    };
-
-    const storedLogs = JSON.parse(
-      window.localStorage.getItem(EMAIL_LOG_STORAGE_KEY) || "[]",
-    );
-    const nextLogs = [nextLog, ...storedLogs];
-    window.localStorage.setItem(EMAIL_LOG_STORAGE_KEY, JSON.stringify(nextLogs));
-
-    const storedNotifications = JSON.parse(
-      window.localStorage.getItem(NOTIFICATION_STORAGE_KEY) || "[]",
-    );
-    const nextNotification = {
-      id: `notification-${Date.now()}`,
-      type: "organizer",
-      title: subject.trim(),
-      message: `${body.trim().slice(0, 180)}${body.trim().length > 180 ? "..." : ""}`,
-      date: new Intl.DateTimeFormat("en-AU", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }).format(new Date()),
-      isRead: false,
-      eventId: selectedEvent.id,
-      from: "Event Organizer",
-      audience: selectedAudience,
-    };
-    window.localStorage.setItem(
-      NOTIFICATION_STORAGE_KEY,
-      JSON.stringify([nextNotification, ...storedNotifications]),
-    );
-
-    setEmailLogs((prev) => [nextLog, ...prev]);
-    setIsSending(false);
-    setSubject("");
-    setBody("");
-    setSelectedAudience("");
-    setActiveTab("sent");
-    setNotice({ type: "success", message: `Email sent to ${recipientCount} recipient(s).` });
+      setEmailLogs((prev) => [result.log, ...prev]);
+      setSubject("");
+      setBody("");
+      setSelectedAudience("");
+      setActiveTab("sent");
+      setNotice({
+        type: "success",
+        message: `Email sent to ${result.recipientCount} recipient(s).`,
+      });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.message || "Unable to send email right now.",
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -600,7 +577,7 @@ function OrganizerMessages() {
                     {filteredLogs.map((log) => (
                       <tr key={log.id}>
                         <td className="px-4 py-4 text-sm text-[#6b7c93]">
-                          {log.sentAt}
+                          {log.sentAtLabel || log.sentAt}
                         </td>
                         <td className="px-4 py-4 font-medium text-[#0f1e33]">
                           {log.eventTitle}
@@ -633,10 +610,12 @@ function OrganizerMessages() {
               <div className="py-12 text-center">
                 <Mail size={48} className="mx-auto mb-4 text-[#9aa9bc]" />
                 <h3 className="text-xl font-semibold text-[#0f1e33]">
-                  No emails sent yet
+                  {isLoadingLogs ? "Loading email history..." : "No emails sent yet"}
                 </h3>
                 <p className="mt-2 text-[#6b7c93]">
-                  Compose your first event email to get started.
+                  {isLoadingLogs
+                    ? "Fetching organizer message logs from the backend."
+                    : "Compose your first event email to get started."}
                 </p>
               </div>
             )}
@@ -671,7 +650,9 @@ function OrganizerMessages() {
                 </div>
                 <div>
                   <span className="text-[#6b7c93]">Sent:</span>
-                  <p className="mt-1 font-medium text-[#0f1e33]">{selectedLog.sentAt}</p>
+                  <p className="mt-1 font-medium text-[#0f1e33]">
+                    {selectedLog.sentAtLabel || selectedLog.sentAt}
+                  </p>
                 </div>
                 <div>
                   <span className="text-[#6b7c93]">Audience:</span>

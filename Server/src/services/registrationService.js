@@ -39,6 +39,28 @@ const calculateAttendanceRisk = (registration) => {
   return 'green';
 };
 
+const getRiskLabel = (riskLevel) => {
+  switch (riskLevel) {
+    case 'red':
+      return 'High Risk';
+    case 'amber':
+      return 'Medium Risk';
+    default:
+      return 'Low Risk';
+  }
+};
+
+const getRiskReason = (riskLevel) => {
+  switch (riskLevel) {
+    case 'red':
+      return 'This attendee has a no-show status, which suggests a higher attendance risk.';
+    case 'amber':
+      return 'This attendee has an unpaid or cancelled registration that may need attention.';
+    default:
+      return 'This attendee appears low risk based on current registration and attendance data.';
+  }
+};
+
 const eventBelongsToOrganizer = (event, organizerEmail) => {
   const normalizedOrganizer = normalizeEmail(organizerEmail);
 
@@ -144,6 +166,7 @@ const getOrganizerContext = (organizerEmail) => {
     )
     .map((registration) => {
       const event = organizerEventMap.get(normalizeEventId(registration.eventId));
+      const riskLevel = calculateAttendanceRisk(registration);
 
       return {
         id: registration.id,
@@ -154,7 +177,11 @@ const getOrganizerContext = (organizerEmail) => {
         registrationDate: formatRegistrationDate(registration.registrationDate),
         paymentStatus: registration.paymentStatus,
         attendanceStatus: registration.attendanceStatus,
-        riskLevel: calculateAttendanceRisk(registration),
+        risk: {
+          level: riskLevel,
+          label: getRiskLabel(riskLevel),
+          reason: getRiskReason(riskLevel),
+        },
         userRiskLevel: getUserRiskLevel(registration.userEmail),
       };
     });
@@ -165,9 +192,6 @@ const getOrganizerContext = (organizerEmail) => {
     registrations: organizerRegistrations,
   };
 };
-
-const getOrganizerRegistrationDetails = (organizerEmail) =>
-  getOrganizerContext(organizerEmail);
 
 const filterRegistrations = (registrationsList, filters = {}) => {
   const normalizedSearch =
@@ -201,7 +225,7 @@ const filterRegistrations = (registrationsList, filters = {}) => {
       registration.paymentStatus.toLowerCase() === normalizedPaymentStatus;
 
     const matchesRiskLevel =
-      !normalizedRiskLevel || registration.riskLevel === normalizedRiskLevel;
+      !normalizedRiskLevel || registration.risk.level === normalizedRiskLevel;
 
     return (
       matchesSearch &&
@@ -210,6 +234,64 @@ const filterRegistrations = (registrationsList, filters = {}) => {
       matchesRiskLevel
     );
   });
+};
+
+const buildOrganizerRegistrationSummary = (registrationsList) => ({
+  total: registrationsList.length,
+  paid: registrationsList.filter(
+    (registration) => registration.paymentStatus === 'paid',
+  ).length,
+  unpaid: registrationsList.filter(
+    (registration) => registration.paymentStatus === 'unpaid',
+  ).length,
+  attended: registrationsList.filter(
+    (registration) => registration.attendanceStatus === 'attended',
+  ).length,
+  redList: registrationsList.filter(
+    (registration) => registration.risk.level === 'red',
+  ).length,
+});
+
+const getOrganizerRegistrationDetails = (organizerEmail, filters = {}) => {
+  const result = getOrganizerContext(organizerEmail);
+
+  if (result.error) {
+    return result;
+  }
+
+  const filteredRegistrations = filterRegistrations(
+    result.registrations,
+    filters,
+  );
+  const eventOptions = [
+    'All Events',
+    ...Array.from(
+      new Set(result.registrations.map((registration) => registration.eventName)),
+    ).sort((left, right) => left.localeCompare(right)),
+  ];
+
+  return {
+    statusCode: 200,
+    organizer: result.organizer,
+    registrations: filteredRegistrations,
+    summary: buildOrganizerRegistrationSummary(result.registrations),
+    eventOptions,
+    filters: {
+      search: typeof filters.search === 'string' ? filters.search.trim() : '',
+      eventName:
+        typeof filters.eventName === 'string' && filters.eventName.trim()
+          ? filters.eventName.trim()
+          : 'All Events',
+      paymentStatus:
+        typeof filters.paymentStatus === 'string' && filters.paymentStatus.trim()
+          ? filters.paymentStatus.trim().toLowerCase()
+          : 'all',
+      riskLevel:
+        typeof filters.riskLevel === 'string' && filters.riskLevel.trim()
+          ? filters.riskLevel.trim().toLowerCase()
+          : 'all',
+    },
+  };
 };
 
 const escapeXml = (value) =>
@@ -240,7 +322,7 @@ const buildSpreadsheetXml = (rows) => {
       registration.registrationDate,
       registration.paymentStatus,
       registration.attendanceStatus,
-      registration.riskLevel,
+      registration.risk.label,
     ]),
   ]
     .map(

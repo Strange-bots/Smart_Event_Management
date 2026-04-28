@@ -1,13 +1,18 @@
 const {
+  deleteAdminEvent,
+  deleteAdminEventImage,
   createOrganizerEvent,
   deleteOrganizerEvent,
   duplicateOrganizerEvent,
+  getAdminEvents,
+  getAdminGalleryImages,
   getEvents,
   getFeaturedEvents,
   getNextUpcomingEvent,
   getOrganizerEvents,
   getRecommendedEvents,
   getAllApprovedEvents,
+  updateAdminEventStatus,
   updateOrganizerEvent,
   uploadAdminEventImage,
 } = require('../services/eventService');
@@ -62,6 +67,77 @@ const getAllEvents = (req, res) => {
   return res.json({
     success: true,
     data: allEvents,
+  });
+};
+
+const listAdminEvents = (req, res) => {
+  return res.status(200).json({
+    message: 'Admin events fetched successfully',
+    events: getAdminEvents(),
+  });
+};
+
+const listAdminGalleryImages = (req, res) => {
+  return res.status(200).json({
+    message: 'Admin gallery images fetched successfully',
+    images: getAdminGalleryImages(),
+  });
+};
+
+const approveAdminEventRecord = (req, res) => {
+  const result = updateAdminEventStatus({
+    eventId: req.params.eventId,
+    status: 'approved',
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(200).json({
+    message: 'Event approved successfully',
+    event: result.event,
+  });
+};
+
+const rejectAdminEventRecord = (req, res) => {
+  const result = updateAdminEventStatus({
+    eventId: req.params.eventId,
+    status: 'rejected',
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(200).json({
+    message: 'Event rejected successfully',
+    event: result.event,
+  });
+};
+
+const deleteAdminEventRecord = (req, res) => {
+  const result = deleteAdminEvent(req.params.eventId);
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(200).json({
+    message: 'Event deleted successfully',
+  });
+};
+
+const deleteAdminEventImageRecord = (req, res) => {
+  const result = deleteAdminEventImage(req.params.eventId);
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(200).json({
+    message: 'Event image deleted successfully',
+    event: result.event,
   });
 };
 
@@ -165,15 +241,21 @@ const deleteOrganizerEventRecord = (req, res) => {
 };
 
 module.exports = {
+  approveAdminEventRecord,
   createOrganizerEventRecord,
+  deleteAdminEventRecord,
+  deleteAdminEventImageRecord,
   deleteOrganizerEventRecord,
   duplicateOrganizerEventRecord,
   getFeaturedEventsList,
   listEvents,
+  listAdminEvents,
+  listAdminGalleryImages,
   getNextEvent,
   getRecommendations,
   getAllEvents,
   listOrganizerEvents,
+  rejectAdminEventRecord,
   updateOrganizerEventRecord,
   uploadEventImage,
 };

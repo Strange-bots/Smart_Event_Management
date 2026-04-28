@@ -59,25 +59,13 @@ import {
   Shield,
   Calendar,
 } from "lucide-react";
-import { useAuth } from "@/context/authcontext1.jsx";
 import { cn } from "@/lib/utils";
-
-const USERS_STORAGE_KEY = "sem_users";
-
-const convertAuthUserToAdminUser = (authUser) => ({
-  id: authUser.id,
-  name: authUser.name,
-  email: authUser.email,
-  role: authUser.role || "user",
-  status: "active",
-  eventsRegistered: 0,
-  joinDate: new Date().toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }),
-  avatar: authUser.avatar || null,
-});
+import {
+  createAdminUser,
+  deleteAdminUser,
+  fetchAdminUsers,
+  updateAdminUser,
+} from "@/services/adminUserService.js";
 
 function useToast() {
   const [toasts, setToasts] = useState([]);
@@ -94,6 +82,7 @@ function useToast() {
     toasts,
     success: (message) => show(message, "success"),
     warning: (message) => show(message, "warning"),
+    error: (message) => show(message, "error"),
   };
 }
 
@@ -108,7 +97,11 @@ function ToastContainer({ toasts }) {
         <div
           key={toast.id}
           className={`rounded-md px-4 py-3 text-sm font-medium text-white shadow-lg ${
-            toast.type === "warning" ? "bg-yellow-500" : "bg-green-600"
+            toast.type === "warning"
+              ? "bg-yellow-500"
+              : toast.type === "error"
+              ? "bg-rose-600"
+              : "bg-green-600"
           }`}
         >
           {toast.message}
@@ -118,44 +111,44 @@ function ToastContainer({ toasts }) {
   );
 }
 
+const INITIAL_EDIT_FORM = { name: "", email: "", role: "user", status: "active" };
+const INITIAL_CREATE_FORM = { name: "", email: "", role: "user", status: "active", password: "" };
+
 function AdminUsers() {
   const storedUser = window.localStorage.getItem("smart_event_user");
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
-  const { getAllUsers } = useAuth();
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", role: "user" });
+  const [editForm, setEditForm] = useState(INITIAL_EDIT_FORM);
+  const [createForm, setCreateForm] = useState(INITIAL_CREATE_FORM);
+
+  const loadUsers = async () => {
+    try {
+      setIsLoading(true);
+      const backendUsers = await fetchAdminUsers();
+      setUsers(backendUsers);
+      setError("");
+    } catch (loadError) {
+      setUsers([]);
+      setError(loadError.message || "Unable to load users.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadUsers = () => {
-      const authUsers = getAllUsers();
-      const convertedUsers = authUsers.map(convertAuthUserToAdminUser);
-      setUsers(convertedUsers);
-    };
-
     loadUsers();
-
-    const handleStorageChange = (event) => {
-      if (event.key === USERS_STORAGE_KEY) {
-        loadUsers();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    const interval = window.setInterval(loadUsers, 2000);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.clearInterval(interval);
-    };
-  }, [getAllUsers]);
+  }, []);
 
   if (!currentUser || currentUser.role !== "admin") {
     return <Navigate to="/login" replace />;
@@ -220,81 +213,106 @@ function AdminUsers() {
 
   const handleEditUser = (user) => {
     setSelectedUser(user);
-    setEditForm({ name: user.name, email: user.email, role: user.role });
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+    });
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedUser) {
       return;
     }
 
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === selectedUser.id
-          ? {
-              ...user,
-              name: editForm.name,
-              email: editForm.email,
-              role: editForm.role,
-            }
-          : user,
-      ),
-    );
+    try {
+      const updatedUser = await updateAdminUser(selectedUser.email, {
+        name: editForm.name,
+        email: editForm.email,
+        role: editForm.role,
+        status: editForm.status,
+      });
 
-    const storedUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-    const updatedUsers = storedUsers.map((user) =>
-      user.id === selectedUser.id
-        ? {
-            ...user,
-            name: editForm.name,
-            email: editForm.email,
-            role: editForm.role,
-          }
-        : user,
-    );
-
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-    toast.success("User updated successfully!");
-    setIsEditDialogOpen(false);
+      setUsers((prev) =>
+        prev.map((user) => (user.id === selectedUser.id ? updatedUser : user))
+      );
+      setSelectedUser(updatedUser);
+      toast.success("User updated successfully!");
+      setIsEditDialogOpen(false);
+      setEditForm(INITIAL_EDIT_FORM);
+    } catch (saveError) {
+      toast.error(saveError.message || "Could not update user.");
+    }
   };
 
-  const handleApproveUser = (userId) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId ? { ...user, status: "active" } : user,
-      ),
-    );
-    toast.success("User approved!");
+  const handleCreateUser = async () => {
+    try {
+      const createdUser = await createAdminUser(createForm);
+      setUsers((prev) => [createdUser, ...prev]);
+      setIsCreateDialogOpen(false);
+      setCreateForm(INITIAL_CREATE_FORM);
+      toast.success("User created successfully!");
+    } catch (createError) {
+      toast.error(createError.message || "Could not create user.");
+    }
   };
 
-  const handleDeactivateUser = (userId) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId ? { ...user, status: "inactive" } : user,
-      ),
-    );
-    toast.warning("User deactivated");
+  const handleApproveUser = async (user) => {
+    try {
+      const updatedUser = await updateAdminUser(user.email, {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: "active",
+      });
+      setUsers((prev) =>
+        prev.map((item) => (item.id === user.id ? updatedUser : item))
+      );
+      toast.success("User approved!");
+    } catch (approveError) {
+      toast.error(approveError.message || "Could not approve user.");
+    }
   };
 
-  const handleDeleteUser = (userId) => {
-    setUserToDelete(userId);
+  const handleDeactivateUser = async (user) => {
+    try {
+      const updatedUser = await updateAdminUser(user.email, {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: "inactive",
+      });
+      setUsers((prev) =>
+        prev.map((item) => (item.id === user.id ? updatedUser : item))
+      );
+      toast.warning("User deactivated");
+    } catch (deactivateError) {
+      toast.error(deactivateError.message || "Could not deactivate user.");
+    }
+  };
+
+  const handleDeleteUser = (user) => {
+    setUserToDelete(user);
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (userToDelete) {
-      setUsers((prev) => prev.filter((user) => user.id !== userToDelete));
-
-      const storedUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-      const updatedUsers = storedUsers.filter((user) => user.id !== userToDelete);
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-
-      toast.success("User deleted successfully");
+  const confirmDelete = async () => {
+    if (!userToDelete) {
+      return;
     }
 
-    setIsDeleteDialogOpen(false);
-    setUserToDelete(null);
+    try {
+      await deleteAdminUser(userToDelete.email);
+      setUsers((prev) => prev.filter((user) => user.id !== userToDelete.id));
+      toast.success("User deleted successfully");
+    } catch (deleteError) {
+      toast.error(deleteError.message || "Could not delete user.");
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
   };
 
   return (
@@ -309,11 +327,21 @@ function AdminUsers() {
               Manage all users, roles, and permissions
             </p>
           </div>
-          <Button variant="brand" className="gap-2">
+          <Button
+            variant="brand"
+            className="gap-2"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
             <Plus size={18} />
             Add User
           </Button>
         </div>
+
+        {error ? (
+          <Card className="border border-rose-200 bg-rose-50 shadow-sm">
+            <CardContent className="p-4 text-sm text-rose-700">{error}</CardContent>
+          </Card>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-0 shadow-sm">
@@ -384,54 +412,27 @@ function AdminUsers() {
                 />
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={roleFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  className={cn(
-                    roleFilter === "all"
-                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
-                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
-                  )}
-                  onClick={() => setRoleFilter("all")}
-                >
-                  All
-                </Button>
-                <Button
-                  variant={roleFilter === "admin" ? "default" : "outline"}
-                  size="sm"
-                  className={cn(
-                    roleFilter === "admin"
-                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
-                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
-                  )}
-                  onClick={() => setRoleFilter("admin")}
-                >
-                  Admins
-                </Button>
-                <Button
-                  variant={roleFilter === "organizer" ? "default" : "outline"}
-                  size="sm"
-                  className={cn(
-                    roleFilter === "organizer"
-                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
-                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
-                  )}
-                  onClick={() => setRoleFilter("organizer")}
-                >
-                  Organizers
-                </Button>
-                <Button
-                  variant={roleFilter === "user" ? "default" : "outline"}
-                  size="sm"
-                  className={cn(
-                    roleFilter === "user"
-                      ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
-                      : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
-                  )}
-                  onClick={() => setRoleFilter("user")}
-                >
-                  Users
-                </Button>
+                {["all", "admin", "organizer", "user"].map((role) => (
+                  <Button
+                    key={role}
+                    variant={roleFilter === role ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      roleFilter === role
+                        ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
+                        : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
+                    )}
+                    onClick={() => setRoleFilter(role)}
+                  >
+                    {role === "all"
+                      ? "All"
+                      : role === "admin"
+                      ? "Admins"
+                      : role === "organizer"
+                      ? "Organizers"
+                      : "Users"}
+                  </Button>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -451,76 +452,90 @@ function AdminUsers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                          <AvatarFallback>
-                            {user.name
-                              .split(" ")
-                              .map((part) => part[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-foreground">{user.name}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getRoleBadge(user.role)}</TableCell>
-                    <TableCell>{getStatusBadge(user.status)}</TableCell>
-                    <TableCell>{user.eventsRegistered}</TableCell>
-                    <TableCell>{user.joinDate}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal size={16} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="gap-2"
-                            onClick={() => handleViewProfile(user)}
-                          >
-                            <Eye size={14} /> View Profile
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="gap-2"
-                            onClick={() => handleEditUser(user)}
-                          >
-                            <Edit size={14} /> Edit User
-                          </DropdownMenuItem>
-                          {user.status === "pending" ? (
-                            <DropdownMenuItem
-                              className="gap-2 text-green-600"
-                              onClick={() => handleApproveUser(user.id)}
-                            >
-                              <UserCheck size={14} /> Approve
-                            </DropdownMenuItem>
-                          ) : null}
-                          {user.status === "active" ? (
-                            <DropdownMenuItem
-                              className="gap-2 text-yellow-600"
-                              onClick={() => handleDeactivateUser(user.id)}
-                            >
-                              <UserX size={14} /> Deactivate
-                            </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuItem
-                            className="gap-2 text-destructive"
-                            onClick={() => handleDeleteUser(user.id)}
-                          >
-                            <Trash2 size={14} /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                      Loading users...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                      No users found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                            <AvatarFallback>
+                              {user.name
+                                .split(" ")
+                                .map((part) => part[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-foreground">{user.name}</p>
+                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getRoleBadge(user.role)}</TableCell>
+                      <TableCell>{getStatusBadge(user.status)}</TableCell>
+                      <TableCell>{user.eventsRegistered}</TableCell>
+                      <TableCell>{user.joinDate}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal size={16} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={() => handleViewProfile(user)}
+                            >
+                              <Eye size={14} /> View Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={() => handleEditUser(user)}
+                            >
+                              <Edit size={14} /> Edit User
+                            </DropdownMenuItem>
+                            {user.status === "pending" ? (
+                              <DropdownMenuItem
+                                className="gap-2 text-green-600"
+                                onClick={() => handleApproveUser(user)}
+                              >
+                                <UserCheck size={14} /> Approve
+                              </DropdownMenuItem>
+                            ) : null}
+                            {user.status === "active" ? (
+                              <DropdownMenuItem
+                                className="gap-2 text-yellow-600"
+                                onClick={() => handleDeactivateUser(user)}
+                              >
+                                <UserX size={14} /> Deactivate
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem
+                              className="gap-2 text-destructive"
+                              onClick={() => handleDeleteUser(user)}
+                            >
+                              <Trash2 size={14} /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -563,9 +578,7 @@ function AdminUsers() {
                   {getStatusBadge(selectedUser.status)}
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Events Registered
-                  </p>
+                  <p className="text-sm text-muted-foreground">Events Registered</p>
                   <p className="font-medium">{selectedUser.eventsRegistered}</p>
                 </div>
                 <div>
@@ -576,10 +589,7 @@ function AdminUsers() {
             </div>
           ) : null}
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsViewDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
               Close
             </Button>
             <Button
@@ -592,6 +602,93 @@ function AdminUsers() {
               }}
             >
               Edit User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add User</DialogTitle>
+            <DialogDescription>Create a new user account from the backend</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="createName">Name</Label>
+              <Input
+                id="createName"
+                value={createForm.name}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, name: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="createEmail">Email</Label>
+              <Input
+                id="createEmail"
+                type="email"
+                value={createForm.email}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, email: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="createPassword">Password</Label>
+              <Input
+                id="createPassword"
+                type="password"
+                value={createForm.password}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, password: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="createRole">Role</Label>
+              <Select
+                value={createForm.role}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, role: value }))
+                }
+              >
+                <SelectTrigger id="createRole">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="organizer">Organizer</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="createStatus">Status</Label>
+              <Select
+                value={createForm.status}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, status: value }))
+                }
+              >
+                <SelectTrigger id="createStatus">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="brand" onClick={handleCreateUser}>
+              Create User
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -643,12 +740,27 @@ function AdminUsers() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="editStatus">Status</Label>
+              <Select
+                value={editForm.status}
+                onValueChange={(value) =>
+                  setEditForm((prev) => ({ ...prev, status: value }))
+                }
+              >
+                <SelectTrigger id="editStatus">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
             <Button variant="brand" onClick={handleSaveEdit}>

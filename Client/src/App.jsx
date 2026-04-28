@@ -37,6 +37,8 @@ import TermsOfService from "./components/layout/legal/terms";
 import PrivacyPolicy from "./components/layout/legal/privacy";
 import Cookies from "./components/layout/legal/cookies";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import { fetchPublicAppearanceSettings } from "./services/publicSettingsService.js";
+import { applyAppearanceSettings } from "./utils/appearance.js";
 
 function ScrollToHash() {
   const location = useLocation();
@@ -75,6 +77,28 @@ function App() {
       .catch((error) => {
         console.error("Failed to fetch server message:", error);
       });
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAppearance = async () => {
+      try {
+        const appearance = await fetchPublicAppearanceSettings();
+
+        if (isMounted) {
+          applyAppearanceSettings(appearance);
+        }
+      } catch (error) {
+        console.error("Failed to load public appearance settings:", error);
+      }
+    };
+
+    loadAppearance();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

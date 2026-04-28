@@ -27,28 +27,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   AlertTriangle,
   Calendar,
   CheckCircle,
   Clock,
-  Edit,
   Eye,
   MapPin,
   MoreHorizontal,
   Search,
   Sparkles,
   ThumbsUp,
-  Trash2,
   TrendingUp,
   Users,
   XCircle,
@@ -56,11 +44,10 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  approveEvent,
-  deleteEvent,
-  getEvents,
-  rejectEvent,
-} from "@/stores/eventStore.jsx";
+  approveAdminEvent,
+  fetchAdminEvents,
+  rejectAdminEvent,
+} from "@/services/adminEventService.js";
 
 const mapToDisplayEvent = (event) => ({
   id: event.id,
@@ -97,14 +84,25 @@ function AdminEvents() {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [eventToDelete, setEventToDelete] = useState(null);
   const [aiRecommendations, setAiRecommendations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const loadEvents = () => {
-    const storeEvents = getEvents().map(mapToDisplayEvent);
-    setEvents(storeEvents);
-    setAiRecommendations(generateAIRecommendations(storeEvents));
+  const loadEvents = async () => {
+    try {
+      setIsLoading(true);
+      const backendEvents = await fetchAdminEvents();
+      const nextEvents = backendEvents.map(mapToDisplayEvent);
+      setEvents(nextEvents);
+      setAiRecommendations(generateAIRecommendations(nextEvents));
+      setError("");
+    } catch (loadError) {
+      setEvents([]);
+      setAiRecommendations([]);
+      setError(loadError.message || "Unable to load events.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -185,42 +183,34 @@ function AdminEvents() {
     setIsViewDialogOpen(true);
   };
 
-  const handleEditEvent = (eventId) => {
-    toast.info(`Edit flow for event #${eventId} is not configured yet.`);
-  };
-
-  const handleApproveEvent = (eventId) => {
-    approveEvent(eventId);
-    loadEvents();
-    toast.success("Event approved successfully! It is now visible to users.");
-  };
-
-  const handleRejectEvent = (eventId) => {
-    rejectEvent(eventId);
-    loadEvents();
-    toast.error("Event rejected");
-  };
-
-  const handleDeleteEvent = (eventId) => {
-    setEventToDelete(eventId);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (eventToDelete) {
-      deleteEvent(eventToDelete);
-      loadEvents();
-      toast.success("Event deleted successfully");
+  const handleApproveEvent = async (eventId) => {
+    try {
+      await approveAdminEvent(eventId);
+      await loadEvents();
+      toast.success("Event approved successfully! It is now visible to users.");
+    } catch (actionError) {
+      toast.error(actionError.message || "Could not approve event.");
     }
-
-    setIsDeleteDialogOpen(false);
-    setEventToDelete(null);
   };
 
-  const handleApproveAll = () => {
-    pendingEvents.forEach((event) => approveEvent(event.id));
-    loadEvents();
-    toast.success(`${pendingEvents.length} events approved!`);
+  const handleRejectEvent = async (eventId) => {
+    try {
+      await rejectAdminEvent(eventId);
+      await loadEvents();
+      toast.error("Event rejected");
+    } catch (actionError) {
+      toast.error(actionError.message || "Could not reject event.");
+    }
+  };
+
+  const handleApproveAll = async () => {
+    try {
+      await Promise.all(pendingEvents.map((event) => approveAdminEvent(event.id)));
+      await loadEvents();
+      toast.success(`${pendingEvents.length} events approved!`);
+    } catch (actionError) {
+      toast.error(actionError.message || "Could not approve all events.");
+    }
   };
 
   return (
@@ -228,12 +218,20 @@ function AdminEvents() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-heading font-bold text-primary md:text-3xl">
-            Events Management
+            Organizer Events Review
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Review, approve, and manage all events
+            Review all organizer-created events and approve or reject them.
           </p>
         </div>
+
+        {error ? (
+          <Card className="border border-rose-200 bg-rose-50 shadow-sm">
+            <CardContent className="p-4 text-sm text-rose-700">
+              {error}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {pendingEvents.length > 0 ? (
           <Card className="border-0 bg-gradient-to-r from-[#6D5DF6]/5 to-[#6D5DF6]/10 shadow-sm">
@@ -468,7 +466,25 @@ function AdminEvents() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEvents.map((event) => {
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="py-8 text-center text-muted-foreground"
+                    >
+                      Loading events...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredEvents.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="py-8 text-center text-muted-foreground"
+                    >
+                      No events found.
+                    </TableCell>
+                  </TableRow>
+                ) : filteredEvents.map((event) => {
                   const recommendation = getAIRecommendation(event.id);
 
                   return (
@@ -543,12 +559,6 @@ function AdminEvents() {
                               >
                                 <Eye size={14} /> View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="gap-2"
-                                onClick={() => handleEditEvent(event.id)}
-                              >
-                                <Edit size={14} /> Edit Event
-                              </DropdownMenuItem>
                               {event.status !== "pending" &&
                               event.status === "rejected" ? (
                                 <DropdownMenuItem
@@ -567,12 +577,6 @@ function AdminEvents() {
                                   <XCircle size={14} /> Reject
                                 </DropdownMenuItem>
                               ) : null}
-                              <DropdownMenuItem
-                                className="gap-2 text-destructive"
-                                onClick={() => handleDeleteEvent(event.id)}
-                              >
-                                <Trash2 size={14} /> Delete
-                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -593,7 +597,7 @@ function AdminEvents() {
               {selectedEvent?.title}
             </DialogTitle>
             <DialogDescription>
-              Review event details before approval
+              Review organizer event details before approval or rejection.
             </DialogDescription>
           </DialogHeader>
           {selectedEvent ? (
@@ -723,30 +727,6 @@ function AdminEvents() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this event? This action cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </DashboardLayout>
   );
 }

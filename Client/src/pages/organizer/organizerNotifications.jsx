@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import {
   Bell,
@@ -10,70 +10,115 @@ import {
   User,
   BadgeCheck,
   Clock3,
+  X,
 } from "lucide-react";
+import {
+  fetchOrganizerNotifications,
+  markAllOrganizerNotificationsRead,
+  markOrganizerNotificationRead,
+} from "../../services/notificationService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
+const formatEmailLine = (name, email, fallbackEmail) => {
+  const resolvedEmail = email || fallbackEmail;
+  const resolvedName = name || resolvedEmail;
 
-const MOCK_NOTIFICATIONS = [
-  {
-    id: "1",
-    type: "approval",
-    title: "Event Approved",
-    message: "Your event 'Annual Technology Summit 2024' has been approved and is now ready to publish.",
-    date: "April 9, 2026",
-    isRead: false,
-    from: "Admin Team",
-  },
-  {
-    id: "2",
-    type: "adminMessage",
-    title: "Changes Requested by Admin",
-    message: "Please update the venue capacity and upload the revised event banner for 'Startup Pitch Night'.",
-    date: "April 8, 2026",
-    isRead: false,
-    from: "Admin Team",
-  },
-  {
-    id: "3",
-    type: "pending",
-    title: "Approval In Review",
-    message: "Your event 'AI Career Fair' is currently under admin review. You will be notified once a decision is made.",
-    date: "April 7, 2026",
-    isRead: true,
-    from: "Admin Team",
-  },
-  {
-    id: "4",  
-    type: "rejected",
-    title: "Event Needs Revision",
-    message: "Your event 'Data Science Workshop' was sent back for revision because the agenda details were incomplete.",
-    date: "April 6, 2026",
-    isRead: true,
-    from: "Admin Team",
-  },
-  {
-    id: "5",
-    type: "adminMessage",
-    title: "Publishing Reminder",
-    message: "Admin has approved your event draft, but it will stay hidden until you publish it from the organizer dashboard.",
-    date: "April 5, 2026",
-    isRead: false,
-    from: "Admin Team",
-  },
-];
+  return resolvedEmail ? `${resolvedName} <${resolvedEmail}>` : resolvedName;
+};
 
 const OrganizerNotifications = () => {
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notice, setNotice] = useState(null);
+  const [selectedNotification, setSelectedNotification] = useState(null);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const handleMarkAsRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      try {
+        setIsLoading(true);
+        const result = await fetchOrganizerNotifications();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setNotifications(result);
+        setNotice(null);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setNotifications([]);
+        setNotice({
+          type: "error",
+          message: error.message || "Could not load organizer notifications.",
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleMarkAsRead = async (id) => {
+    const target = notifications.find((notification) => notification.id === id);
+
+    if (!target || target.isRead) {
+      return;
+    }
+
+    try {
+      await markOrganizerNotificationRead(id);
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification.id === id
+            ? { ...notification, isRead: true }
+            : notification
+        )
+      );
+      setSelectedNotification((current) =>
+        current?.id === id ? { ...current, isRead: true } : current
+      );
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.message || "Could not update this notification.",
+      });
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllOrganizerNotificationsRead();
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, isRead: true }))
+      );
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.message || "Could not update all notifications.",
+      });
+    }
+  };
+
+  const openNotification = async (notification) => {
+    setSelectedNotification(notification);
+    await handleMarkAsRead(notification.id);
+  };
+
+  const closeNotification = () => {
+    setSelectedNotification(null);
   };
 
   const getNotificationIcon = (type) => {
@@ -123,7 +168,6 @@ const OrganizerNotifications = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-[#1f4e79]">
@@ -146,7 +190,19 @@ const OrganizerNotifications = () => {
           )}
         </div>
 
-        {/* Stats */}
+        {notice ? (
+          <div
+            className={cn(
+              "rounded-xl border px-4 py-3 text-sm font-medium",
+              notice.type === "error"
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            )}
+          >
+            {notice.message}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl shadow-sm bg-white p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center relative">
@@ -186,8 +242,19 @@ const OrganizerNotifications = () => {
           </div>
         </div>
 
-        {/* Notifications List */}
-        {notifications.length > 0 ? (
+        {isLoading ? (
+          <div className="rounded-xl shadow-sm bg-white p-12 text-center">
+            <Bell size={48} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="font-semibold text-gray-900 mb-2">
+              Loading notifications
+            </h3>
+            <p className="text-gray-500">
+              Fetching organizer notifications from the backend.
+            </p>
+          </div>
+        ) : null}
+
+        {!isLoading && notifications.length > 0 ? (
           <div className="space-y-3">
             {notifications.map((notification) => (
               <div
@@ -196,7 +263,7 @@ const OrganizerNotifications = () => {
                   "rounded-xl shadow-sm bg-white transition-all cursor-pointer hover:shadow-md",
                   !notification.isRead && "bg-orange-50 border-l-4 border-l-[#f36f21]"
                 )}
-                onClick={() => handleMarkAsRead(notification.id)}
+                onClick={() => openNotification(notification)}
               >
                 <div className="p-4">
                   <div className="flex items-start gap-4">
@@ -223,7 +290,7 @@ const OrganizerNotifications = () => {
                       <p className="text-gray-500 text-sm mb-2">{notification.message}</p>
                       <div className="flex items-center gap-2 text-xs text-gray-400">
                         <Calendar size={12} />
-                        <span>{notification.date}</span>
+                        <span>{notification.createdAtLabel}</span>
                         {notification.from && (
                           <>
                             <span>•</span>
@@ -247,6 +314,97 @@ const OrganizerNotifications = () => {
           </div>
         )}
       </div>
+
+      {selectedNotification ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 sm:p-6">
+          <div className="grid h-[min(78vh,760px)] w-full max-w-4xl overflow-hidden rounded-none bg-white shadow-2xl md:grid-cols-[240px_1fr]">
+            <div className="flex flex-col justify-between border-b border-slate-200 bg-slate-100 p-6 md:border-b-0 md:border-r">
+              <div>
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-none bg-white shadow-sm">
+                  {getNotificationIcon(selectedNotification.type)}
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  Inbox Message
+                </p>
+                <div className="mt-3">{getTypeBadge(selectedNotification.type)}</div>
+              </div>
+
+              <div className="space-y-3 text-sm text-slate-600">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Status
+                  </p>
+                  <p className="mt-1 font-medium text-slate-700">
+                    {selectedNotification.isRead ? "Read" : "Unread"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Received
+                  </p>
+                  <p className="mt-1 font-medium text-slate-700">
+                    {selectedNotification.createdAtLabel}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-col">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+                <div className="min-w-0">
+                  <h2 className="text-2xl font-bold text-slate-900">
+                    {selectedNotification.title}
+                  </h2>
+                  <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                    <p>
+                      <span className="mr-2 font-semibold text-slate-800">From:</span>
+                      {formatEmailLine(
+                        selectedNotification.from,
+                        selectedNotification.fromEmail,
+                        "no-reply@smartevents.local"
+                      )}
+                    </p>
+                    <p>
+                      <span className="mr-2 font-semibold text-slate-800">To:</span>
+                      {formatEmailLine(
+                        selectedNotification.recipientName,
+                        selectedNotification.recipientEmail,
+                        "organizer@demo.com"
+                      )}
+                    </p>
+                    <p>
+                      <span className="mr-2 font-semibold text-slate-800">Date:</span>
+                      {selectedNotification.createdAtLabel}
+                    </p>
+                    <p>
+                      <span className="mr-2 font-semibold text-slate-800">Subject:</span>
+                      {selectedNotification.title}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeNotification}
+                  className="rounded-none border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                  aria-label="Close notification"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto bg-white px-6 py-6">
+                <div className="mx-auto min-h-full max-w-2xl border border-slate-200 bg-white p-8 shadow-sm">
+                  <div>
+                    <p className="whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
+                      {selectedNotification.body || selectedNotification.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DashboardLayout>
   );
 };
