@@ -10,6 +10,7 @@ import {
   Bell,
   Shield,
   Palette,
+  RotateCcw,
   Save,
   Upload,
   X,
@@ -261,6 +262,21 @@ const AdminSettings = () => {
     }
   };
 
+  const handleResetAppearance = () => {
+    const defaultAppearance = {
+      themeMode: "light",
+      darkMode: false,
+      primaryColor: "#1F4E79",
+      accentColor: "#F36F21",
+    };
+    setSettings((prev) => ({ ...prev, appearance: defaultAppearance }));
+    applyAppearanceSettings(defaultAppearance);
+    localStorage.removeItem("sem-theme");
+    localStorage.removeItem("sem-brand-color");
+    localStorage.removeItem("sem-secondary-color");
+    toast.success("Appearance reset to defaults");
+  };
+
   const handleSaveChanges = async () => {
     try {
       setIsSaving(true);
@@ -276,8 +292,15 @@ const AdminSettings = () => {
       setSettings((prev) => mergeSettings({ ...prev, ...savedSettings }));
       setPreviewLogo(null);
       applyAppearanceSettings(savedSettings?.appearance);
+      // applyAppearanceSettings already persists to localStorage, but ensure it here too
+      const ap = savedSettings?.appearance || nextSettings.appearance;
+      if (ap) {
+        localStorage.setItem("sem-theme", ap.themeMode || "light");
+        localStorage.setItem("sem-brand-color", ap.primaryColor || "#1F4E79");
+        localStorage.setItem("sem-secondary-color", ap.accentColor || "#F36F21");
+      }
 
-      toast.success("Settings saved successfully!");
+      toast.success("Appearance settings saved successfully");
     } catch (error) {
       setLoadError(error.message);
     } finally {
@@ -787,7 +810,8 @@ const AdminSettings = () => {
                   <Label className="text-base font-medium">Brand Colors</Label>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label className="text-sm">Primary Color</Label>
+                      <Label className="text-sm">Brand Color</Label>
+                      <p className="text-xs text-muted-foreground">Changes the dashboard sidebar and header background</p>
                       <div className="flex items-center gap-3">
                         <input
                           type="color"
@@ -804,7 +828,8 @@ const AdminSettings = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm">Accent Color</Label>
+                      <Label className="text-sm">Secondary Color</Label>
+                      <p className="text-xs text-muted-foreground">Changes all button colors across the website</p>
                       <div className="flex items-center gap-3">
                         <input
                           type="color"
@@ -822,36 +847,17 @@ const AdminSettings = () => {
                     </div>
                   </div>
                 </div>
-
-                <Separator />
-
-                {/* Theme Preview */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Preview</Label>
-                  <div className="p-4 rounded-lg border bg-card">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
-                        <span className="text-primary-foreground font-bold">P</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">Primary Element</p>
-                        <p className="text-sm text-muted-foreground">Using primary color</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="brand" size="sm">Brand Button</Button>
-                      <Button variant="outline" size="sm">Outline</Button>
-                      <Button variant="secondary" size="sm">Secondary</Button>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
         </TabsRoot>
 
-        {/* Save Button */}
-        <div className="flex justify-end">
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end gap-3">
+          <Button type="button" variant="outline" className="gap-2" onClick={handleResetAppearance} disabled={isSaving || isLoading}>
+            <RotateCcw size={16} />
+            Reset to Defaults
+          </Button>
           <Button type="button" variant="brand" className="gap-2" onClick={handleSaveChanges} disabled={isSaving || isLoading}>
             <Save size={18} />
             {isSaving ? "Saving..." : "Save Changes"}

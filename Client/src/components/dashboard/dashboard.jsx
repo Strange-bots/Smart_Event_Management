@@ -179,8 +179,12 @@ function DashboardLayout({ children }) {
       );
     });
 
+  const sidebarStyle = {
+    background: "linear-gradient(to bottom, var(--color-header), var(--color-header-mid, #163a5a), var(--color-header-end, #0f1e33))",
+  };
+
   return (
-    <div className="flex min-h-screen w-full bg-[#f5f7fa]">
+    <div className="flex min-h-screen w-full" style={{ background: "var(--color-background)", color: "var(--color-foreground)" }}>
       <div
         className={cn(
           "hidden shrink-0 transition-all duration-300 md:block",
@@ -188,15 +192,17 @@ function DashboardLayout({ children }) {
         )}
       />
 
+      {/* Desktop sidebar */}
       <aside
+        style={sidebarStyle}
         className={cn(
-          "fixed inset-y-0 left-0 z-40 hidden flex-col bg-gradient-to-b from-[#1f4e79] via-[#163a5a] to-[#0f1e33] transition-all duration-300 md:flex",
+          "fixed inset-y-0 left-0 z-40 hidden flex-col transition-all duration-300 md:flex",
           sidebarOpen ? "w-64" : "w-20"
         )}
       >
         <div className="flex items-center justify-between border-b border-white/10 p-4">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded bg-white p-1 font-black text-[#1f4e79]">
+            <div className="flex h-10 w-10 items-center justify-center rounded bg-white p-1 font-black" style={{ color: "var(--color-header)" }}>
               {renderBrandInitials()}
             </div>
             {sidebarOpen ? (
@@ -224,15 +230,17 @@ function DashboardLayout({ children }) {
         />
       ) : null}
 
+      {/* Mobile sidebar */}
       <aside
+        style={sidebarStyle}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform bg-gradient-to-b from-[#1f4e79] via-[#163a5a] to-[#0f1e33] transition-transform md:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform md:hidden",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex items-center justify-between border-b border-white/10 p-4">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded bg-white p-1 font-black text-[#1f4e79]">
+            <div className="flex h-10 w-10 items-center justify-center rounded bg-white p-1 font-black" style={{ color: "var(--color-header)" }}>
               {renderBrandInitials()}
             </div>
             <span className="font-semibold text-white">{brandName}</span>
@@ -250,18 +258,26 @@ function DashboardLayout({ children }) {
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#d9e2ec] bg-white px-4 py-3">
+        {/* Top navigation bar */}
+        <header
+          className="sticky top-0 z-30 flex items-center justify-between border-b px-4 py-3"
+          style={{
+            background: "var(--color-nav-bg)",
+            borderColor: "var(--color-nav-border)",
+          }}
+        >
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="p-1 text-[#0f1e33] md:hidden"
+              className="p-1 md:hidden"
+              style={{ color: "var(--color-foreground)" }}
               aria-label="Open menu"
             >
               <Menu size={22} />
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-[#6b7c93]">@</span>
-              <span className="font-semibold text-[#0f1e33]">
+              <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>@</span>
+              <span className="font-semibold" style={{ color: "var(--color-foreground)" }}>
                 {brandName}
               </span>
             </div>
@@ -269,12 +285,15 @@ function DashboardLayout({ children }) {
 
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-[#0f1e33]">{userName}</p>
-              <p className="text-xs text-[#6b7c93]">
+              <p className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>{userName}</p>
+              <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
                 {roleLabels[userRole] ?? "Dashboard User"}
               </p>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f7fa] text-[#6b7c93]">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full"
+              style={{ background: "var(--color-section)", color: "var(--color-muted-foreground)" }}
+            >
               <Users size={20} />
             </div>
           </div>

@@ -32,6 +32,28 @@ export async function fetchOrganizerFeedback() {
   };
 }
 
+export async function fetchMyFeedback() {
+  const currentUser = getCurrentUser();
+
+  if (!currentUser?.token) {
+    throw new Error("Authentication is required");
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/api/feedback/my`, {
+    headers: {
+      Authorization: `Bearer ${currentUser.token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch your feedback");
+  }
+
+  return data?.feedback ?? [];
+}
+
 export async function submitEventFeedback({
   eventId,
   rating,

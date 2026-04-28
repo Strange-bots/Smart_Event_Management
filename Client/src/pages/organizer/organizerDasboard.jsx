@@ -107,6 +107,7 @@ function OrganizerDashboard() {
   const [isSuggestingTime, setIsSuggestingTime] = useState(false);
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [suggestedTimes, setSuggestedTimes] = useState([]);
   const [showTimeSuggestions, setShowTimeSuggestions] = useState(false);
 
@@ -248,7 +249,18 @@ function OrganizerDashboard() {
             <p className="mt-2 max-w-2xl text-[#6b7c93]">This is your organizer page after login. You can create and submit events from here.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-[#d9e2ec] px-4 py-2.5 font-medium text-[#0f1e33]">
+            <button
+              type="button"
+              onClick={() => {
+                if (!title.trim() || !description.trim() || !category || !capacity || !venue || !date) {
+                  setNotice({ type: "error", message: "Please fill in all required fields before previewing." });
+                  return;
+                }
+                clearNotice();
+                setShowPreview(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e2ec] px-4 py-2.5 font-medium text-[#0f1e33]"
+            >
               <Eye size={18} />
               Preview
             </button>
@@ -504,6 +516,132 @@ function OrganizerDashboard() {
           </div>
         </div>
       </div>
+
+      {showPreview ? (
+        <div
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setShowPreview(false)}
+        >
+          <div
+            style={{ backgroundColor: "white", borderRadius: "12px", maxWidth: "700px", width: "90%", maxHeight: "85vh", overflowY: "auto", position: "relative" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ backgroundColor: "#1f4e79", borderRadius: "12px 12px 0 0", padding: "24px 32px" }}>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">Event Preview</p>
+                  <h2 className="mt-1 text-2xl font-bold text-white">{title}</h2>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span style={{ backgroundColor: "#f36f21", color: "white", borderRadius: "999px", padding: "4px 14px", fontSize: "12px", fontWeight: 600 }}>
+                    Pending Approval
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(false)}
+                    style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "999px", padding: "6px", cursor: "pointer", color: "white", display: "flex" }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: "32px" }}>
+              {/* Image thumbnails */}
+              {uploadedImages.length > 0 ? (
+                <div className="mb-6 flex gap-3 overflow-x-auto pb-1">
+                  {uploadedImages.map((img, i) => (
+                    <img
+                      key={i}
+                      src={img.preview}
+                      alt={`Preview ${i + 1}`}
+                      style={{ height: "110px", width: "160px", objectFit: "cover", borderRadius: "10px", flexShrink: 0, border: "2px solid #d9e2ec" }}
+                    />
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Title + category */}
+              <div className="flex flex-wrap items-start gap-3">
+                <h3 style={{ fontSize: "22px", fontWeight: 700, color: "#0f1e33", margin: 0 }}>{title}</h3>
+                <span style={{ backgroundColor: "#fff1e8", color: "#f36f21", borderRadius: "999px", padding: "4px 14px", fontSize: "13px", fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {category}
+                </span>
+              </div>
+
+              {/* Description */}
+              <p style={{ marginTop: "14px", color: "#6b7c93", lineHeight: 1.7, fontSize: "14px" }}>{description}</p>
+
+              {/* Date / Time row */}
+              <div style={{ marginTop: "20px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                {[
+                  { label: "Date", value: formatDisplayDate(date) },
+                  { label: "Start Time", value: startTime || "—" },
+                  { label: "End Time", value: endTime || "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ backgroundColor: "#f5f7fa", borderRadius: "10px", padding: "14px 16px" }}>
+                    <p style={{ fontSize: "11px", fontWeight: 600, color: "#6b7c93", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>{label}</p>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#0f1e33", marginTop: "4px" }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Venue / Capacity row */}
+              <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                {[
+                  { label: "Venue", value: venue || "—" },
+                  { label: "Capacity", value: capacity ? `${capacity} seats` : "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ backgroundColor: "#f5f7fa", borderRadius: "10px", padding: "14px 16px" }}>
+                    <p style={{ fontSize: "11px", fontWeight: 600, color: "#6b7c93", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>{label}</p>
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: "#0f1e33", marginTop: "4px" }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Price */}
+              <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "13px", color: "#6b7c93" }}>Price:</span>
+                <span style={{ fontSize: "15px", fontWeight: 700, color: "#f36f21" }}>
+                  {isPaid && price ? `$${price} AUD` : "Free"}
+                </span>
+              </div>
+
+              {/* Tags */}
+              {selectedTags.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedTags.map((tag) => (
+                    <span key={tag} style={{ backgroundColor: "#eaf4ff", color: "#1f4e79", borderRadius: "999px", padding: "4px 12px", fontSize: "12px", fontWeight: 500 }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Action buttons */}
+              <div style={{ marginTop: "28px", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  style={{ padding: "10px 24px", borderRadius: "10px", border: "2px solid #1f4e79", background: "white", color: "#1f4e79", fontWeight: 600, cursor: "pointer", fontSize: "14px" }}
+                >
+                  Back to Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPreview(false); handleSubmit(); }}
+                  style={{ padding: "10px 24px", borderRadius: "10px", border: "none", background: "#f36f21", color: "white", fontWeight: 600, cursor: "pointer", fontSize: "14px" }}
+                >
+                  Submit for Approval
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DashboardLayout>
   );
 }

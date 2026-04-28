@@ -33,6 +33,7 @@ const {
 } = require('../controllers/registrationController');
 const {
   createFeedback,
+  listMyFeedback,
   listOrganizerFeedback,
 } = require('../controllers/feedbackController');
 const {
@@ -114,6 +115,7 @@ router.post('/admin/users', requireRole('admin'), createAdminManagedUser);
 router.get('/organizer/feedback', requireRole('organizer'), listOrganizerFeedback);
 router.get('/organizer/messages', requireRole('organizer'), listOrganizerMessages);
 router.post('/organizer/messages', requireRole('organizer'), createOrganizerMessage);
+router.get('/feedback/my', requireRole('user'), listMyFeedback);
 router.post('/feedback', requireRole('user'), createFeedback);
 router.get('/organizer/registrations', requireRole('organizer'), listOrganizerRegistrations);
 router.get('/user-history', requireRole(['admin', 'organizer']), listUserHistoryRecords);

@@ -51,22 +51,47 @@ export const applyAppearanceSettings = (appearance = {}) => {
   const isDark = resolvedTheme === "dark";
   const root = document.documentElement;
 
-  root.classList.toggle("dark", isDark);
+  // Theme class
+  if (isDark) {
+    root.classList.add("dark");
+    root.classList.remove("light");
+  } else {
+    root.classList.add("light");
+    root.classList.remove("dark");
+  }
 
-  root.style.setProperty("--color-header", merged.primaryColor);
-  root.style.setProperty("--color-primary", merged.primaryColor);
-  root.style.setProperty("--color-primary-hover", mixWithWhite(merged.primaryColor, 0.12));
+  // Secondary/accent color → button colors across the entire site
+  root.style.setProperty("--color-primary", merged.accentColor);
+  root.style.setProperty("--color-primary-hover", mixWithWhite(merged.accentColor, 0.12));
   root.style.setProperty("--color-primary-foreground", "#FFFFFF");
   root.style.setProperty("--color-brand-orange", merged.accentColor);
   root.style.setProperty("--color-brand-orange-hover", mixWithWhite(merged.accentColor, 0.16));
 
+  // Persist to localStorage so settings survive page refresh
+  localStorage.setItem("sem-theme", merged.themeMode);
+  localStorage.setItem("sem-brand-color", merged.primaryColor);
+  localStorage.setItem("sem-secondary-color", merged.accentColor);
+
+  // Sidebar/navbar gradient — computed separately per theme so dark mode looks appropriate
+  const headerRgb = hexToRgb(merged.primaryColor);
+
   if (isDark) {
+    // Dark mode: use a deep dark sidebar derived from the brand color tint
+    root.style.setProperty("--color-header",
+      headerRgb ? rgbToHex({ r: Math.round(headerRgb.r * 0.32), g: Math.round(headerRgb.g * 0.32), b: Math.round(headerRgb.b * 0.32) }) : "#0D1F33"
+    );
+    root.style.setProperty("--color-header-mid", "#0C1724");
+    root.style.setProperty("--color-header-end", "#08131F");
+    // Top navbar uses card color in dark mode
+    root.style.setProperty("--color-nav-bg", "#102131");
+    root.style.setProperty("--color-nav-border", "#1E3348");
+    // Full dark palette
     root.style.setProperty("--color-body", "#E5EEF8");
     root.style.setProperty("--color-foreground", "#E5EEF8");
     root.style.setProperty("--color-subtext", "#94A8C0");
     root.style.setProperty("--color-muted-foreground", "#94A8C0");
     root.style.setProperty("--color-background", "#09121D");
-    root.style.setProperty("--color-input", "#314154");
+    root.style.setProperty("--color-input", "#1E3348");
     root.style.setProperty("--color-card", "#102131");
     root.style.setProperty("--color-card-foreground", "#E5EEF8");
     root.style.setProperty("--color-section", "#0C1724");
@@ -76,6 +101,24 @@ export const applyAppearanceSettings = (appearance = {}) => {
     root.style.setProperty("--color-accent-foreground", "#E5EEF8");
     root.style.setProperty("--color-footer", "#08131F");
   } else {
+    // Light mode: sidebar uses full brand color gradient
+    root.style.setProperty("--color-header", merged.primaryColor);
+    if (headerRgb) {
+      root.style.setProperty("--color-header-mid", rgbToHex({
+        r: Math.round(headerRgb.r * 0.73),
+        g: Math.round(headerRgb.g * 0.73),
+        b: Math.round(headerRgb.b * 0.73),
+      }));
+      root.style.setProperty("--color-header-end", rgbToHex({
+        r: Math.round(headerRgb.r * 0.48),
+        g: Math.round(headerRgb.g * 0.48),
+        b: Math.round(headerRgb.b * 0.48),
+      }));
+    }
+    // Top navbar — white in light mode
+    root.style.setProperty("--color-nav-bg", "#FFFFFF");
+    root.style.setProperty("--color-nav-border", "#D9E2EC");
+    // Full light palette
     root.style.setProperty("--color-body", "#0F1E33");
     root.style.setProperty("--color-foreground", "#0F1E33");
     root.style.setProperty("--color-subtext", "#6B7C93");

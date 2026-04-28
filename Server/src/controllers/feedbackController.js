@@ -1,5 +1,6 @@
 const {
   getOrganizerFeedbackDetails,
+  getUserFeedback,
   submitFeedback,
 } = require('../services/feedbackService');
 
@@ -60,7 +61,20 @@ const createFeedback = (req, res) => {
   });
 };
 
+const listMyFeedback = (req, res) => {
+  const userEmail = req.user?.email || req.headers['x-user-email'];
+
+  if (!userEmail) {
+    return res.status(401).json({ message: 'Authentication is required' });
+  }
+
+  const entries = getUserFeedback(userEmail);
+
+  return res.status(200).json({ feedback: entries });
+};
+
 module.exports = {
   createFeedback,
+  listMyFeedback,
   listOrganizerFeedback,
 };

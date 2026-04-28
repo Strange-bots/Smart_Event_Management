@@ -22,10 +22,35 @@
   --color-accent-foreground: #0f1e33;
   --color-ai: #6d5df6;
   --color-footer: #0f1e33;
+  --color-header-mid: #163a5a;
+  --color-header-end: #0f1e33;
+  --color-nav-bg: #ffffff;
+  --color-nav-border: #d9e2ec;
 }
 
 html.dark {
   color-scheme: dark;
+  /* Sidebar / navbar */
+  --color-header: #0d1f33;
+  --color-header-mid: #0c1724;
+  --color-header-end: #08131f;
+  --color-nav-bg: #102131;
+  --color-nav-border: #1e3348;
+  /* Content area */
+  --color-body: #e5eef8;
+  --color-foreground: #e5eef8;
+  --color-subtext: #94a8c0;
+  --color-muted-foreground: #94a8c0;
+  --color-background: #09121d;
+  --color-input: #1e3348;
+  --color-card: #102131;
+  --color-card-foreground: #e5eef8;
+  --color-section: #0c1724;
+  --color-secondary: #162637;
+  --color-secondary-foreground: #e5eef8;
+  --color-accent: #162637;
+  --color-accent-foreground: #e5eef8;
+  --color-footer: #08131f;
 }
 
 html {

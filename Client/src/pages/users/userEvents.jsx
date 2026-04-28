@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import { fetchMyEventRegistrations } from "../../services/registrationService.js";
-import { submitEventFeedback } from "../../services/feedbackService";
+import { fetchMyFeedback, submitEventFeedback } from "../../services/feedbackService";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -83,13 +83,26 @@ const UserEvents = () => {
     const loadUserEvents = async () => {
       try {
         setIsLoading(true);
-        const registrations = await fetchMyEventRegistrations();
+        const [registrations, myFeedback] = await Promise.all([
+          fetchMyEventRegistrations(),
+          fetchMyFeedback().catch(() => []),
+        ]);
 
         if (!isMounted) {
           return;
         }
 
-        setUserEvents(registrations.map(mapRegistrationToEvent));
+        const feedbackMap = new Map(
+          myFeedback.map((f) => [String(f.eventId), f])
+        );
+
+        const mappedEvents = registrations.map((reg) => {
+          const event = mapRegistrationToEvent(reg);
+          const fb = feedbackMap.get(String(event.id));
+          return fb ? { ...event, hasFeedback: true, rating: fb.rating } : event;
+        });
+
+        setUserEvents(mappedEvents);
         setErrorMessage("");
       } catch (error) {
         if (isMounted) {

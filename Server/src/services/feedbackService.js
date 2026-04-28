@@ -131,15 +131,14 @@ const submitFeedback = ({
     };
   }
 
-  const numericEventId = Number(eventId);
-  const numericRating = Number(rating);
-
-  if (!Number.isInteger(numericEventId)) {
+  if (!eventId) {
     return {
       error: 'A valid event is required',
       statusCode: 400,
     };
   }
+
+  const numericRating = Number(rating);
 
   if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
     return {
@@ -148,7 +147,8 @@ const submitFeedback = ({
     };
   }
 
-  const event = events.find((item) => item.id === numericEventId);
+  // Support both numeric IDs (102, 104) and string IDs ('event-sample-1')
+  const event = events.find((item) => String(item.id) === String(eventId));
 
   if (!event) {
     return {
@@ -163,7 +163,7 @@ const submitFeedback = ({
 
   const existingFeedback = feedback.find(
     (item) =>
-      Number(item.eventId) === numericEventId &&
+      String(item.eventId) === String(event.id) &&
       item.userEmail?.toLowerCase() === normalizedEmail,
   );
 
@@ -187,13 +187,15 @@ const submitFeedback = ({
     id: `feedback-${Date.now()}`,
     eventId: event.id,
     eventTitle: event.title,
+    userId: user.id,
     userEmail: user.email,
     userName: user.name,
+    organizerId: event.organizerId,
+    organizerEmail: event.organizerEmail,
     comment: trimmedComment,
     rating: numericRating,
     dateSubmitted: submittedAt,
     isAnonymous: Boolean(isAnonymous),
-    organizerEmail: event.organizerEmail,
   };
 
   feedback.push(newFeedback);
@@ -204,7 +206,24 @@ const submitFeedback = ({
   };
 };
 
+const getUserFeedback = (userEmail) => {
+  const normalizedEmail = String(userEmail || '').toLowerCase();
+
+  return feedback
+    .filter((item) => item.userEmail?.toLowerCase() === normalizedEmail)
+    .map((item) => ({
+      id: item.id,
+      eventId: item.eventId,
+      eventTitle: item.eventTitle,
+      rating: Number(item.rating) || 0,
+      comment: item.comment,
+      isAnonymous: Boolean(item.isAnonymous),
+      dateSubmitted: item.dateSubmitted,
+    }));
+};
+
 module.exports = {
   getOrganizerFeedbackDetails,
+  getUserFeedback,
   submitFeedback,
 };

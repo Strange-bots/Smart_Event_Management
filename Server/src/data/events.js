@@ -113,6 +113,14 @@ const events = [
         paymentStatus: 'paid',
         attendanceStatus: 'registered',
       },
+      {
+        id: 'reg-104-4',
+        userName: 'Demo User',
+        userEmail: 'user@demo.com',
+        registrationDate: '2026-04-17',
+        paymentStatus: 'paid',
+        attendanceStatus: 'attended',
+      },
     ],
     image:
       'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
