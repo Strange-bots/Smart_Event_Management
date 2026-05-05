@@ -1,8 +1,5 @@
-const { registeredUsers } = require('../store/registeredUsers');
-const { events } = require('../store/events');
-const { registrations } = require('../store/registrations');
+const { readCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
-const { getRegistrationCountForEvent } = require('./registrationService');
 
 const DASHBOARD_COLORS = ['#1F4E79', '#F36F21', '#6D5DF6', '#6B7C93', '#16A34A', '#DC2626'];
 
@@ -39,10 +36,10 @@ const getMonthBuckets = (bucketCount = 6) => {
   });
 };
 
-const getUniqueUsers = () => {
+const getUniqueUsers = (users) => {
   const seenEmails = new Set();
 
-  return registeredUsers.filter((user) => {
+  return users.filter((user) => {
     const normalizedEmail = user.email.toLowerCase();
 
     if (seenEmails.has(normalizedEmail)) {
@@ -54,8 +51,8 @@ const getUniqueUsers = () => {
   });
 };
 
-const getAdminDashboardOverview = (adminEmail) => {
-  const adminUser = findUserByEmail(adminEmail);
+const getAdminDashboardOverview = async (adminEmail) => {
+  const adminUser = await findUserByEmail(adminEmail);
 
   if (!adminUser) {
     return {
@@ -71,7 +68,12 @@ const getAdminDashboardOverview = (adminEmail) => {
     };
   }
 
-  const totalUsers = getUniqueUsers().length;
+  const [users, events, registrations] = await Promise.all([
+    readCollection('users'),
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+  const totalUsers = getUniqueUsers(users).length;
   const totalEvents = events.length;
   const paidRegistrationCount = registrations.filter(
     (registration) => registration.paymentStatus === 'paid',
@@ -125,7 +127,11 @@ const getAdminDashboardOverview = (adminEmail) => {
       time: event.time,
       venue: getEventVenue(event),
       status: event.status,
-      registrations: getRegistrationCountForEvent(event.id),
+      registrations: registrations.filter(
+        (registration) =>
+          String(registration.eventId) === String(event.id) &&
+          registration.attendanceStatus !== 'cancelled',
+      ).length,
       capacity: event.capacity,
     }));
 

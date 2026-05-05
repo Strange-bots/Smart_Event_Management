@@ -1,25 +1,12 @@
 const mongoose = require('mongoose');
 
 const { isDatabaseAvailable } = require('../config/database');
-const { registeredUsers } = require('./registeredUsers');
-const { events } = require('./events');
-const { registrations } = require('./registrations');
-const { feedback } = require('./feedback');
-const { messages } = require('./messages');
-const { notifications } = require('./notifications');
-const { emailLogs } = require('./emailLogs');
-const { paymentPreferences } = require('./paymentPreferences');
-const { paymentTransactions } = require('./paymentTransactions');
-const { newsletterSubscriptions } = require('./newsletterSubscriptions');
-const { userHistoryReports } = require('./userHistory');
-const adminSettings = require('./adminSettings.json');
-const { stats } = require('./stats');
+const { adminUserSeed } = require('../../database/seeds/adminUserSeed');
 
-const COLLECTIONS = {
+const DEFINITIONS = {
   users: {
     collectionName: 'users',
-    target: registeredUsers,
-    singleton: false,
+    seed: [adminUserSeed],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -34,8 +21,7 @@ const COLLECTIONS = {
   },
   events: {
     collectionName: 'events',
-    target: events,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -65,8 +51,7 @@ const COLLECTIONS = {
   },
   registrations: {
     collectionName: 'registrations',
-    target: registrations,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -81,8 +66,7 @@ const COLLECTIONS = {
   },
   feedback: {
     collectionName: 'feedback',
-    target: feedback,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -97,8 +81,7 @@ const COLLECTIONS = {
   },
   messages: {
     collectionName: 'messages',
-    target: messages,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -113,8 +96,7 @@ const COLLECTIONS = {
   },
   notifications: {
     collectionName: 'notifications',
-    target: notifications,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -129,8 +111,7 @@ const COLLECTIONS = {
   },
   emailLogs: {
     collectionName: 'email_logs',
-    target: emailLogs,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -145,8 +126,7 @@ const COLLECTIONS = {
   },
   paymentPreferences: {
     collectionName: 'payment_preferences',
-    target: paymentPreferences,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -161,8 +141,7 @@ const COLLECTIONS = {
   },
   paymentTransactions: {
     collectionName: 'payment_transactions',
-    target: paymentTransactions,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -177,15 +156,13 @@ const COLLECTIONS = {
   },
   newsletterSubscriptions: {
     collectionName: 'newsletter_subscriptions',
-    target: newsletterSubscriptions,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => item,
     fromDatabase: (item) => ({ ...item, _id: undefined }),
   },
   userHistoryReports: {
     collectionName: 'user_history_reports',
-    target: userHistoryReports,
-    singleton: false,
+    seed: [],
     toDatabase: (item) => ({
       ...item,
       sourceId: String(item.id),
@@ -200,7 +177,7 @@ const COLLECTIONS = {
   },
   adminSettings: {
     collectionName: 'admin_settings',
-    target: adminSettings,
+    seed: null,
     singleton: true,
     key: 'default',
     toDatabase: (item) => ({
@@ -214,7 +191,7 @@ const COLLECTIONS = {
   },
   stats: {
     collectionName: 'stats',
-    target: stats,
+    seed: null,
     singleton: true,
     key: 'default',
     toDatabase: (item) => ({
@@ -228,97 +205,72 @@ const COLLECTIONS = {
   },
 };
 
-const replaceArrayContents = (target, nextItems) => {
-  target.splice(0, target.length, ...nextItems);
+const ensureDatabase = () => {
+  if (!isDatabaseAvailable()) {
+    throw new Error('MongoDB is not available');
+  }
 };
 
-const replaceObjectContents = (target, nextValue) => {
-  Object.keys(target).forEach((key) => {
-    delete target[key];
-  });
-  Object.assign(target, nextValue);
+const getCollection = (key) => {
+  ensureDatabase();
+  return mongoose.connection.db.collection(DEFINITIONS[key].collectionName);
 };
 
-const getCollection = (collectionKey) =>
-  mongoose.connection.db.collection(COLLECTIONS[collectionKey].collectionName);
-
-const seedCollectionIfEmpty = async (collectionKey) => {
-  const definition = COLLECTIONS[collectionKey];
-  const collection = getCollection(collectionKey);
+const seedCollectionIfEmpty = async (key) => {
+  const definition = DEFINITIONS[key];
+  const collection = getCollection(key);
   const count = await collection.countDocuments();
 
-  if (count > 0) {
+  if (count > 0 || definition.seed == null) {
     return;
   }
 
   if (definition.singleton) {
-    await collection.insertOne(definition.toDatabase(definition.target));
+    await collection.insertOne(definition.toDatabase(definition.seed));
     return;
   }
 
-  if (definition.target.length) {
-    await collection.insertMany(definition.target.map(definition.toDatabase));
+  if (definition.seed.length) {
+    await collection.insertMany(definition.seed.map(definition.toDatabase));
   }
 };
 
-const hydrateCollection = async (collectionKey) => {
-  const definition = COLLECTIONS[collectionKey];
-  const collection = getCollection(collectionKey);
-
-  await seedCollectionIfEmpty(collectionKey);
+const readCollection = async (key) => {
+  const definition = DEFINITIONS[key];
+  await seedCollectionIfEmpty(key);
 
   if (definition.singleton) {
-    const document = await collection.findOne({ key: definition.key });
-
-    if (document) {
-      replaceObjectContents(definition.target, definition.fromDatabase(document));
-    }
-
-    return;
+    const document = await getCollection(key).findOne({ key: definition.key });
+    return document ? definition.fromDatabase(document) : null;
   }
 
-  const documents = await collection.find({}).toArray();
-  replaceArrayContents(
-    definition.target,
-    documents.map(definition.fromDatabase),
-  );
+  const documents = await getCollection(key).find({}).toArray();
+  return documents.map(definition.fromDatabase);
 };
 
-const hydrateMongoBackedData = async () => {
-  if (!isDatabaseAvailable()) {
-    return;
-  }
-
-  for (const key of Object.keys(COLLECTIONS)) {
-    await hydrateCollection(key);
-  }
-};
-
-const persistCollection = async (collectionKey) => {
-  if (!isDatabaseAvailable()) {
-    return;
-  }
-
-  const definition = COLLECTIONS[collectionKey];
-  const collection = getCollection(collectionKey);
+const writeCollection = async (key, value) => {
+  const definition = DEFINITIONS[key];
+  const collection = getCollection(key);
 
   if (definition.singleton) {
     await collection.replaceOne(
       { key: definition.key },
-      definition.toDatabase(definition.target),
+      definition.toDatabase(value),
       { upsert: true },
     );
-    return;
+    return value;
   }
 
   await collection.deleteMany({});
 
-  if (definition.target.length) {
-    await collection.insertMany(definition.target.map(definition.toDatabase));
+  if (Array.isArray(value) && value.length) {
+    await collection.insertMany(value.map(definition.toDatabase));
   }
+
+  return value;
 };
 
 module.exports = {
-  hydrateMongoBackedData,
-  persistCollection,
+  readCollection,
+  writeCollection,
 };

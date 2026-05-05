@@ -3,8 +3,8 @@ const {
   listUserHistory,
 } = require('../services/userHistoryService');
 
-const listUserHistoryRecords = (req, res) => {
-  const result = listUserHistory(req.query ?? {});
+const listUserHistoryRecords = async (req, res) => {
+  const result = await listUserHistory(req.query ?? {});
 
   return res.status(result.statusCode).json({
     message: 'User history fetched successfully',

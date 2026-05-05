@@ -1,5 +1,4 @@
-const { notifications } = require('../store/notifications');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const formatNotificationDateTime = (dateString) => {
@@ -22,8 +21,8 @@ const formatNotificationDateTime = (dateString) => {
   }).format(parsedDate);
 };
 
-const getNotificationsForUser = (userEmail, requiredRole) => {
-  const user = findUserByEmail(userEmail);
+const getNotificationsForUser = async (userEmail, requiredRole) => {
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -39,6 +38,7 @@ const getNotificationsForUser = (userEmail, requiredRole) => {
     };
   }
 
+  const notifications = await readCollection('notifications');
   const userNotifications = notifications
     .filter(
       (notification) =>
@@ -70,7 +70,7 @@ const getNotificationsForUser = (userEmail, requiredRole) => {
 };
 
 const markNotificationAsRead = async (userEmail, notificationId, requiredRole) => {
-  const user = findUserByEmail(userEmail);
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -86,6 +86,7 @@ const markNotificationAsRead = async (userEmail, notificationId, requiredRole) =
     };
   }
 
+  const notifications = await readCollection('notifications');
   const notification = notifications.find(
     (item) =>
       item.id === notificationId &&
@@ -100,7 +101,7 @@ const markNotificationAsRead = async (userEmail, notificationId, requiredRole) =
   }
 
   notification.isRead = true;
-  await persistCollection('notifications');
+  await writeCollection('notifications', notifications);
 
   return {
     statusCode: 200,
@@ -113,7 +114,7 @@ const markNotificationAsRead = async (userEmail, notificationId, requiredRole) =
 };
 
 const markAllNotificationsAsRead = async (userEmail, requiredRole) => {
-  const user = findUserByEmail(userEmail);
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -129,6 +130,7 @@ const markAllNotificationsAsRead = async (userEmail, requiredRole) => {
     };
   }
 
+  const notifications = await readCollection('notifications');
   let updatedCount = 0;
 
   notifications.forEach((notification) => {
@@ -140,7 +142,7 @@ const markAllNotificationsAsRead = async (userEmail, requiredRole) => {
       updatedCount += 1;
     }
   });
-  await persistCollection('notifications');
+  await writeCollection('notifications', notifications);
 
   return {
     statusCode: 200,

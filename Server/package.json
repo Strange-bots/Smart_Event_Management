@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
     "dev": "node server.js",
-    "db:migrate": "node database/migrateDataToMongo.js"
+    "db:seed-admin": "node database/migrateDataToMongo.js"
   },
   "keywords": [],
   "author": "",

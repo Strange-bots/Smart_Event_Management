@@ -1,5 +1,4 @@
-const { paymentPreferences } = require('../store/paymentPreferences');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const ALLOWED_METHODS = ['card', 'paypal', 'bank-transfer'];
@@ -117,8 +116,8 @@ const validatePayload = (payload = {}) => {
   };
 };
 
-const getPaymentPreferenceForUser = (userEmail) => {
-  const user = findUserByEmail(userEmail);
+const getPaymentPreferenceForUser = async (userEmail) => {
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -127,6 +126,7 @@ const getPaymentPreferenceForUser = (userEmail) => {
     };
   }
 
+  const paymentPreferences = await readCollection('paymentPreferences');
   const record = paymentPreferences.find(
     (item) => item.userEmail.toLowerCase() === user.email.toLowerCase(),
   );
@@ -139,7 +139,7 @@ const getPaymentPreferenceForUser = (userEmail) => {
 };
 
 const savePaymentPreferenceForUser = async (userEmail, payload) => {
-  const user = findUserByEmail(userEmail);
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -154,6 +154,7 @@ const savePaymentPreferenceForUser = async (userEmail, payload) => {
     return validation;
   }
 
+  const paymentPreferences = await readCollection('paymentPreferences');
   const existingRecord = paymentPreferences.find(
     (item) => item.userEmail.toLowerCase() === user.email.toLowerCase(),
   );
@@ -169,7 +170,7 @@ const savePaymentPreferenceForUser = async (userEmail, payload) => {
     existingRecord.billingPostcode = validation.value.billingPostcode;
     existingRecord.rememberPreference = validation.value.rememberPreference;
     existingRecord.updatedAt = timestamp;
-    await persistCollection('paymentPreferences');
+    await writeCollection('paymentPreferences', paymentPreferences);
 
     return {
       statusCode: 200,
@@ -194,7 +195,7 @@ const savePaymentPreferenceForUser = async (userEmail, payload) => {
   };
 
   paymentPreferences.push(nextRecord);
-  await persistCollection('paymentPreferences');
+  await writeCollection('paymentPreferences', paymentPreferences);
 
   return {
     statusCode: 201,
@@ -204,7 +205,7 @@ const savePaymentPreferenceForUser = async (userEmail, payload) => {
 };
 
 const deletePaymentPreferenceForUser = async (userEmail) => {
-  const user = findUserByEmail(userEmail);
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -213,6 +214,7 @@ const deletePaymentPreferenceForUser = async (userEmail) => {
     };
   }
 
+  const paymentPreferences = await readCollection('paymentPreferences');
   const index = paymentPreferences.findIndex(
     (item) => item.userEmail.toLowerCase() === user.email.toLowerCase(),
   );
@@ -225,7 +227,7 @@ const deletePaymentPreferenceForUser = async (userEmail) => {
   }
 
   paymentPreferences.splice(index, 1);
-  await persistCollection('paymentPreferences');
+  await writeCollection('paymentPreferences', paymentPreferences);
 
   return {
     statusCode: 200,

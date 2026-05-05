@@ -8,8 +8,8 @@ const {
   sendOrganizerMessage,
 } = require('../services/messagingService');
 
-const listAdminMessages = (req, res) => {
-  const result = listAdminMessageLogs(req.user?.email);
+const listAdminMessages = async (req, res) => {
+  const result = await listAdminMessageLogs(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({ message: result.error });
@@ -41,8 +41,8 @@ const createAdminMessage = async (req, res) => {
   });
 };
 
-const listOrganizerMessages = (req, res) => {
-  const result = listOrganizerMessageLogs(req.user?.email);
+const listOrganizerMessages = async (req, res) => {
+  const result = await listOrganizerMessageLogs(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({ message: result.error });
@@ -75,8 +75,8 @@ const createOrganizerMessage = async (req, res) => {
   });
 };
 
-const listMyInboxMessages = (req, res) => {
-  const result = listInboxMessages(req.user?.email);
+const listMyInboxMessages = async (req, res) => {
+  const result = await listInboxMessages(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({ message: result.error });
@@ -89,8 +89,8 @@ const listMyInboxMessages = (req, res) => {
   });
 };
 
-const listMySentMessages = (req, res) => {
-  const result = listSentMessages(req.user?.email);
+const listMySentMessages = async (req, res) => {
+  const result = await listSentMessages(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({ message: result.error });

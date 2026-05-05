@@ -1,5 +1,4 @@
-const { newsletterSubscriptions } = require('../store/newsletterSubscriptions');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
 
@@ -22,8 +21,9 @@ const createNewsletterSubscription = async (email) => {
     };
   }
 
-  const existingSubscription = newsletterSubscriptions.find(
-    (subscription) => subscription.email === normalizedEmail
+  const subscriptions = await readCollection('newsletterSubscriptions');
+  const existingSubscription = subscriptions.find(
+    (subscription) => subscription.email === normalizedEmail,
   );
 
   if (existingSubscription) {
@@ -39,8 +39,8 @@ const createNewsletterSubscription = async (email) => {
     subscribedAt: new Date().toISOString(),
   };
 
-  newsletterSubscriptions.push(subscription);
-  await persistCollection('newsletterSubscriptions');
+  subscriptions.push(subscription);
+  await writeCollection('newsletterSubscriptions', subscriptions);
 
   return {
     statusCode: 201,

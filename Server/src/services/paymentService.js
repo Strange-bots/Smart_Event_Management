@@ -1,7 +1,4 @@
-const { notifications } = require('../store/notifications');
-const { paymentTransactions } = require('../store/paymentTransactions');
-const { registrations } = require('../store/registrations');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 const {
   createRegistrationRecord,
@@ -21,7 +18,6 @@ const getStripeClient = () => {
   }
 
   try {
-    // Lazy load so the server can still boot if Stripe isn't installed yet.
     const Stripe = require('stripe');
 
     return {
@@ -48,9 +44,6 @@ const formatPaymentDate = (dateString) => {
     year: 'numeric',
   }).format(parsedDate);
 };
-
-const generateReceiptId = () =>
-  `RCP-${new Date().getFullYear()}-${String(paymentTransactions.length + 1).padStart(3, '0')}`;
 
 const sanitizeTransaction = (transaction) => ({
   id: transaction.id,
@@ -95,21 +88,8 @@ const buildStripeCheckoutSessionParams = ({ event, user }) => ({
   },
 });
 
-const findExistingTransactionBySessionId = (sessionId) =>
-  paymentTransactions.find(
-    (transaction) => transaction.stripeSessionId === sessionId,
-  );
-
-const findExistingRegistration = ({ eventId, userEmail }) =>
-  registrations.find(
-    (registration) =>
-      String(registration.eventId) === String(eventId) &&
-      normalizeEmail(registration.userEmail) === normalizeEmail(userEmail) &&
-      registration.attendanceStatus !== 'cancelled',
-  );
-
 const createStripeCheckoutSession = async ({ userEmail, eventId }) => {
-  const user = findUserByEmail(userEmail);
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -125,7 +105,7 @@ const createStripeCheckoutSession = async ({ userEmail, eventId }) => {
     };
   }
 
-  const availability = validateRegistrationAvailability({
+  const availability = await validateRegistrationAvailability({
     eventId,
     userEmail: user.email,
   });
@@ -175,7 +155,7 @@ const createStripeCheckoutSession = async ({ userEmail, eventId }) => {
 };
 
 const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
-  const user = findUserByEmail(userEmail);
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -198,7 +178,14 @@ const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
     };
   }
 
-  const existingTransaction = findExistingTransactionBySessionId(sessionId);
+  const [paymentTransactions, notifications, registrations] = await Promise.all([
+    readCollection('paymentTransactions'),
+    readCollection('notifications'),
+    readCollection('registrations'),
+  ]);
+  const existingTransaction = paymentTransactions.find(
+    (transaction) => transaction.stripeSessionId === sessionId,
+  );
 
   if (existingTransaction) {
     if (normalizeEmail(existingTransaction.userEmail) !== normalizeEmail(user.email)) {
@@ -212,10 +199,12 @@ const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
       statusCode: 200,
       user: sanitizeUser(user),
       registration:
-        findExistingRegistration({
-          eventId: existingTransaction.eventId,
-          userEmail: user.email,
-        }) || null,
+        registrations.find(
+          (registration) =>
+            String(registration.eventId) === String(existingTransaction.eventId) &&
+            normalizeEmail(registration.userEmail) === normalizeEmail(user.email) &&
+            registration.attendanceStatus !== 'cancelled',
+        ) || null,
       receipt: sanitizeTransaction(existingTransaction),
       event: {
         id: existingTransaction.eventId,
@@ -268,7 +257,7 @@ const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
     };
   }
 
-  const availability = validateRegistrationAvailability({
+  const availability = await validateRegistrationAvailability({
     eventId,
     userEmail: user.email,
   });
@@ -281,7 +270,7 @@ const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
   const paidAt = new Date().toISOString();
   const transaction = {
     id: `txn-${event.id}-${Date.now()}`,
-    receiptId: generateReceiptId(),
+    receiptId: `RCP-${new Date().getFullYear()}-${String(paymentTransactions.length + 1).padStart(3, '0')}`,
     stripeSessionId: session.id,
     eventId: event.id,
     eventTitle: event.title,
@@ -298,13 +287,14 @@ const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
   };
 
   paymentTransactions.unshift(transaction);
+  await writeCollection('paymentTransactions', paymentTransactions);
 
   const registration = await createRegistrationRecord({
     event,
     user,
     paymentStatus: 'paid',
   });
-  event.registrations = getRegistrationCountForEvent(event.id);
+  const registrationCount = await getRegistrationCountForEvent(event.id);
 
   notifications.unshift({
     id: `notif-payment-${Date.now()}`,
@@ -321,9 +311,7 @@ const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
     relatedEntityType: 'registration',
     relatedEntityId: registration.id,
   });
-  await persistCollection('paymentTransactions');
-  await persistCollection('notifications');
-  await persistCollection('events');
+  await writeCollection('notifications', notifications);
 
   return {
     statusCode: 200,
@@ -333,14 +321,14 @@ const confirmStripeCheckoutSession = async ({ userEmail, sessionId }) => {
     event: {
       id: event.id,
       title: event.title,
-      registrations: event.registrations,
+      registrations: registrationCount,
       capacity: event.capacity,
     },
   };
 };
 
-const listUserPaymentTransactions = (userEmail) => {
-  const user = findUserByEmail(userEmail);
+const listUserPaymentTransactions = async (userEmail) => {
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -349,6 +337,7 @@ const listUserPaymentTransactions = (userEmail) => {
     };
   }
 
+  const paymentTransactions = await readCollection('paymentTransactions');
   const receipts = paymentTransactions
     .filter((transaction) => normalizeEmail(transaction.userEmail) === normalizeEmail(user.email))
     .sort((left, right) => new Date(right.paidAt) - new Date(left.paidAt))

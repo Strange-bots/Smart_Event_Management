@@ -1,5 +1,4 @@
-const adminSettings = require('../store/adminSettings.json');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const DEFAULT_SETTINGS = {
@@ -104,10 +103,11 @@ const mergeSettings = (parsedSettings = {}) => ({
   appearance: { ...DEFAULT_SETTINGS.appearance, ...parsedSettings.appearance },
 });
 
-const readSettingsFromStore = () => mergeSettings(adminSettings);
+const readSettingsFromStore = async () =>
+  mergeSettings((await readCollection('adminSettings')) || {});
 
-const getAdminUser = (adminEmail) => {
-  const adminUser = findUserByEmail(adminEmail);
+const getAdminUser = async (adminEmail) => {
+  const adminUser = await findUserByEmail(adminEmail);
 
   if (!adminUser) {
     return {
@@ -128,8 +128,8 @@ const getAdminUser = (adminEmail) => {
   };
 };
 
-const getAdminSettings = (adminEmail) => {
-  const adminResult = getAdminUser(adminEmail);
+const getAdminSettings = async (adminEmail) => {
+  const adminResult = await getAdminUser(adminEmail);
 
   if (adminResult.error) {
     return adminResult;
@@ -138,12 +138,12 @@ const getAdminSettings = (adminEmail) => {
   return {
     statusCode: 200,
     admin: adminResult.admin,
-    settings: readSettingsFromStore(),
+    settings: await readSettingsFromStore(),
   };
 };
 
-const getPublicBrandingSettings = () => {
-  const settings = readSettingsFromStore();
+const getPublicBrandingSettings = async () => {
+  const settings = await readSettingsFromStore();
 
   return {
     statusCode: 200,
@@ -230,7 +230,7 @@ const validateSettingsPayload = (payload) => {
 };
 
 const saveAdminSettings = async (adminEmail, nextSettings) => {
-  const adminResult = getAdminUser(adminEmail);
+  const adminResult = await getAdminUser(adminEmail);
 
   if (adminResult.error) {
     return adminResult;
@@ -245,7 +245,7 @@ const saveAdminSettings = async (adminEmail, nextSettings) => {
     };
   }
 
-  const currentSettings = readSettingsFromStore();
+  const currentSettings = await readSettingsFromStore();
   const mergedSettings = mergeSettings({
     ...currentSettings,
     ...nextSettings,
@@ -260,11 +260,7 @@ const saveAdminSettings = async (adminEmail, nextSettings) => {
     appearance: { ...currentSettings.appearance, ...nextSettings.appearance },
   });
 
-  Object.keys(adminSettings).forEach((key) => {
-    delete adminSettings[key];
-  });
-  Object.assign(adminSettings, mergedSettings);
-  await persistCollection('adminSettings');
+  await writeCollection('adminSettings', mergedSettings);
 
   return {
     statusCode: 200,

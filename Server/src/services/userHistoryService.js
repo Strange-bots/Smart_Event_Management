@@ -1,7 +1,4 @@
-const { registrations } = require('../store/registrations');
-const { registeredUsers } = require('../store/registeredUsers');
-const { userHistoryReports } = require('../store/userHistory');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
@@ -9,23 +6,26 @@ const VALID_EVENT_PHASES = new Set(['before', 'during', 'after']);
 
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
 
-const getAllUsers = () =>
-  registeredUsers.filter((user) => user.role === 'user');
-
 const buildFallbackUser = ({ name, email }) => ({
   name,
   email,
   role: 'user',
 });
 
-const findReportableUser = (email) => {
+const getAllUsers = async () => {
+  const users = await readCollection('users');
+  return users.filter((user) => user.role === 'user');
+};
+
+const findReportableUser = async (email) => {
   const normalizedEmail = normalizeEmail(email);
-  const existingUser = findUserByEmail(normalizedEmail);
+  const existingUser = await findUserByEmail(normalizedEmail);
 
   if (existingUser?.role === 'user') {
     return existingUser;
   }
 
+  const registrations = await readCollection('registrations');
   const registration = registrations.find(
     (item) => normalizeEmail(item.userEmail) === normalizedEmail,
   );
@@ -40,10 +40,12 @@ const findReportableUser = (email) => {
   });
 };
 
-const getUserReports = (userEmail) =>
-  userHistoryReports
+const getUserReports = async (userEmail) => {
+  const reports = await readCollection('userHistoryReports');
+  return reports
     .filter((report) => normalizeEmail(report.userEmail) === normalizeEmail(userEmail))
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+};
 
 const calculateRiskLevel = (reports) => {
   if (reports.some((report) => report.riskLevel === 'high')) {
@@ -59,8 +61,8 @@ const calculateRiskLevel = (reports) => {
   return 'low';
 };
 
-const buildUserHistoryRecord = (user) => {
-  const reports = getUserReports(user.email);
+const buildUserHistoryRecord = async (user) => {
+  const reports = await getUserReports(user.email);
 
   return {
     ...sanitizeUser(user),
@@ -70,11 +72,17 @@ const buildUserHistoryRecord = (user) => {
   };
 };
 
-const listUserHistory = ({ riskLevel } = {}) => {
+const listUserHistory = async ({ riskLevel } = {}) => {
   const normalizedRiskLevel = String(riskLevel || '').trim().toLowerCase();
-  const usersByEmail = new Map(
-    getAllUsers().map((user) => [normalizeEmail(user.email), user]),
-  );
+  const usersByEmail = new Map();
+  const [users, registrations] = await Promise.all([
+    getAllUsers(),
+    readCollection('registrations'),
+  ]);
+
+  users.forEach((user) => {
+    usersByEmail.set(normalizeEmail(user.email), user);
+  });
 
   registrations.forEach((registration) => {
     const email = normalizeEmail(registration.userEmail);
@@ -90,24 +98,24 @@ const listUserHistory = ({ riskLevel } = {}) => {
     }
   });
 
-  const users = Array.from(usersByEmail.values())
-    .map(buildUserHistoryRecord)
-    .filter(
+  const historyRecords = await Promise.all(
+    Array.from(usersByEmail.values()).map(buildUserHistoryRecord),
+  );
+
+  return {
+    statusCode: 200,
+    users: historyRecords.filter(
       (user) =>
         !normalizedRiskLevel ||
         normalizedRiskLevel === 'all' ||
         user.riskLevel === normalizedRiskLevel,
-    );
-
-  return {
-    statusCode: 200,
-    users,
+    ),
   };
 };
 
 const createUserHistoryReport = async ({ reporter, payload = {} }) => {
   const userEmail = normalizeEmail(payload.userEmail);
-  const user = findReportableUser(userEmail);
+  const user = await findReportableUser(userEmail);
 
   if (!user) {
     return {
@@ -143,6 +151,7 @@ const createUserHistoryReport = async ({ reporter, payload = {} }) => {
     };
   }
 
+  const reports = await readCollection('userHistoryReports');
   const report = {
     id: `history-${Date.now()}`,
     userName: user.name,
@@ -158,18 +167,18 @@ const createUserHistoryReport = async ({ reporter, payload = {} }) => {
     createdAt: new Date().toISOString(),
   };
 
-  userHistoryReports.unshift(report);
-  await persistCollection('userHistoryReports');
+  reports.unshift(report);
+  await writeCollection('userHistoryReports', reports);
 
   return {
     statusCode: 201,
     report,
-    user: buildUserHistoryRecord(user),
+    user: await buildUserHistoryRecord(user),
   };
 };
 
-const getUserRiskLevel = (userEmail) =>
-  calculateRiskLevel(getUserReports(userEmail));
+const getUserRiskLevel = async (userEmail) =>
+  calculateRiskLevel(await getUserReports(userEmail));
 
 module.exports = {
   createUserHistoryReport,

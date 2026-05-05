@@ -1,8 +1,8 @@
-const { registeredUsers } = require('../store/registeredUsers');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
-const { persistCollection } = require('../store/mongoSync');
+
+const { readCollection, writeCollection } = require('../database/collections');
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
 const SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000;
@@ -13,16 +13,14 @@ const PASSWORD_SALT_ROUNDS = 10;
 const isBcryptHash = (value = '') =>
   typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
 
-const ensureHashedPassword = (user) => {
+const ensureHashedPassword = async (user) => {
   if (!user || isBcryptHash(user.password)) {
     return user;
   }
 
-  user.password = bcrypt.hashSync(user.password, PASSWORD_SALT_ROUNDS);
+  user.password = await bcrypt.hash(user.password, PASSWORD_SALT_ROUNDS);
   return user;
 };
-
-registeredUsers.forEach(ensureHashedPassword);
 
 const sanitizeUser = (user) => ({
   id: user.id,
@@ -49,7 +47,31 @@ const createSessionToken = (user) => {
   return `${payload}.${signature}`;
 };
 
-const verifySessionToken = (token) => {
+const listUsers = async () => {
+  const users = await readCollection('users');
+
+  for (const user of users) {
+    await ensureHashedPassword(user);
+  }
+
+  return users;
+};
+
+const saveUsers = async (users) => {
+  await writeCollection('users', users);
+  return users;
+};
+
+const findUserByEmail = async (email) => {
+  const normalizedEmail = normalizeEmail(email);
+  const users = await listUsers();
+
+  return users.find(
+    (user) => user.email.toLowerCase() === normalizedEmail,
+  ) || null;
+};
+
+const verifySessionToken = async (token) => {
   if (!token || typeof token !== 'string') {
     return null;
   }
@@ -67,7 +89,7 @@ const verifySessionToken = (token) => {
       return null;
     }
 
-    const user = findUserByEmail(session.email);
+    const user = await findUserByEmail(session.email);
 
     if (!user || user.role !== session.role) {
       return null;
@@ -77,6 +99,17 @@ const verifySessionToken = (token) => {
   } catch {
     return null;
   }
+};
+
+const findUserByCredentials = async (email, password) => {
+  const matchedUser = await findUserByEmail(email);
+
+  if (!matchedUser) {
+    return null;
+  }
+
+  const passwordMatches = await bcrypt.compare(password, matchedUser.password);
+  return passwordMatches ? matchedUser : null;
 };
 
 // In-memory OTP storage
@@ -120,7 +153,6 @@ const buildOtpEmailHtml = (otp) => `
                 </table>
               </td>
             </tr>
-
             <tr>
               <td style="padding:34px 32px 10px;">
                 <h1 style="margin:0; color:#0f1e33; font-size:26px; line-height:1.25; font-weight:800;">
@@ -131,7 +163,6 @@ const buildOtpEmailHtml = (otp) => `
                 </p>
               </td>
             </tr>
-
             <tr>
               <td align="center" style="padding:24px 32px;">
                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;">
@@ -145,7 +176,6 @@ const buildOtpEmailHtml = (otp) => `
                 </table>
               </td>
             </tr>
-
             <tr>
               <td style="padding:0 32px 28px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc; border:1px solid #e8eef5; border-radius:14px;">
@@ -162,7 +192,6 @@ const buildOtpEmailHtml = (otp) => `
                 </table>
               </td>
             </tr>
-
             <tr>
               <td style="padding:22px 32px; background-color:#f8fafc; border-top:1px solid #e8eef5;">
                 <p style="margin:0; color:#6b7c93; font-size:12px; line-height:1.6;">
@@ -209,7 +238,7 @@ const sendOTPEmail = async (email, otp) => {
 
   const transporter = nodemailer.createTransport(transporterOptions);
 
-  const mailOptions = {
+  await transporter.sendMail({
     from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to: email,
     subject: 'Your Smart Events verification code',
@@ -217,9 +246,7 @@ const sendOTPEmail = async (email, otp) => {
       `Your Smart Events verification code is ${otp}. ` +
       'It expires in 10 minutes. If you did not request this code, you can ignore this email.',
     html: buildOtpEmailHtml(otp),
-  };
-
-  await transporter.sendMail(mailOptions);
+  });
 
   return {
     delivered: true,
@@ -239,46 +266,26 @@ const storeOTP = (email, otp) => {
 const verifyOTP = (email, otp) => {
   const normalizedEmail = normalizeEmail(email);
   const stored = otpStorage[normalizedEmail];
-  if (!stored) return false;
-  
+
+  if (!stored) {
+    return false;
+  }
+
   if (Date.now() > stored.expiresAt) {
     delete otpStorage[normalizedEmail];
     return false;
   }
-  
+
   if (stored.otpHash === hashOTP(otp)) {
     delete otpStorage[normalizedEmail];
     return true;
   }
-  
+
   return false;
 };
 
-const findUserByEmail = (email) => {
-  const normalizedEmail = normalizeEmail(email);
-
-  return registeredUsers.find(
-    (user) => user.email.toLowerCase() === normalizedEmail,
-  );
-};
-
-const findUserByCredentials = async (email, password) => {
-  const normalizedEmail = normalizeEmail(email);
-  const matchedUser = registeredUsers.find(
-    (user) => user.email.toLowerCase() === normalizedEmail,
-  );
-
-  if (!matchedUser) {
-    return null;
-  }
-
-  ensureHashedPassword(matchedUser);
-
-  const passwordMatches = await bcrypt.compare(password, matchedUser.password);
-  return passwordMatches ? matchedUser : null;
-};
-
 const createUser = async ({ name, email, password, role = 'user', status = 'active' }) => {
+  const users = await listUsers();
   const newUser = {
     id: `user-${Date.now()}`,
     name: name.trim(),
@@ -311,15 +318,16 @@ const createUser = async ({ name, email, password, role = 'user', status = 'acti
     },
   };
 
-  registeredUsers.push(newUser);
-  await persistCollection('users');
+  users.push(newUser);
+  await saveUsers(users);
 
   return sanitizeUser(newUser);
 };
 
 const updateUserPassword = async ({ email, newPassword }) => {
+  const users = await listUsers();
   const normalizedEmail = normalizeEmail(email);
-  const user = registeredUsers.find(
+  const user = users.find(
     (item) => item.email.toLowerCase() === normalizedEmail,
   );
 
@@ -328,16 +336,18 @@ const updateUserPassword = async ({ email, newPassword }) => {
   }
 
   user.password = await bcrypt.hash(newPassword, PASSWORD_SALT_ROUNDS);
-  await persistCollection('users');
+  user.updatedAt = new Date().toISOString();
+  await saveUsers(users);
 
   return sanitizeUser(user);
 };
 
 const updateUserProfile = async ({ currentEmail, name, phone }) => {
+  const users = await listUsers();
   const normalizedCurrentEmail = normalizeEmail(currentEmail);
   const trimmedName = String(name || '').trim();
   const trimmedPhone = phone ? String(phone).trim() : '';
-  const user = registeredUsers.find(
+  const user = users.find(
     (item) => item.email.toLowerCase() === normalizedCurrentEmail,
   );
 
@@ -353,7 +363,7 @@ const updateUserProfile = async ({ currentEmail, name, phone }) => {
   user.lastName = trimmedName.split(/\s+/).slice(1).join(' ');
   user.phone = trimmedPhone;
   user.updatedAt = new Date().toISOString();
-  await persistCollection('users');
+  await saveUsers(users);
 
   return {
     statusCode: 200,
@@ -366,6 +376,7 @@ module.exports = {
   createUser,
   findUserByCredentials,
   findUserByEmail,
+  listUsers,
   sanitizeUser,
   updateUserProfile,
   updateUserPassword,

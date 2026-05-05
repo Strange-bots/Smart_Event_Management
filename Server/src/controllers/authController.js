@@ -43,9 +43,9 @@ const login = async (req, res) => {
   });
 };
 
-const getCurrentUserProfile = (req, res) => {
+const getCurrentUserProfile = async (req, res) => {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  const user = verifySessionToken(token);
+  const user = await verifySessionToken(token);
 
   if (!user) {
     return res.status(401).json({ message: 'Invalid or expired session' });
@@ -56,7 +56,7 @@ const getCurrentUserProfile = (req, res) => {
   });
 };
 
-const authorizeDashboard = (req, res) => {
+const authorizeDashboard = async (req, res) => {
   const { role } = req.body ?? {};
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
 
@@ -64,7 +64,7 @@ const authorizeDashboard = (req, res) => {
     return res.status(400).json({ message: 'Role is required' });
   }
 
-  const user = verifySessionToken(token);
+  const user = await verifySessionToken(token);
 
   if (!user) {
     return res.status(401).json({ message: 'Invalid or expired session' });
@@ -147,7 +147,7 @@ const signup = async (req, res) => {
       return res.status(400).json({ message: validationError });
     }
 
-    if (findUserByEmail(email)) {
+    if (await findUserByEmail(email)) {
       return res.status(409).json({ message: 'An account with this email already exists' });
     }
 
@@ -183,7 +183,7 @@ const signup = async (req, res) => {
     return res.status(400).json({ message: 'Email, OTP, name, and password are required' });
   }
 
-  if (findUserByEmail(email)) {
+  if (await findUserByEmail(email)) {
     return res.status(409).json({ message: 'An account with this email already exists' });
   }
 
@@ -194,7 +194,7 @@ const signup = async (req, res) => {
   }
 
   const user = await createUser({ name, email, password });
-  const createdUser = findUserByEmail(user.email);
+  const createdUser = await findUserByEmail(user.email);
 
   return res.status(201).json({
     message: 'Account created successfully',
@@ -205,7 +205,7 @@ const signup = async (req, res) => {
 
 const changePassword = async (req, res) => {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  const sessionUser = verifySessionToken(token);
+  const sessionUser = await verifySessionToken(token);
 
   if (!sessionUser) {
     return res.status(401).json({ message: 'Invalid or expired session' });
@@ -236,15 +236,17 @@ const changePassword = async (req, res) => {
     newPassword,
   });
 
+  const refreshedUser = await findUserByEmail(sessionUser.email);
+
   return res.status(200).json({
     message: 'Password updated successfully',
-    user: sanitizeUser(findUserByEmail(sessionUser.email)),
+    user: sanitizeUser(refreshedUser),
   });
 };
 
 const updateMyProfile = async (req, res) => {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  const sessionUser = verifySessionToken(token);
+  const sessionUser = await verifySessionToken(token);
 
   if (!sessionUser) {
     return res.status(401).json({ message: 'Invalid or expired session' });
@@ -267,7 +269,7 @@ const updateMyProfile = async (req, res) => {
     return res.status(result.statusCode).json({ message: result.error });
   }
 
-  const refreshedUser = findUserByEmail(sessionUser.email);
+  const refreshedUser = await findUserByEmail(sessionUser.email);
 
   return res.status(200).json({
     message: 'Profile updated successfully',

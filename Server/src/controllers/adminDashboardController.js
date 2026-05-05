@@ -1,6 +1,6 @@
 const { getAdminDashboardOverview } = require('../services/adminDashboardService');
 
-const getAdminOverviewStats = (req, res) => {
+const getAdminOverviewStats = async (req, res) => {
   const adminEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!adminEmail) {
@@ -9,7 +9,7 @@ const getAdminOverviewStats = (req, res) => {
     });
   }
 
-  const result = getAdminDashboardOverview(adminEmail);
+  const result = await getAdminDashboardOverview(adminEmail);
 
   if (result.error) {
     return res.status(result.statusCode).json({

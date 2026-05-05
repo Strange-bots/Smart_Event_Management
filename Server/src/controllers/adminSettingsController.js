@@ -4,7 +4,7 @@ const {
   saveAdminSettings,
 } = require('../services/adminSettingsService');
 
-const getSettings = (req, res) => {
+const getSettings = async (req, res) => {
   const adminEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!adminEmail) {
@@ -13,7 +13,7 @@ const getSettings = (req, res) => {
     });
   }
 
-  const result = getAdminSettings(adminEmail);
+  const result = await getAdminSettings(adminEmail);
 
   if (result.error) {
     return res.status(result.statusCode).json({
@@ -52,8 +52,8 @@ const updateSettings = async (req, res) => {
   });
 };
 
-const getPublicSettings = (req, res) => {
-  const result = getPublicBrandingSettings();
+const getPublicSettings = async (req, res) => {
+  const result = await getPublicBrandingSettings();
 
   return res.status(200).json({
     message: 'Public branding settings fetched successfully',

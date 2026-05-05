@@ -1,4 +1,4 @@
-const { emailLogs } = require('../store/emailLogs');
+const { readCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const formatDateTime = (dateString) => {
@@ -35,8 +35,8 @@ const buildMessagePreview = (body) => {
   return `${normalizedBody.slice(0, 157)}...`;
 };
 
-const getEmailLogsForUser = (userEmail, requiredRole) => {
-  const user = findUserByEmail(userEmail);
+const getEmailLogsForUser = async (userEmail, requiredRole) => {
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -52,8 +52,9 @@ const getEmailLogsForUser = (userEmail, requiredRole) => {
     };
   }
 
+  const emailLogs = await readCollection('emailLogs');
   const userEmailLogs = emailLogs
-    .filter((log) => log.organizerEmail.toLowerCase() === user.email.toLowerCase())
+    .filter((log) => log.organizerEmail?.toLowerCase() === user.email.toLowerCase())
     .sort((left, right) => new Date(right.sentAt) - new Date(left.sentAt))
     .map((log) => ({
       id: log.id,

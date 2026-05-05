@@ -11,24 +11,30 @@ const getEventStart = (event) => {
   return new Date(`${event.date} ${startTime}`);
 };
 
-const getUpcomingCandidateEvents = () => {
+const getUpcomingCandidateEvents = async () => {
   const now = new Date();
+  const events = await getEvents({});
 
-  return getEvents({})
+  return events
     .filter((event) => getEventStart(event).getTime() > now.getTime())
     .slice(0, 12);
 };
 
-const buildFallbackRecommendations = (limit, candidates) =>
-  candidates.slice(0, limit).map((event) => ({
-    ...event,
-    attendees: getRegistrationCountForEvent(event.id),
-    match: Math.max(
-      72,
-      96 - Math.min(20, Math.floor(getRegistrationCountForEvent(event.id) / 5)),
-    ),
-    recommendationReason: 'Recommended from upcoming approved events.',
-  }));
+const buildFallbackRecommendations = async (limit, candidates) => {
+  const recommendations = [];
+
+  for (const event of candidates.slice(0, limit)) {
+    const attendeeCount = await getRegistrationCountForEvent(event.id);
+    recommendations.push({
+      ...event,
+      attendees: attendeeCount,
+      match: Math.max(72, 96 - Math.min(20, Math.floor(attendeeCount / 5))),
+      recommendationReason: 'Recommended from upcoming approved events.',
+    });
+  }
+
+  return recommendations;
+};
 
 const getOpenAiClient = () => {
   if (!process.env.OPENAI_API_KEY) {
@@ -140,7 +146,7 @@ const parseAiRecommendationPayload = (text) => {
 
 const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
   const safeLimit = Math.max(1, Math.min(9, Number(limit) || 3));
-  const candidates = getUpcomingCandidateEvents();
+  const candidates = await getUpcomingCandidateEvents();
 
   if (!candidates.length) {
     return {
@@ -150,7 +156,7 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
     };
   }
 
-  const fallbackRecommendations = buildFallbackRecommendations(safeLimit, candidates);
+  const fallbackRecommendations = await buildFallbackRecommendations(safeLimit, candidates);
   const client = getOpenAiClient();
 
   if (!client) {
@@ -162,7 +168,7 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
     };
   }
 
-  const user = userEmail ? findUserByEmail(normalizeEmail(userEmail)) : null;
+  const user = userEmail ? await findUserByEmail(normalizeEmail(userEmail)) : null;
 
   try {
     const response = await client.responses.create({
@@ -187,8 +193,6 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
     );
 
     if (!parsedRecommendations?.length) {
-      console.error('AI recommendation response could not be parsed:', response.output_text);
-
       return {
         statusCode: fallbackRecommendations.length ? 200 : 404,
         recommendations: fallbackRecommendations,
@@ -198,23 +202,22 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
     }
 
     const eventsById = new Map(candidates.map((event) => [String(event.id), event]));
-    const recommendations = parsedRecommendations
-      .map((item) => {
-        const event = eventsById.get(item.eventId);
+    const recommendations = [];
 
-        if (!event) {
-          return null;
-        }
+    for (const item of parsedRecommendations.slice(0, safeLimit)) {
+      const event = eventsById.get(item.eventId);
 
-        return {
-          ...event,
-          attendees: getRegistrationCountForEvent(event.id),
-          match: Math.max(70, Math.min(99, Math.round(item.match))),
-          recommendationReason: item.reason,
-        };
-      })
-      .filter(Boolean)
-      .slice(0, safeLimit);
+      if (!event) {
+        continue;
+      }
+
+      recommendations.push({
+        ...event,
+        attendees: await getRegistrationCountForEvent(event.id),
+        match: Math.max(70, Math.min(99, Math.round(item.match))),
+        recommendationReason: item.reason,
+      });
+    }
 
     if (!recommendations.length) {
       return {

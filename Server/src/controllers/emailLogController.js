@@ -1,6 +1,6 @@
 const { getEmailLogsForUser } = require('../services/emailLogService');
 
-const listOrganizerEmailLogs = (req, res) => {
+const listOrganizerEmailLogs = async (req, res) => {
   const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
@@ -9,7 +9,7 @@ const listOrganizerEmailLogs = (req, res) => {
     });
   }
 
-  const result = getEmailLogsForUser(organizerEmail, 'organizer');
+  const result = await getEmailLogsForUser(organizerEmail, 'organizer');
 
   if (result.error) {
     return res.status(result.statusCode).json({

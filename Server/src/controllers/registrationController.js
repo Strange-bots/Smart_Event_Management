@@ -1,3 +1,4 @@
+const { readCollection, writeCollection } = require('../database/collections');
 const {
   createRegistrationRecord,
   exportOrganizerRegistrations,
@@ -6,16 +7,10 @@ const {
   getUserEventRegistrationDetails,
   validateRegistrationAvailability,
 } = require('../services/registrationService');
-const { events } = require('../store/events');
-const { registrations } = require('../store/registrations');
-const { registeredUsers } = require('../store/registeredUsers');
-const { persistCollection } = require('../store/mongoSync');
 const {
   createSessionToken,
   createUser,
   findUserByEmail,
-  sanitizeUser,
-  updateUserPassword,
 } = require('../services/authService');
 const {
   sanitizeSignupRequest,
@@ -47,19 +42,7 @@ const formatAdminJoinDate = (dateString) => {
 const isActiveRegistration = (registration) =>
   registration.attendanceStatus !== 'cancelled';
 
-const getAllManagedUsers = () => registeredUsers;
-const findEventById = (eventId) =>
-  events.find((event) => String(event.id) === String(eventId));
-
-const syncEventRegistrationCount = (eventId) => {
-  const event = findEventById(eventId);
-
-  if (event) {
-    event.registrations = getRegistrationCountForEvent(event.id);
-  }
-};
-
-const formatAdminManagedUser = (user) => ({
+const formatAdminManagedUser = (user, registrations) => ({
   id: user.id || user.email,
   name: user.name,
   email: user.email,
@@ -74,16 +57,9 @@ const formatAdminManagedUser = (user) => ({
   avatar: user.avatar || null,
 });
 
-const findManagedUserByEmail = (email) =>
-  getAllManagedUsers().find(
-    (user) => normalizeEmail(user.email) === normalizeEmail(email),
-  );
-
-const getBookableEvents = () => events;
-
 const createEventRegistration = async (req, res) => {
   const user = req.user;
-  const availability = validateRegistrationAvailability({
+  const availability = await validateRegistrationAvailability({
     eventId: req.params.eventId,
     userEmail: user.email,
   });
@@ -114,7 +90,7 @@ const createEventRegistration = async (req, res) => {
     user,
     paymentStatus: 'paid',
   });
-  syncEventRegistrationCount(event.id);
+  const registrationCount = await getRegistrationCountForEvent(event.id);
 
   return res.status(201).json({
     message: 'Event booked successfully',
@@ -122,14 +98,14 @@ const createEventRegistration = async (req, res) => {
     event: {
       id: event.id,
       title: event.title,
-      registrations: event.registrations,
+      registrations: registrationCount,
       capacity: event.capacity,
     },
   });
 };
 
-const listCurrentUserEventRegistrations = (req, res) => {
-  const result = getUserEventRegistrationDetails(req.user?.email);
+const listCurrentUserEventRegistrations = async (req, res) => {
+  const result = await getUserEventRegistrationDetails(req.user?.email);
 
   return res.status(200).json({
     message: 'User event registrations fetched successfully',
@@ -150,7 +126,7 @@ const createUserRegistration = async (req, res) => {
     return res.status(400).json({ message: validationError });
   }
 
-  if (findUserByEmail(sanitizedPayload.email)) {
+  if (await findUserByEmail(sanitizedPayload.email)) {
     return res.status(409).json({
       message: 'An account with this email already exists',
     });
@@ -161,7 +137,7 @@ const createUserRegistration = async (req, res) => {
     email: sanitizedPayload.email,
     password: sanitizedPayload.password,
   });
-  const createdUser = findUserByEmail(user.email);
+  const createdUser = await findUserByEmail(user.email);
 
   return res.status(201).json({
     message: 'Account created successfully',
@@ -170,10 +146,15 @@ const createUserRegistration = async (req, res) => {
   });
 };
 
-const listUserRegistrations = (req, res) => {
+const listUserRegistrations = async (req, res) => {
+  const [users, registrations] = await Promise.all([
+    readCollection('users'),
+    readCollection('registrations'),
+  ]);
+
   return res.status(200).json({
     message: 'Users fetched successfully',
-    users: getAllManagedUsers().map(formatAdminManagedUser),
+    users: users.map((user) => formatAdminManagedUser(user, registrations)),
   });
 };
 
@@ -204,7 +185,7 @@ const createAdminManagedUser = async (req, res) => {
     return res.status(400).json({ message: 'Status must be active, inactive, or pending' });
   }
 
-  if (findUserByEmail(nextEmail)) {
+  if (await findUserByEmail(nextEmail)) {
     return res.status(409).json({
       message: 'An account with this email already exists',
     });
@@ -217,17 +198,25 @@ const createAdminManagedUser = async (req, res) => {
     role: nextRole,
     status: nextStatus,
   });
-  const createdUser = findManagedUserByEmail(user.email);
+  const [createdUser, registrations] = await Promise.all([
+    findUserByEmail(user.email),
+    readCollection('registrations'),
+  ]);
 
   return res.status(201).json({
     message: 'User created successfully',
-    user: formatAdminManagedUser(createdUser),
+    user: formatAdminManagedUser(createdUser, registrations),
   });
 };
 
 const updateUserRegistration = async (req, res) => {
   const email = normalizeEmail(req.params.email);
-  const user = findManagedUserByEmail(email);
+  const [users, registrations, events] = await Promise.all([
+    readCollection('users'),
+    readCollection('registrations'),
+    readCollection('events'),
+  ]);
+  const user = users.find((item) => normalizeEmail(item.email) === email);
 
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
@@ -256,7 +245,7 @@ const updateUserRegistration = async (req, res) => {
 
   if (
     nextEmail !== email &&
-    findManagedUserByEmail(nextEmail)
+    users.some((item) => normalizeEmail(item.email) === nextEmail)
   ) {
     return res.status(409).json({
       message: 'An account with this email already exists',
@@ -310,23 +299,31 @@ const updateUserRegistration = async (req, res) => {
   user.role = nextRole;
   user.status = nextStatus;
   user.updatedAt = new Date().toISOString();
-  await persistCollection('users');
-  await persistCollection('registrations');
-  await persistCollection('events');
+
+  await Promise.all([
+    writeCollection('users', users),
+    writeCollection('registrations', registrations),
+    writeCollection('events', events),
+  ]);
 
   return res.status(200).json({
     message: 'User updated successfully',
-    user: formatAdminManagedUser(user),
+    user: formatAdminManagedUser(user, registrations),
   });
 };
 
 const deleteUserRegistration = async (req, res) => {
   const email = normalizeEmail(req.params.email);
-  const registeredUserIndex = registeredUsers.findIndex(
+  const [users, registrations, events] = await Promise.all([
+    readCollection('users'),
+    readCollection('registrations'),
+    readCollection('events'),
+  ]);
+  const userIndex = users.findIndex(
     (item) => normalizeEmail(item.email) === email,
   );
 
-  if (registeredUserIndex === -1) {
+  if (userIndex === -1) {
     return res.status(404).json({ message: 'User not found' });
   }
 
@@ -334,7 +331,7 @@ const deleteUserRegistration = async (req, res) => {
     return res.status(400).json({ message: 'You cannot delete your own account' });
   }
 
-  const user = registeredUsers[registeredUserIndex];
+  const user = users[userIndex];
 
   if (user.role === 'organizer') {
     const linkedEvents = events.filter(
@@ -357,34 +354,43 @@ const deleteUserRegistration = async (req, res) => {
     }
   }
 
-  registeredUsers.splice(registeredUserIndex, 1);
+  users.splice(userIndex, 1);
 
   for (let index = registrations.length - 1; index >= 0; index -= 1) {
     if (normalizeEmail(registrations[index].userEmail) === email) {
       const eventId = registrations[index].eventId;
       registrations.splice(index, 1);
-      const event = findEventById(eventId);
+      const event = events.find((item) => String(item.id) === String(eventId));
 
       if (event && Array.isArray(event.attendees)) {
         event.attendees = event.attendees.filter(
           (attendee) => normalizeEmail(attendee.userEmail) !== email,
         );
       }
-
-      syncEventRegistrationCount(eventId);
     }
   }
 
-  await persistCollection('users');
-  await persistCollection('registrations');
-  await persistCollection('events');
+  for (const event of events) {
+    const activeCount = registrations.filter(
+      (registration) =>
+        String(registration.eventId) === String(event.id) &&
+        registration.attendanceStatus !== 'cancelled',
+    ).length;
+    event.registrations = activeCount;
+  }
+
+  await Promise.all([
+    writeCollection('users', users),
+    writeCollection('registrations', registrations),
+    writeCollection('events', events),
+  ]);
 
   return res.status(200).json({
     message: 'User deleted successfully',
   });
 };
 
-const listOrganizerRegistrations = (req, res) => {
+const listOrganizerRegistrations = async (req, res) => {
   const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
@@ -393,7 +399,7 @@ const listOrganizerRegistrations = (req, res) => {
     });
   }
 
-  const result = getOrganizerRegistrationDetails(organizerEmail, req.query ?? {});
+  const result = await getOrganizerRegistrationDetails(organizerEmail, req.query ?? {});
 
   if (result.error) {
     return res.status(result.statusCode).json({
@@ -411,7 +417,7 @@ const listOrganizerRegistrations = (req, res) => {
   });
 };
 
-const downloadOrganizerRegistrations = (req, res) => {
+const downloadOrganizerRegistrations = async (req, res) => {
   const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
@@ -420,7 +426,7 @@ const downloadOrganizerRegistrations = (req, res) => {
     });
   }
 
-  const result = exportOrganizerRegistrations(organizerEmail, req.query ?? {});
+  const result = await exportOrganizerRegistrations(organizerEmail, req.query ?? {});
 
   if (result.error) {
     return res.status(result.statusCode).json({

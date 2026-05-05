@@ -1,6 +1,4 @@
-const { events } = require('../store/events');
-const { registrations } = require('../store/registrations');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 const { getUserRiskLevel } = require('./userHistoryService');
 
@@ -73,15 +71,29 @@ const eventBelongsToOrganizer = (event, organizerEmail) => {
 const isActiveRegistration = (registration) =>
   registration.attendanceStatus !== 'cancelled';
 
-const findEventById = (eventId) =>
+const getCollections = async () => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+
+  return { events, registrations };
+};
+
+const findEventById = (events, eventId) =>
   events.find((event) => normalizeEventId(event.id) === normalizeEventId(eventId));
 
-const getRegistrationCountForEvent = (eventId) =>
+const getRegistrationCountForEventFrom = (registrations, eventId) =>
   registrations.filter(
     (registration) =>
       normalizeEventId(registration.eventId) === normalizeEventId(eventId) &&
       isActiveRegistration(registration),
   ).length;
+
+const getRegistrationCountForEvent = async (eventId) => {
+  const registrations = await readCollection('registrations');
+  return getRegistrationCountForEventFrom(registrations, eventId);
+};
 
 const createRegistrationRecord = async ({
   event,
@@ -89,9 +101,16 @@ const createRegistrationRecord = async ({
   paymentStatus,
   registrationDate = new Date().toISOString().slice(0, 10),
 }) => {
+  const { events, registrations } = await getCollections();
+  const targetEvent = findEventById(events, event.id);
+
+  if (!targetEvent) {
+    throw new Error('Event not found');
+  }
+
   const registration = {
-    id: `reg-${event.id}-${Date.now()}`,
-    eventId: event.id,
+    id: `reg-${targetEvent.id}-${Date.now()}`,
+    eventId: targetEvent.id,
     userName: user.name,
     userEmail: user.email,
     registrationDate,
@@ -99,11 +118,11 @@ const createRegistrationRecord = async ({
     attendanceStatus: 'registered',
   };
 
-  if (!Array.isArray(event.attendees)) {
-    event.attendees = [];
+  if (!Array.isArray(targetEvent.attendees)) {
+    targetEvent.attendees = [];
   }
 
-  event.attendees.push({
+  targetEvent.attendees.push({
     id: registration.id,
     userName: registration.userName,
     userEmail: registration.userEmail,
@@ -111,15 +130,23 @@ const createRegistrationRecord = async ({
     paymentStatus: registration.paymentStatus,
     attendanceStatus: registration.attendanceStatus,
   });
+  targetEvent.registrations = getRegistrationCountForEventFrom(
+    [...registrations, registration],
+    targetEvent.id,
+  );
+
   registrations.push(registration);
-  await persistCollection('events');
-  await persistCollection('registrations');
+  await Promise.all([
+    writeCollection('events', events),
+    writeCollection('registrations', registrations),
+  ]);
 
   return registration;
 };
 
-const validateRegistrationAvailability = ({ eventId, userEmail }) => {
-  const event = findEventById(eventId);
+const validateRegistrationAvailability = async ({ eventId, userEmail }) => {
+  const { events, registrations } = await getCollections();
+  const event = findEventById(events, eventId);
 
   if (!event) {
     return {
@@ -150,7 +177,7 @@ const validateRegistrationAvailability = ({ eventId, userEmail }) => {
     };
   }
 
-  const currentRegistrations = getRegistrationCountForEvent(event.id);
+  const currentRegistrations = getRegistrationCountForEventFrom(registrations, event.id);
   const capacity = Number(event.capacity || 0);
 
   if (capacity > 0 && currentRegistrations >= capacity) {
@@ -165,7 +192,7 @@ const validateRegistrationAvailability = ({ eventId, userEmail }) => {
   };
 };
 
-const buildRegisteredEventPayload = (registration, event) => ({
+const buildRegisteredEventPayload = (registration, event, registrations) => ({
   registrationId: registration.id,
   registrationDate: registration.registrationDate,
   paymentStatus: registration.paymentStatus,
@@ -180,7 +207,7 @@ const buildRegisteredEventPayload = (registration, event) => ({
     venue: event.venue || event.location,
     category: event.category,
     capacity: event.capacity,
-    registrations: getRegistrationCountForEvent(event.id),
+    registrations: getRegistrationCountForEventFrom(registrations, event.id),
     image: event.image || event.imagePreview,
     imagePreview: event.imagePreview || event.image,
     isPaid: event.isPaid,
@@ -192,7 +219,8 @@ const buildRegisteredEventPayload = (registration, event) => ({
   },
 });
 
-const getUserEventRegistrationDetails = (userEmail) => {
+const getUserEventRegistrationDetails = async (userEmail) => {
+  const { events, registrations } = await getCollections();
   const normalizedUserEmail = normalizeEmail(userEmail);
 
   const userEvents = registrations
@@ -202,9 +230,9 @@ const getUserEventRegistrationDetails = (userEmail) => {
         isActiveRegistration(registration),
     )
     .map((registration) => {
-      const event = findEventById(registration.eventId);
+      const event = findEventById(events, registration.eventId);
 
-      return event ? buildRegisteredEventPayload(registration, event) : null;
+      return event ? buildRegisteredEventPayload(registration, event, registrations) : null;
     })
     .filter(Boolean)
     .sort(
@@ -218,8 +246,8 @@ const getUserEventRegistrationDetails = (userEmail) => {
   };
 };
 
-const getOrganizerContext = (organizerEmail) => {
-  const organizer = findUserByEmail(organizerEmail);
+const getOrganizerContext = async (organizerEmail) => {
+  const organizer = await findUserByEmail(organizerEmail);
 
   if (!organizer) {
     return {
@@ -235,6 +263,7 @@ const getOrganizerContext = (organizerEmail) => {
     };
   }
 
+  const { events, registrations } = await getCollections();
   const organizerEvents = events.filter(
     (event) => eventBelongsToOrganizer(event, organizer.email),
   );
@@ -243,31 +272,33 @@ const getOrganizerContext = (organizerEmail) => {
     organizerEvents.map((event) => [normalizeEventId(event.id), event]),
   );
 
-  const organizerRegistrations = registrations
-    .filter((registration) =>
-      organizerEventMap.has(normalizeEventId(registration.eventId)),
-    )
-    .map((registration) => {
-      const event = organizerEventMap.get(normalizeEventId(registration.eventId));
-      const riskLevel = calculateAttendanceRisk(registration);
+  const organizerRegistrations = [];
 
-      return {
-        id: registration.id,
-        attendeeName: registration.userName,
-        attendeeEmail: registration.userEmail,
-        eventId: event.id,
-        eventName: event.title,
-        registrationDate: formatRegistrationDate(registration.registrationDate),
-        paymentStatus: registration.paymentStatus,
-        attendanceStatus: registration.attendanceStatus,
-        risk: {
-          level: riskLevel,
-          label: getRiskLabel(riskLevel),
-          reason: getRiskReason(riskLevel),
-        },
-        userRiskLevel: getUserRiskLevel(registration.userEmail),
-      };
+  for (const registration of registrations) {
+    if (!organizerEventMap.has(normalizeEventId(registration.eventId))) {
+      continue;
+    }
+
+    const event = organizerEventMap.get(normalizeEventId(registration.eventId));
+    const riskLevel = calculateAttendanceRisk(registration);
+
+    organizerRegistrations.push({
+      id: registration.id,
+      attendeeName: registration.userName,
+      attendeeEmail: registration.userEmail,
+      eventId: event.id,
+      eventName: event.title,
+      registrationDate: formatRegistrationDate(registration.registrationDate),
+      paymentStatus: registration.paymentStatus,
+      attendanceStatus: registration.attendanceStatus,
+      risk: {
+        level: riskLevel,
+        label: getRiskLabel(riskLevel),
+        reason: getRiskReason(riskLevel),
+      },
+      userRiskLevel: await getUserRiskLevel(registration.userEmail),
     });
+  }
 
   return {
     statusCode: 200,
@@ -310,12 +341,7 @@ const filterRegistrations = (registrationsList, filters = {}) => {
     const matchesRiskLevel =
       !normalizedRiskLevel || registration.risk.level === normalizedRiskLevel;
 
-    return (
-      matchesSearch &&
-      matchesEvent &&
-      matchesPaymentStatus &&
-      matchesRiskLevel
-    );
+    return matchesSearch && matchesEvent && matchesPaymentStatus && matchesRiskLevel;
   });
 };
 
@@ -335,17 +361,14 @@ const buildOrganizerRegistrationSummary = (registrationsList) => ({
   ).length,
 });
 
-const getOrganizerRegistrationDetails = (organizerEmail, filters = {}) => {
-  const result = getOrganizerContext(organizerEmail);
+const getOrganizerRegistrationDetails = async (organizerEmail, filters = {}) => {
+  const result = await getOrganizerContext(organizerEmail);
 
   if (result.error) {
     return result;
   }
 
-  const filteredRegistrations = filterRegistrations(
-    result.registrations,
-    filters,
-  );
+  const filteredRegistrations = filterRegistrations(result.registrations, filters);
   const eventOptions = [
     'All Events',
     ...Array.from(
@@ -413,9 +436,9 @@ const buildSpreadsheetXml = (rows) => {
         `<Row>${columns
           .map(
             (column) =>
-              `<Cell><Data ss:Type="String">${escapeXml(column)}</Data></Cell>`
+              `<Cell><Data ss:Type="String">${escapeXml(column)}</Data></Cell>`,
           )
-          .join('')}</Row>`
+          .join('')}</Row>`,
     )
     .join('');
 
@@ -432,17 +455,14 @@ const buildSpreadsheetXml = (rows) => {
 </Workbook>`;
 };
 
-const exportOrganizerRegistrations = (organizerEmail, filters = {}) => {
-  const result = getOrganizerContext(organizerEmail);
+const exportOrganizerRegistrations = async (organizerEmail, filters = {}) => {
+  const result = await getOrganizerContext(organizerEmail);
 
   if (result.error) {
     return result;
   }
 
-  const filteredRegistrations = filterRegistrations(
-    result.registrations,
-    filters,
-  );
+  const filteredRegistrations = filterRegistrations(result.registrations, filters);
   const safeEmail = result.organizer.email
     .replace(/[^a-z0-9]+/gi, '-')
     .toLowerCase();

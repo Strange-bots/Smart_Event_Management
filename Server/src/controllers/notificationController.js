@@ -4,7 +4,7 @@ const {
   markNotificationAsRead,
 } = require('../services/notificationService');
 
-const listOrganizerNotifications = (req, res) => {
+const listOrganizerNotifications = async (req, res) => {
   const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
@@ -13,7 +13,7 @@ const listOrganizerNotifications = (req, res) => {
     });
   }
 
-  const result = getNotificationsForUser(organizerEmail, 'organizer');
+  const result = await getNotificationsForUser(organizerEmail, 'organizer');
 
   if (result.error) {
     return res.status(result.statusCode).json({
@@ -28,8 +28,8 @@ const listOrganizerNotifications = (req, res) => {
   });
 };
 
-const listMyNotifications = (req, res) => {
-  const result = getNotificationsForUser(req.user?.email);
+const listMyNotifications = async (req, res) => {
+  const result = await getNotificationsForUser(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({

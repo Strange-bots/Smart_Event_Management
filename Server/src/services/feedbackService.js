@@ -1,6 +1,4 @@
-const { events } = require('../store/events');
-const { feedback } = require('../store/feedback');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const formatFeedbackDate = (dateString) => {
@@ -29,8 +27,8 @@ const eventBelongsToOrganizer = (event, organizerEmail) => {
     .some((value) => String(value).toLowerCase() === normalizedOrganizer);
 };
 
-const getOrganizerFeedbackDetails = (organizerEmail) => {
-  const organizer = findUserByEmail(organizerEmail);
+const getOrganizerFeedbackDetails = async (organizerEmail) => {
+  const organizer = await findUserByEmail(organizerEmail);
 
   if (!organizer) {
     return {
@@ -46,6 +44,10 @@ const getOrganizerFeedbackDetails = (organizerEmail) => {
     };
   }
 
+  const [events, feedback] = await Promise.all([
+    readCollection('events'),
+    readCollection('feedback'),
+  ]);
   const organizerEvents = events.filter(
     (event) => eventBelongsToOrganizer(event, organizer.email),
   );
@@ -116,7 +118,7 @@ const submitFeedback = async ({
   comment,
   isAnonymous,
 }) => {
-  const user = findUserByEmail(userEmail);
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -148,7 +150,10 @@ const submitFeedback = async ({
     };
   }
 
-  // Support both numeric IDs (102, 104) and string IDs ('event-sample-1')
+  const [events, feedback] = await Promise.all([
+    readCollection('events'),
+    readCollection('feedback'),
+  ]);
   const event = events.find((item) => String(item.id) === String(eventId));
 
   if (!event) {
@@ -177,7 +182,7 @@ const submitFeedback = async ({
     existingFeedback.organizerEmail = event.organizerEmail;
     existingFeedback.userEmail = user.email;
     existingFeedback.dateSubmitted = submittedAt;
-    await persistCollection('feedback');
+    await writeCollection('feedback', feedback);
 
     return {
       statusCode: 200,
@@ -201,7 +206,7 @@ const submitFeedback = async ({
   };
 
   feedback.push(newFeedback);
-  await persistCollection('feedback');
+  await writeCollection('feedback', feedback);
 
   return {
     statusCode: 201,
@@ -209,8 +214,9 @@ const submitFeedback = async ({
   };
 };
 
-const getUserFeedback = (userEmail) => {
+const getUserFeedback = async (userEmail) => {
   const normalizedEmail = String(userEmail || '').toLowerCase();
+  const feedback = await readCollection('feedback');
 
   return feedback
     .filter((item) => item.userEmail?.toLowerCase() === normalizedEmail)

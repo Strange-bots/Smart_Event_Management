@@ -9,8 +9,8 @@ const getBearerToken = (req) =>
 const requireRole = (allowedRoles) => {
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
 
-  return (req, res, next) => {
-    const user = verifySessionToken(getBearerToken(req));
+  return async (req, res, next) => {
+    const user = await verifySessionToken(getBearerToken(req));
 
     if (!user) {
       return res.status(401).json({ message: 'Authentication is required' });

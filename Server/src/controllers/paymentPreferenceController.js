@@ -4,8 +4,8 @@ const {
   savePaymentPreferenceForUser,
 } = require('../services/paymentPreferenceService');
 
-const getMyPaymentPreference = (req, res) => {
-  const result = getPaymentPreferenceForUser(req.user?.email);
+const getMyPaymentPreference = async (req, res) => {
+  const result = await getPaymentPreferenceForUser(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({

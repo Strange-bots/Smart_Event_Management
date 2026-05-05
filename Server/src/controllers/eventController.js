@@ -16,15 +16,15 @@ const {
   uploadAdminEventImage,
 } = require('../services/eventService');
 
-const listEvents = (req, res) => {
+const listEvents = async (req, res) => {
   const { category, search } = req.query ?? {};
-  const events = getEvents({ category, search });
+  const events = await getEvents({ category, search });
 
   return res.json({ events });
 };
 
-const getNextEvent = (req, res) => {
-  const event = getNextUpcomingEvent();
+const getNextEvent = async (req, res) => {
+  const event = await getNextUpcomingEvent();
 
   if (!event) {
     return res.status(404).json({
@@ -35,8 +35,8 @@ const getNextEvent = (req, res) => {
   return res.json({ event });
 };
 
-const getFeaturedEventsList = (req, res) => {
-  const featuredEvents = getFeaturedEvents();
+const getFeaturedEventsList = async (req, res) => {
+  const featuredEvents = await getFeaturedEvents();
 
   if (!featuredEvents.length) {
     return res.status(404).json({
@@ -48,8 +48,8 @@ const getFeaturedEventsList = (req, res) => {
   return res.json({ featuredEvents });
 };
 
-const getAllEvents = (req, res) => {
-  const allEvents = getAllApprovedEvents();
+const getAllEvents = async (req, res) => {
+  const allEvents = await getAllApprovedEvents();
 
   return res.json({
     success: true,
@@ -57,17 +57,17 @@ const getAllEvents = (req, res) => {
   });
 };
 
-const listAdminEvents = (req, res) => {
+const listAdminEvents = async (req, res) => {
   return res.status(200).json({
     message: 'Admin events fetched successfully',
-    events: getAdminEvents(),
+    events: await getAdminEvents(),
   });
 };
 
-const listAdminGalleryImages = (req, res) => {
+const listAdminGalleryImages = async (req, res) => {
   return res.status(200).json({
     message: 'Admin gallery images fetched successfully',
-    images: getAdminGalleryImages(),
+    images: await getAdminGalleryImages(),
   });
 };
 
@@ -156,10 +156,10 @@ const uploadEventImage = async (req, res) => {
   });
 };
 
-const listOrganizerEvents = (req, res) => {
+const listOrganizerEvents = async (req, res) => {
   return res.status(200).json({
     message: 'Organizer events fetched successfully',
-    events: getOrganizerEvents(req.user.email),
+    events: await getOrganizerEvents(req.user.email),
   });
 };
 

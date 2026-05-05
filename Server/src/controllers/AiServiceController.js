@@ -5,7 +5,7 @@ const getBearerToken = (req) =>
   req.headers.authorization?.replace(/^Bearer\s+/i, '');
 
 const getRecommendations = async (req, res) => {
-  const sessionUser = verifySessionToken(getBearerToken(req));
+  const sessionUser = await verifySessionToken(getBearerToken(req));
   const result = await getAiRecommendations({
     userEmail: sessionUser?.email,
     limit: req.query?.limit,

@@ -6,7 +6,6 @@ const {
   connectDatabase,
   markDatabaseUnavailable,
 } = require('./src/config/database');
-const { hydrateMongoBackedData } = require('./src/store/mongoSync');
 
 const PORT = process.env.PORT || 5001;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -21,7 +20,6 @@ const startServer = async () => {
 
   try {
     await connectDatabase();
-    await hydrateMongoBackedData();
     console.log('MongoDB connected successfully');
   } catch (error) {
     markDatabaseUnavailable();

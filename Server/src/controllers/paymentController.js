@@ -46,8 +46,8 @@ const confirmStripeCheckout = async (req, res) => {
   });
 };
 
-const listMyPayments = (req, res) => {
-  const result = listUserPaymentTransactions(req.user?.email);
+const listMyPayments = async (req, res) => {
+  const result = await listUserPaymentTransactions(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({

@@ -1,20 +1,32 @@
 const fs = require('fs');
 const path = require('path');
 
-const { events } = require('../store/events');
-const { notifications } = require('../store/notifications');
-const { paymentTransactions } = require('../store/paymentTransactions');
-const { registrations } = require('../store/registrations');
-const { persistCollection } = require('../store/mongoSync');
+const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail } = require('./authService');
-const { getRegistrationCountForEvent } = require('./registrationService');
 
 const getEventStart = (event) => {
   const startTime = event.time?.split('-')[0]?.trim() ?? '12:00 AM';
   return new Date(`${event.date} ${startTime}`);
 };
 
-const formatEvent = (event) => ({
+const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
+
+const eventBelongsToOrganizer = (event, organizerEmail) => {
+  const normalizedOrganizer = organizerEmail.toLowerCase();
+
+  return [event.organizerEmail, event.organizerId]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase() === normalizedOrganizer);
+};
+
+const getRegistrationCountForEventFrom = (registrations, eventId) =>
+  registrations.filter(
+    (registration) =>
+      String(registration.eventId) === String(eventId) &&
+      registration.attendanceStatus !== 'cancelled',
+  ).length;
+
+const formatEventWithRegistrations = (event, registrations) => ({
   id: event.id,
   title: event.title,
   description: event.description,
@@ -24,7 +36,7 @@ const formatEvent = (event) => ({
   venue: event.venue || event.location,
   category: event.category,
   capacity: event.capacity,
-  registrations: getRegistrationCountForEvent(event.id),
+  registrations: getRegistrationCountForEventFrom(registrations, event.id),
   image: event.image || event.imagePreview,
   imagePreview: event.imagePreview || event.image,
   status: event.status,
@@ -50,19 +62,24 @@ const formatGalleryItem = (event) => ({
   url: event.image || event.imagePreview || '',
 });
 
-const getAllEventRecords = () => events;
+const getCollections = async () => {
+  const [events, registrations, notifications, paymentTransactions] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+    readCollection('notifications'),
+    readCollection('paymentTransactions'),
+  ]);
 
-const eventBelongsToOrganizer = (event, organizerEmail) => {
-  const normalizedOrganizer = organizerEmail.toLowerCase();
-
-  return [event.organizerEmail, event.organizerId]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase() === normalizedOrganizer);
+  return {
+    events,
+    registrations,
+    notifications,
+    paymentTransactions,
+  };
 };
 
-const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
-
 const createRefundNotification = ({
+  notifications,
   event,
   registration,
   transaction,
@@ -91,7 +108,14 @@ const createRefundNotification = ({
   });
 };
 
-const cleanupDeletedEvent = async ({ event, deletedBy, deletedByEmail }) => {
+const cleanupDeletedEvent = async ({
+  event,
+  deletedBy,
+  deletedByEmail,
+  registrations,
+  paymentTransactions,
+  notifications,
+}) => {
   for (let index = registrations.length - 1; index >= 0; index -= 1) {
     const registration = registrations[index];
 
@@ -111,6 +135,7 @@ const cleanupDeletedEvent = async ({ event, deletedBy, deletedByEmail }) => {
       transaction.refundRequestedAt = new Date().toISOString();
 
       createRefundNotification({
+        notifications,
         event,
         registration,
         transaction,
@@ -122,20 +147,26 @@ const cleanupDeletedEvent = async ({ event, deletedBy, deletedByEmail }) => {
     registrations.splice(index, 1);
   }
 
-  await persistCollection('registrations');
-  await persistCollection('paymentTransactions');
-  await persistCollection('notifications');
+  await Promise.all([
+    writeCollection('registrations', registrations),
+    writeCollection('paymentTransactions', paymentTransactions),
+    writeCollection('notifications', notifications),
+  ]);
 };
 
-const getNextUpcomingEvent = () => {
+const getNextUpcomingEvent = async () => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
   const now = new Date();
 
-  const nextEvent = getAllEventRecords()
+  const nextEvent = events
     .filter((event) => event.status === 'approved')
     .filter((event) => getEventStart(event).getTime() > now.getTime())
     .sort((left, right) => getEventStart(left) - getEventStart(right))[0];
 
-  return nextEvent ? formatEvent(nextEvent) : null;
+  return nextEvent ? formatEventWithRegistrations(nextEvent, registrations) : null;
 };
 
 const getRecommendationMatch = (event) => {
@@ -144,30 +175,39 @@ const getRecommendationMatch = (event) => {
   return 78 + (Number.isFinite(numericId) ? numericId % 18 : 0);
 };
 
-const getRecommendedEvents = () => {
+const getRecommendedEvents = async () => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
   const now = new Date();
 
-  return getAllEventRecords()
+  return events
     .filter((event) => event.status === 'approved')
     .filter((event) => getEventStart(event).getTime() > now.getTime())
     .sort((left, right) => getEventStart(left) - getEventStart(right))
     .slice(0, 3)
     .map((event) => ({
-      ...formatEvent(event),
-      attendees: event.registrations,
+      ...formatEventWithRegistrations(event, registrations),
+      attendees: getRegistrationCountForEventFrom(registrations, event.id),
       match: getRecommendationMatch(event),
     }));
 };
 
-const getFeaturedEvents = () => {
+const getFeaturedEvents = async () => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
   const now = new Date();
 
-  return getAllEventRecords()
+  return events
     .filter((event) => event.status === 'approved')
     .filter((event) => getEventStart(event).getTime() > now.getTime())
     .sort((left, right) => {
       const registrationDifference =
-        getRegistrationCountForEvent(right.id) - getRegistrationCountForEvent(left.id);
+        getRegistrationCountForEventFrom(registrations, right.id) -
+        getRegistrationCountForEventFrom(registrations, left.id);
 
       if (registrationDifference !== 0) {
         return registrationDifference;
@@ -177,18 +217,23 @@ const getFeaturedEvents = () => {
     })
     .slice(0, 6)
     .map((event, index) => ({
-      ...formatEvent(event),
-      attendees: getRegistrationCountForEvent(event.id),
+      ...formatEventWithRegistrations(event, registrations),
+      attendees: getRegistrationCountForEventFrom(registrations, event.id),
       featured: index === 0,
     }));
 };
 
-const getAllApprovedEvents = () => {
-  return getAllEventRecords()
+const getAllApprovedEvents = async () => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+
+  return events
     .filter((event) => event.status === 'approved')
     .sort((left, right) => getEventStart(left) - getEventStart(right))
     .map((event) => ({
-      ...formatEvent(event),
+      ...formatEventWithRegistrations(event, registrations),
       categoryLabel: event.category,
     }));
 };
@@ -196,11 +241,15 @@ const getAllApprovedEvents = () => {
 const normalizeQueryValue = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
 
-const getEvents = ({ category, search } = {}) => {
+const getEvents = async ({ category, search } = {}) => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
   const normalizedCategory = normalizeQueryValue(category);
   const normalizedSearch = normalizeQueryValue(search);
 
-  return getAllEventRecords()
+  return events
     .filter((event) => event.status === 'approved')
     .filter((event) => {
       if (!normalizedCategory) {
@@ -222,11 +271,11 @@ const getEvents = ({ category, search } = {}) => {
       ];
 
       return searchableFields.some((field) =>
-        field?.toLowerCase().includes(normalizedSearch)
+        field?.toLowerCase().includes(normalizedSearch),
       );
     })
     .sort((left, right) => getEventStart(left) - getEventStart(right))
-    .map(formatEvent);
+    .map((event) => formatEventWithRegistrations(event, registrations));
 };
 
 const ALLOWED_IMAGE_TYPES = {
@@ -257,7 +306,7 @@ const extractImagePayload = (imageData) => {
 };
 
 const uploadAdminEventImage = async ({ adminEmail, eventId, imageData }) => {
-  const adminUser = findUserByEmail(adminEmail);
+  const adminUser = await findUserByEmail(adminEmail);
 
   if (!adminUser) {
     return {
@@ -273,7 +322,11 @@ const uploadAdminEventImage = async ({ adminEmail, eventId, imageData }) => {
     };
   }
 
-  const event = getAllEventRecords().find((item) => String(item.id) === String(eventId));
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+  const event = events.find((item) => String(item.id) === String(eventId));
 
   if (!event) {
     return {
@@ -319,18 +372,16 @@ const uploadAdminEventImage = async ({ adminEmail, eventId, imageData }) => {
   fs.mkdirSync(uploadsDirectory, { recursive: true });
 
   const fileName = `event-${event.id}-${Date.now()}${fileExtension}`;
-  const filePath = path.join(uploadsDirectory, fileName);
-  fs.writeFileSync(filePath, imageBuffer);
+  fs.writeFileSync(path.join(uploadsDirectory, fileName), imageBuffer);
 
-  const imageUrl = `/uploads/events/${fileName}`;
-  event.image = imageUrl;
+  event.image = `/uploads/events/${fileName}`;
   event.updatedAt = new Date().toISOString();
-  await persistCollection('events');
+  await writeCollection('events', events);
 
   return {
     statusCode: 200,
-    event: formatEvent(event),
-    imageUrl,
+    event: formatEventWithRegistrations(event, registrations),
+    imageUrl: event.image,
   };
 };
 
@@ -369,14 +420,25 @@ const validateOrganizerEventPayload = (event) => {
   return null;
 };
 
-const getOrganizerEvents = (organizerEmail) =>
-  events
+const getOrganizerEvents = async (organizerEmail) => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+
+  return events
     .filter((event) => eventBelongsToOrganizer(event, organizerEmail))
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
-    .map(formatEvent);
+    .map((event) => formatEventWithRegistrations(event, registrations));
+};
 
-const getAdminEvents = () =>
-  events
+const getAdminEvents = async () => {
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+
+  return events
     .filter((event) => Boolean(event.organizerEmail || event.organizerId))
     .slice()
     .sort((left, right) => {
@@ -384,20 +446,25 @@ const getAdminEvents = () =>
       const leftTimestamp = new Date(left.updatedAt || left.createdAt || left.date).getTime();
       return rightTimestamp - leftTimestamp;
     })
-    .map(formatEvent);
+    .map((event) => formatEventWithRegistrations(event, registrations));
+};
 
-const getAdminGalleryImages = () =>
-  events
+const getAdminGalleryImages = async () => {
+  const events = await readCollection('events');
+
+  return events
     .filter((event) => Boolean(event.organizerEmail || event.organizerId))
     .filter((event) => Boolean(event.image || event.imagePreview))
     .sort((left, right) => getEventStart(right) - getEventStart(left))
     .map(formatGalleryItem);
-
-const getAdminManagedEvent = (eventId) =>
-  events.find((event) => String(event.id) === String(eventId));
+};
 
 const updateAdminEventStatus = async ({ eventId, status }) => {
-  const event = getAdminManagedEvent(eventId);
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+  const event = events.find((item) => String(item.id) === String(eventId));
 
   if (!event) {
     return {
@@ -408,15 +475,16 @@ const updateAdminEventStatus = async ({ eventId, status }) => {
 
   event.status = status;
   event.updatedAt = new Date().toISOString();
-  await persistCollection('events');
+  await writeCollection('events', events);
 
   return {
     statusCode: 200,
-    event: formatEvent(event),
+    event: formatEventWithRegistrations(event, registrations),
   };
 };
 
 const createOrganizerEvent = async ({ organizer, payload }) => {
+  const events = await readCollection('events');
   const normalizedEvent = normalizeOrganizerEventPayload(payload);
   const validationError = validateOrganizerEventPayload(normalizedEvent);
 
@@ -441,21 +509,22 @@ const createOrganizerEvent = async ({ organizer, payload }) => {
   };
 
   events.unshift(event);
-  await persistCollection('events');
+  await writeCollection('events', events);
 
   return {
     statusCode: 201,
-    event: formatEvent(event),
+    event: formatEventWithRegistrations(event, []),
   };
 };
 
-const getOrganizerOwnedEvent = ({ organizerEmail, eventId }) =>
-  events.find(
-    (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizerEmail),
-  );
-
 const updateOrganizerEvent = async ({ organizerEmail, eventId, payload }) => {
-  const event = getOrganizerOwnedEvent({ organizerEmail, eventId });
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+  const event = events.find(
+    (item) => String(item.id) === String(eventId) && eventBelongsToOrganizer(item, organizerEmail),
+  );
 
   if (!event) {
     return {
@@ -478,20 +547,23 @@ const updateOrganizerEvent = async ({ organizerEmail, eventId, payload }) => {
   }
 
   Object.assign(event, normalizedEvent, {
-    registrations: event.registrations,
+    registrations: getRegistrationCountForEventFrom(registrations, event.id),
     status: 'pending',
     updatedAt: new Date().toISOString(),
   });
-  await persistCollection('events');
+  await writeCollection('events', events);
 
   return {
     statusCode: 200,
-    event: formatEvent(event),
+    event: formatEventWithRegistrations(event, registrations),
   };
 };
 
 const duplicateOrganizerEvent = async ({ organizer, eventId }) => {
-  const event = getOrganizerOwnedEvent({ organizerEmail: organizer.email, eventId });
+  const events = await readCollection('events');
+  const event = events.find(
+    (item) => String(item.id) === String(eventId) && eventBelongsToOrganizer(item, organizer.email),
+  );
 
   if (!event) {
     return {
@@ -511,7 +583,8 @@ const duplicateOrganizerEvent = async ({ organizer, eventId }) => {
 };
 
 const deleteOrganizerEvent = async ({ organizerEmail, eventId }) => {
-  const eventIndex = events.findIndex(
+  const collections = await getCollections();
+  const eventIndex = collections.events.findIndex(
     (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizerEmail),
   );
 
@@ -522,13 +595,16 @@ const deleteOrganizerEvent = async ({ organizerEmail, eventId }) => {
     };
   }
 
-  const [event] = events.splice(eventIndex, 1);
+  const [event] = collections.events.splice(eventIndex, 1);
   await cleanupDeletedEvent({
     event,
     deletedBy: 'Organizer Team',
     deletedByEmail: organizerEmail,
+    registrations: collections.registrations,
+    paymentTransactions: collections.paymentTransactions,
+    notifications: collections.notifications,
   });
-  await persistCollection('events');
+  await writeCollection('events', collections.events);
 
   return {
     statusCode: 200,
@@ -536,7 +612,8 @@ const deleteOrganizerEvent = async ({ organizerEmail, eventId }) => {
 };
 
 const deleteAdminEvent = async (eventId) => {
-  const eventIndex = events.findIndex((event) => String(event.id) === String(eventId));
+  const collections = await getCollections();
+  const eventIndex = collections.events.findIndex((event) => String(event.id) === String(eventId));
 
   if (eventIndex === -1) {
     return {
@@ -545,13 +622,16 @@ const deleteAdminEvent = async (eventId) => {
     };
   }
 
-  const [event] = events.splice(eventIndex, 1);
+  const [event] = collections.events.splice(eventIndex, 1);
   await cleanupDeletedEvent({
     event,
     deletedBy: 'Admin Team',
     deletedByEmail: 'admin@smartevents.local',
+    registrations: collections.registrations,
+    paymentTransactions: collections.paymentTransactions,
+    notifications: collections.notifications,
   });
-  await persistCollection('events');
+  await writeCollection('events', collections.events);
 
   return {
     statusCode: 200,
@@ -559,7 +639,11 @@ const deleteAdminEvent = async (eventId) => {
 };
 
 const deleteAdminEventImage = async (eventId) => {
-  const event = getAdminManagedEvent(eventId);
+  const [events, registrations] = await Promise.all([
+    readCollection('events'),
+    readCollection('registrations'),
+  ]);
+  const event = events.find((item) => String(item.id) === String(eventId));
 
   if (!event) {
     return {
@@ -571,11 +655,11 @@ const deleteAdminEventImage = async (eventId) => {
   event.image = '';
   event.imagePreview = '';
   event.updatedAt = new Date().toISOString();
-  await persistCollection('events');
+  await writeCollection('events', events);
 
   return {
     statusCode: 200,
-    event: formatEvent(event),
+    event: formatEventWithRegistrations(event, registrations),
   };
 };
 

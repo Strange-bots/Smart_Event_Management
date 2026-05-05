@@ -1,11 +1,5 @@
-const { emailLogs } = require('../store/emailLogs');
-const { messages } = require('../store/messages');
-const { notifications } = require('../store/notifications');
-const { registeredUsers } = require('../store/registeredUsers');
-const { events } = require('../store/events');
-const { registrations } = require('../store/registrations');
-const { persistCollection } = require('../store/mongoSync');
-const { findUserByEmail, sanitizeUser } = require('./authService');
+const { readCollection, writeCollection } = require('../database/collections');
+const { findUserByEmail, sanitizeUser, listUsers } = require('./authService');
 
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
 
@@ -43,10 +37,8 @@ const buildMessagePreview = (body) => {
   return `${normalizedBody.slice(0, 157)}...`;
 };
 
-const getAllPlatformUsers = () => registeredUsers;
-
-const getUsersByRole = (role) =>
-  getAllPlatformUsers().filter((user) => user.role === role);
+const getUsersByRole = (users, role) =>
+  users.filter((user) => user.role === role);
 
 const dedupeUsers = (users) => {
   const seen = new Set();
@@ -64,6 +56,7 @@ const dedupeUsers = (users) => {
 };
 
 const createNotificationRecord = ({
+  notifications,
   user,
   title,
   message,
@@ -92,6 +85,7 @@ const createNotificationRecord = ({
 };
 
 const createInboxMessageRecord = ({
+  messages,
   sender,
   recipient,
   subject,
@@ -140,8 +134,8 @@ const formatInboxMessage = (message) => ({
   bodyPreview: buildMessagePreview(message.body),
 });
 
-const listSentMessages = (userEmail, allowedRoles = ['user', 'organizer', 'admin']) => {
-  const user = findUserByEmail(userEmail);
+const listSentMessages = async (userEmail, allowedRoles = ['user', 'organizer', 'admin']) => {
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -157,6 +151,8 @@ const listSentMessages = (userEmail, allowedRoles = ['user', 'organizer', 'admin
     };
   }
 
+  const emailLogs = await readCollection('emailLogs');
+
   return {
     statusCode: 200,
     user: sanitizeUser(user),
@@ -167,44 +163,34 @@ const listSentMessages = (userEmail, allowedRoles = ['user', 'organizer', 'admin
   };
 };
 
-const getAdminRecipientContext = () => {
-  const users = getUsersByRole('user');
-  const organizers = getUsersByRole('organizer');
-  const everyone = dedupeUsers([...users, ...organizers]);
-
-  return {
-    users,
-    organizers,
-    everyone,
-  };
-};
-
-const getAdminRecipientGroup = (recipientGroup) => {
-  const groups = getAdminRecipientContext();
+const getAdminRecipientGroup = (users, recipientGroup) => {
+  const userGroup = getUsersByRole(users, 'user');
+  const organizerGroup = getUsersByRole(users, 'organizer');
+  const everyone = dedupeUsers([...userGroup, ...organizerGroup]);
 
   switch (recipientGroup) {
     case 'all-users':
       return {
         label: 'All Users',
-        recipients: groups.users,
+        recipients: userGroup,
       };
     case 'all-organizers':
       return {
         label: 'All Organizers',
-        recipients: groups.organizers,
+        recipients: organizerGroup,
       };
     case 'all':
       return {
         label: 'Everyone',
-        recipients: groups.everyone,
+        recipients: everyone,
       };
     default:
       return null;
   }
 };
 
-const listAdminMessageLogs = (adminEmail) => {
-  const admin = findUserByEmail(adminEmail);
+const listAdminMessageLogs = async (adminEmail) => {
+  const admin = await findUserByEmail(adminEmail);
 
   if (!admin) {
     return {
@@ -220,6 +206,8 @@ const listAdminMessageLogs = (adminEmail) => {
     };
   }
 
+  const emailLogs = await readCollection('emailLogs');
+
   return {
     statusCode: 200,
     admin: sanitizeUser(admin),
@@ -231,7 +219,13 @@ const listAdminMessageLogs = (adminEmail) => {
 };
 
 const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) => {
-  const admin = findUserByEmail(adminEmail);
+  const [admin, users, emailLogs, messages, notifications] = await Promise.all([
+    findUserByEmail(adminEmail),
+    listUsers(),
+    readCollection('emailLogs'),
+    readCollection('messages'),
+    readCollection('notifications'),
+  ]);
 
   if (!admin) {
     return {
@@ -264,7 +258,7 @@ const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) =
     };
   }
 
-  const group = getAdminRecipientGroup(recipientGroup);
+  const group = getAdminRecipientGroup(users, recipientGroup);
 
   if (!group) {
     return {
@@ -293,6 +287,7 @@ const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) =
 
   recipients.forEach((recipient) => {
     createInboxMessageRecord({
+      messages,
       sender: admin,
       recipient,
       subject: normalizedSubject,
@@ -301,6 +296,7 @@ const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) =
       relatedEntityId: null,
     });
     createNotificationRecord({
+      notifications,
       user: recipient,
       title: normalizedSubject,
       message: buildMessagePreview(normalizedBody),
@@ -312,9 +308,12 @@ const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) =
       relatedEntityId: null,
     });
   });
-  await persistCollection('emailLogs');
-  await persistCollection('messages');
-  await persistCollection('notifications');
+
+  await Promise.all([
+    writeCollection('emailLogs', emailLogs),
+    writeCollection('messages', messages),
+    writeCollection('notifications', notifications),
+  ]);
 
   return {
     statusCode: 201,
@@ -324,14 +323,7 @@ const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) =
   };
 };
 
-const getOrganizerOwnedEvent = (organizerEmail, eventId) =>
-  events.find(
-    (event) =>
-      String(event.id) === String(eventId) &&
-      normalizeEmail(event.organizerEmail || event.organizerId) === normalizeEmail(organizerEmail),
-  );
-
-const getOrganizerAudienceRecipients = (eventId, audience) => {
+const getOrganizerAudienceRecipients = async (users, registrations, eventId, audience) => {
   const registrationsForEvent = registrations.filter(
     (registration) => String(registration.eventId) === String(eventId),
   );
@@ -356,11 +348,13 @@ const getOrganizerAudienceRecipients = (eventId, audience) => {
     }
   });
 
-  const users = filtered
-    .map((registration) => findUserByEmail(registration.userEmail))
+  const recipients = filtered
+    .map((registration) =>
+      users.find((user) => normalizeEmail(user.email) === normalizeEmail(registration.userEmail)),
+    )
     .filter(Boolean);
 
-  return dedupeUsers(users);
+  return dedupeUsers(recipients);
 };
 
 const getOrganizerAudienceLabel = (audience) => {
@@ -380,14 +374,8 @@ const getOrganizerAudienceLabel = (audience) => {
   }
 };
 
-const getUserRegisteredEvent = (userEmail, eventId) =>
-  registrations.find(
-    (registration) =>
-      String(registration.eventId) === String(eventId) &&
-      normalizeEmail(registration.userEmail) === normalizeEmail(userEmail),
-  );
-
 const createDirectMessageLog = ({
+  emailLogs,
   sender,
   recipient,
   subject,
@@ -399,7 +387,8 @@ const createDirectMessageLog = ({
     senderEmail: sender.email,
     senderName: sender.name,
     senderRole: sender.role,
-    organizerEmail: sender.role === 'organizer' ? sender.email : recipient.role === 'organizer' ? recipient.email : null,
+    organizerEmail:
+      sender.role === 'organizer' ? sender.email : recipient.role === 'organizer' ? recipient.email : null,
     recipient: `${recipient.name} <${recipient.email}>`,
     recipientGroup: 'direct',
     recipientCount: 1,
@@ -423,8 +412,16 @@ const sendDirectMessage = async ({
   body,
   eventId = null,
 }) => {
-  const sender = findUserByEmail(senderEmail);
-  const recipient = findUserByEmail(recipientEmail);
+  const [sender, recipient, events, registrations, emailLogs, messages, notifications] =
+    await Promise.all([
+      findUserByEmail(senderEmail),
+      findUserByEmail(recipientEmail),
+      readCollection('events'),
+      readCollection('registrations'),
+      readCollection('emailLogs'),
+      readCollection('messages'),
+      readCollection('notifications'),
+    ]);
 
   if (!sender) {
     return {
@@ -479,47 +476,58 @@ const sendDirectMessage = async ({
     }
   }
 
-  if (sender.role === 'user') {
-    const organizerTarget = recipient;
+  if (sender.role === 'user' && relatedEvent) {
+    if (
+      normalizeEmail(relatedEvent.organizerEmail || relatedEvent.organizerId) !==
+      normalizeEmail(recipient.email)
+    ) {
+      return {
+        error: 'Selected organizer does not own the related event',
+        statusCode: 400,
+      };
+    }
 
-    if (relatedEvent) {
-      if (normalizeEmail(relatedEvent.organizerEmail || relatedEvent.organizerId) !== normalizeEmail(organizerTarget.email)) {
-        return {
-          error: 'Selected organizer does not own the related event',
-          statusCode: 400,
-        };
-      }
-
-      if (!getUserRegisteredEvent(sender.email, relatedEvent.id)) {
-        return {
-          error: 'You can only message organizers for events you registered for',
-          statusCode: 403,
-        };
-      }
+    if (
+      !registrations.find(
+        (registration) =>
+          String(registration.eventId) === String(relatedEvent.id) &&
+          normalizeEmail(registration.userEmail) === normalizeEmail(sender.email),
+      )
+    ) {
+      return {
+        error: 'You can only message organizers for events you registered for',
+        statusCode: 403,
+      };
     }
   }
 
-  if (sender.role === 'organizer') {
-    const userTarget = recipient;
+  if (sender.role === 'organizer' && relatedEvent) {
+    if (
+      normalizeEmail(relatedEvent.organizerEmail || relatedEvent.organizerId) !==
+      normalizeEmail(sender.email)
+    ) {
+      return {
+        error: 'You can only message users about events you organize',
+        statusCode: 403,
+      };
+    }
 
-    if (relatedEvent) {
-      if (normalizeEmail(relatedEvent.organizerEmail || relatedEvent.organizerId) !== normalizeEmail(sender.email)) {
-        return {
-          error: 'You can only message users about events you organize',
-          statusCode: 403,
-        };
-      }
-
-      if (!getUserRegisteredEvent(userTarget.email, relatedEvent.id)) {
-        return {
-          error: 'Recipient is not registered for the selected event',
-          statusCode: 400,
-        };
-      }
+    if (
+      !registrations.find(
+        (registration) =>
+          String(registration.eventId) === String(relatedEvent.id) &&
+          normalizeEmail(registration.userEmail) === normalizeEmail(recipient.email),
+      )
+    ) {
+      return {
+        error: 'Recipient is not registered for the selected event',
+        statusCode: 400,
+      };
     }
   }
 
   const log = createDirectMessageLog({
+    emailLogs,
     sender,
     recipient,
     subject: normalizedSubject,
@@ -528,6 +536,7 @@ const sendDirectMessage = async ({
   });
 
   createInboxMessageRecord({
+    messages,
     sender,
     recipient,
     subject: normalizedSubject,
@@ -537,6 +546,7 @@ const sendDirectMessage = async ({
   });
 
   createNotificationRecord({
+    notifications,
     user: recipient,
     title: normalizedSubject,
     message: buildMessagePreview(normalizedBody),
@@ -547,9 +557,12 @@ const sendDirectMessage = async ({
     relatedEntityType: relatedEvent ? 'event' : 'direct',
     relatedEntityId: relatedEvent?.id ?? null,
   });
-  await persistCollection('emailLogs');
-  await persistCollection('messages');
-  await persistCollection('notifications');
+
+  await Promise.all([
+    writeCollection('emailLogs', emailLogs),
+    writeCollection('messages', messages),
+    writeCollection('notifications', notifications),
+  ]);
 
   return {
     statusCode: 201,
@@ -559,8 +572,8 @@ const sendDirectMessage = async ({
   };
 };
 
-const listOrganizerMessageLogs = (organizerEmail) => {
-  const organizer = findUserByEmail(organizerEmail);
+const listOrganizerMessageLogs = async (organizerEmail) => {
+  const organizer = await findUserByEmail(organizerEmail);
 
   if (!organizer) {
     return {
@@ -576,6 +589,8 @@ const listOrganizerMessageLogs = (organizerEmail) => {
     };
   }
 
+  const emailLogs = await readCollection('emailLogs');
+
   return {
     statusCode: 200,
     organizer: sanitizeUser(organizer),
@@ -587,7 +602,16 @@ const listOrganizerMessageLogs = (organizerEmail) => {
 };
 
 const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject, body }) => {
-  const organizer = findUserByEmail(organizerEmail);
+  const [organizer, users, events, registrations, emailLogs, messages, notifications] =
+    await Promise.all([
+      findUserByEmail(organizerEmail),
+      listUsers(),
+      readCollection('events'),
+      readCollection('registrations'),
+      readCollection('emailLogs'),
+      readCollection('messages'),
+      readCollection('notifications'),
+    ]);
 
   if (!organizer) {
     return {
@@ -603,7 +627,11 @@ const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject
     };
   }
 
-  const event = getOrganizerOwnedEvent(organizer.email, eventId);
+  const event = events.find(
+    (item) =>
+      String(item.id) === String(eventId) &&
+      normalizeEmail(item.organizerEmail || item.organizerId) === normalizeEmail(organizer.email),
+  );
 
   if (!event) {
     return {
@@ -629,7 +657,7 @@ const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject
     };
   }
 
-  const recipients = getOrganizerAudienceRecipients(event.id, audience);
+  const recipients = await getOrganizerAudienceRecipients(users, registrations, event.id, audience);
 
   if (!recipients.length) {
     return {
@@ -659,6 +687,7 @@ const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject
 
   recipients.forEach((recipient) => {
     createInboxMessageRecord({
+      messages,
       sender: organizer,
       recipient,
       subject: normalizedSubject,
@@ -667,6 +696,7 @@ const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject
       relatedEntityId: event.id,
     });
     createNotificationRecord({
+      notifications,
       user: recipient,
       title: normalizedSubject,
       message: buildMessagePreview(normalizedBody),
@@ -678,9 +708,12 @@ const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject
       relatedEntityId: event.id,
     });
   });
-  await persistCollection('emailLogs');
-  await persistCollection('messages');
-  await persistCollection('notifications');
+
+  await Promise.all([
+    writeCollection('emailLogs', emailLogs),
+    writeCollection('messages', messages),
+    writeCollection('notifications', notifications),
+  ]);
 
   return {
     statusCode: 201,
@@ -690,8 +723,8 @@ const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject
   };
 };
 
-const listInboxMessages = (userEmail) => {
-  const user = findUserByEmail(userEmail);
+const listInboxMessages = async (userEmail) => {
+  const user = await findUserByEmail(userEmail);
 
   if (!user) {
     return {
@@ -699,6 +732,8 @@ const listInboxMessages = (userEmail) => {
       statusCode: 404,
     };
   }
+
+  const messages = await readCollection('messages');
 
   return {
     statusCode: 200,

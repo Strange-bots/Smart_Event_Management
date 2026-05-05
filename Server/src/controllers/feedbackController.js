@@ -4,7 +4,7 @@ const {
   submitFeedback,
 } = require('../services/feedbackService');
 
-const listOrganizerFeedback = (req, res) => {
+const listOrganizerFeedback = async (req, res) => {
   const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
@@ -13,7 +13,7 @@ const listOrganizerFeedback = (req, res) => {
     });
   }
 
-  const result = getOrganizerFeedbackDetails(organizerEmail);
+  const result = await getOrganizerFeedbackDetails(organizerEmail);
 
   if (result.error) {
     return res.status(result.statusCode).json({
@@ -61,14 +61,14 @@ const createFeedback = async (req, res) => {
   });
 };
 
-const listMyFeedback = (req, res) => {
+const listMyFeedback = async (req, res) => {
   const userEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!userEmail) {
     return res.status(401).json({ message: 'Authentication is required' });
   }
 
-  const entries = getUserFeedback(userEmail);
+  const entries = await getUserFeedback(userEmail);
 
   return res.status(200).json({ feedback: entries });
 };
