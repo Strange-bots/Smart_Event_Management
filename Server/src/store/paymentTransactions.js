@@ -1,0 +1,40 @@
+const paymentTransactions = [
+  {
+    id: 'txn-2026-001',
+    receiptId: 'RCP-2026-001',
+    stripeSessionId: null,
+    eventId: 102,
+    eventTitle: 'Career Networking Evening',
+    userEmail: 'michael.chen@student.koi.edu.au',
+    userName: 'Michael Chen',
+    amount: 20,
+    currency: 'AUD',
+    paymentMethod: 'Visa •••• 4421',
+    paymentStatus: 'paid',
+    paidAt: '2026-04-11T08:15:00.000Z',
+    billingPostcode: '2000',
+    cardholderName: 'Michael Chen',
+    lastFourDigits: '4421',
+  },
+  {
+    id: 'txn-2026-002',
+    receiptId: 'RCP-2026-002',
+    stripeSessionId: null,
+    eventId: 105,
+    eventTitle: 'Startup Finance Masterclass',
+    userEmail: 'sarah.johnson@student.koi.edu.au',
+    userName: 'Sarah Johnson',
+    amount: 45,
+    currency: 'AUD',
+    paymentMethod: 'Mastercard •••• 1188',
+    paymentStatus: 'paid',
+    paidAt: '2026-04-19T10:05:00.000Z',
+    billingPostcode: '2000',
+    cardholderName: 'Sarah Johnson',
+    lastFourDigits: '1188',
+  },
+];
+
+module.exports = {
+  paymentTransactions,
+};

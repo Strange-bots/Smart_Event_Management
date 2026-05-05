@@ -22,8 +22,8 @@ const listAdminMessages = (req, res) => {
   });
 };
 
-const createAdminMessage = (req, res) => {
-  const result = sendAdminMessage({
+const createAdminMessage = async (req, res) => {
+  const result = await sendAdminMessage({
     adminEmail: req.user?.email,
     recipientGroup: req.body?.recipientGroup,
     subject: req.body?.subject,
@@ -55,8 +55,8 @@ const listOrganizerMessages = (req, res) => {
   });
 };
 
-const createOrganizerMessage = (req, res) => {
-  const result = sendOrganizerMessage({
+const createOrganizerMessage = async (req, res) => {
+  const result = await sendOrganizerMessage({
     organizerEmail: req.user?.email,
     eventId: req.body?.eventId,
     audience: req.body?.audience,
@@ -103,8 +103,8 @@ const listMySentMessages = (req, res) => {
   });
 };
 
-const createDirectMessage = (req, res) => {
-  const result = sendDirectMessage({
+const createDirectMessage = async (req, res) => {
+  const result = await sendDirectMessage({
     senderEmail: req.user?.email,
     recipientEmail: req.body?.recipientEmail,
     subject: req.body?.subject,

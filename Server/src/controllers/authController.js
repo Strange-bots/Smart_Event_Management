@@ -6,6 +6,7 @@ const {
   findUserByCredentials,
   findUserByEmail,
   sanitizeUser,
+  updateUserProfile,
   updateUserPassword,
   verifySessionToken,
   generateOTP,
@@ -17,6 +18,7 @@ const {
   sanitizeSignupRequest,
   validateChangePasswordPayload,
   validateLoginPayload,
+  validateProfileUpdatePayload,
   validateSecureSignupPayload,
   validateSignupPayload,
 } = require('../validators/authValidator');
@@ -38,6 +40,19 @@ const login = async (req, res) => {
   return res.json({
     user: sanitizeUser(matchedUser),
     token: createSessionToken(matchedUser),
+  });
+};
+
+const getCurrentUserProfile = (req, res) => {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const user = verifySessionToken(token);
+
+  if (!user) {
+    return res.status(401).json({ message: 'Invalid or expired session' });
+  }
+
+  return res.status(200).json({
+    user: (({ password, ...profile }) => profile)(user),
   });
 };
 
@@ -227,10 +242,46 @@ const changePassword = async (req, res) => {
   });
 };
 
+const updateMyProfile = async (req, res) => {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const sessionUser = verifySessionToken(token);
+
+  if (!sessionUser) {
+    return res.status(401).json({ message: 'Invalid or expired session' });
+  }
+
+  const { name, phone } = req.body ?? {};
+  const validationError = validateProfileUpdatePayload({ name, phone });
+
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
+  }
+
+  const result = await updateUserProfile({
+    currentEmail: sessionUser.email,
+    name,
+    phone,
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  const refreshedUser = findUserByEmail(sessionUser.email);
+
+  return res.status(200).json({
+    message: 'Profile updated successfully',
+    user: result.user,
+    token: createSessionToken(refreshedUser),
+  });
+};
+
 module.exports = {
   authorizeDashboard,
   changePassword,
+  getCurrentUserProfile,
   login,
   registerUser,
   signup,
+  updateMyProfile,
 };

@@ -145,7 +145,7 @@ const BrowseEvents = () => {
 
   const handleRegister = async (event) => {
     if (event.isPaid && event.price > 0) {
-      navigate(`/paymentPage?eventId=${event.id}`);
+      navigate(`/payment?eventId=${event.id}`);
       return;
     }
 

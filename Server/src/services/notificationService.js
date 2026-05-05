@@ -1,4 +1,5 @@
-const { notifications } = require('../data/notifications');
+const { notifications } = require('../store/notifications');
+const { persistCollection } = require('../store/mongoSync');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const formatNotificationDateTime = (dateString) => {
@@ -68,7 +69,7 @@ const getNotificationsForUser = (userEmail, requiredRole) => {
   };
 };
 
-const markNotificationAsRead = (userEmail, notificationId, requiredRole) => {
+const markNotificationAsRead = async (userEmail, notificationId, requiredRole) => {
   const user = findUserByEmail(userEmail);
 
   if (!user) {
@@ -99,6 +100,7 @@ const markNotificationAsRead = (userEmail, notificationId, requiredRole) => {
   }
 
   notification.isRead = true;
+  await persistCollection('notifications');
 
   return {
     statusCode: 200,
@@ -110,7 +112,7 @@ const markNotificationAsRead = (userEmail, notificationId, requiredRole) => {
   };
 };
 
-const markAllNotificationsAsRead = (userEmail, requiredRole) => {
+const markAllNotificationsAsRead = async (userEmail, requiredRole) => {
   const user = findUserByEmail(userEmail);
 
   if (!user) {
@@ -138,6 +140,7 @@ const markAllNotificationsAsRead = (userEmail, requiredRole) => {
       updatedCount += 1;
     }
   });
+  await persistCollection('notifications');
 
   return {
     statusCode: 200,

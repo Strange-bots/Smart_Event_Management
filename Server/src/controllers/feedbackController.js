@@ -29,7 +29,7 @@ const listOrganizerFeedback = (req, res) => {
   });
 };
 
-const createFeedback = (req, res) => {
+const createFeedback = async (req, res) => {
   const attendeeEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!attendeeEmail) {
@@ -38,7 +38,7 @@ const createFeedback = (req, res) => {
     });
   }
 
-  const result = submitFeedback({
+  const result = await submitFeedback({
     userEmail: attendeeEmail,
     eventId: req.body?.eventId,
     rating: req.body?.rating,

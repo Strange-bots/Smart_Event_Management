@@ -1,5 +1,6 @@
-const { events } = require('../data/events');
-const { feedback } = require('../data/feedback');
+const { events } = require('../store/events');
+const { feedback } = require('../store/feedback');
+const { persistCollection } = require('../store/mongoSync');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const formatFeedbackDate = (dateString) => {
@@ -108,7 +109,7 @@ const getOrganizerFeedbackDetails = (organizerEmail) => {
   };
 };
 
-const submitFeedback = ({
+const submitFeedback = async ({
   userEmail,
   eventId,
   rating,
@@ -176,6 +177,7 @@ const submitFeedback = ({
     existingFeedback.organizerEmail = event.organizerEmail;
     existingFeedback.userEmail = user.email;
     existingFeedback.dateSubmitted = submittedAt;
+    await persistCollection('feedback');
 
     return {
       statusCode: 200,
@@ -199,6 +201,7 @@ const submitFeedback = ({
   };
 
   feedback.push(newFeedback);
+  await persistCollection('feedback');
 
   return {
     statusCode: 201,

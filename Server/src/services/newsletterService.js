@@ -1,10 +1,11 @@
-const { newsletterSubscriptions } = require('../data/newsletterSubscriptions');
+const { newsletterSubscriptions } = require('../store/newsletterSubscriptions');
+const { persistCollection } = require('../store/mongoSync');
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-const createNewsletterSubscription = (email) => {
+const createNewsletterSubscription = async (email) => {
   if (!email?.trim()) {
     return {
       statusCode: 400,
@@ -39,6 +40,7 @@ const createNewsletterSubscription = (email) => {
   };
 
   newsletterSubscriptions.push(subscription);
+  await persistCollection('newsletterSubscriptions');
 
   return {
     statusCode: 201,

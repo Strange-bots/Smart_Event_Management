@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import {
   CreditCard,
@@ -9,31 +9,7 @@ import {
   Eye,
   X,
 } from "lucide-react";
-
-// ── mock data ─────────────────────────────────────────────────────────────────
-const MOCK_RECEIPTS = [
-  {
-    id: "RCP-2024-001",
-    eventTitle: "Annual Technology Summit 2024",
-    amount: 50.0,
-    paymentDate: "March 10, 2024",
-    paymentMethod: "Visa •••• 4242",
-  },
-  {
-    id: "RCP-2024-002",
-    eventTitle: "Business Analytics Workshop",
-    amount: 30.0,
-    paymentDate: "March 5, 2024",
-    paymentMethod: "Mastercard •••• 8888",
-  },
-  {
-    id: "RCP-2024-003",
-    eventTitle: "AI & Machine Learning Seminar",
-    amount: 75.0,
-    paymentDate: "February 28, 2024",
-    paymentMethod: "Visa •••• 4242",
-  },
-];
+import { fetchMyPayments } from "../../services/paymentService.js";
 
 // ── toast ─────────────────────────────────────────────────────────────────────
 const useToast = () => {
@@ -47,9 +23,40 @@ const useToast = () => {
 
 // ── component ─────────────────────────────────────────────────────────────────
 const UserPayments = () => {
-  const receipts = MOCK_RECEIPTS;
+  const [receipts, setReceipts] = useState([]);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { msg, show } = useToast();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPayments = async () => {
+      try {
+        setIsLoading(true);
+        const nextReceipts = await fetchMyPayments();
+
+        if (isMounted) {
+          setReceipts(nextReceipts);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setReceipts([]);
+          show(error.message || "Unable to load payments.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPayments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const totalSpent = receipts.reduce((sum, r) => sum + r.amount, 0);
 
@@ -111,7 +118,13 @@ const UserPayments = () => {
         </div>
 
         {/* Receipts Table */}
-        {receipts.length > 0 ? (
+        {isLoading ? (
+          <div className="rounded-xl shadow-sm bg-white p-12 text-center">
+            <ReceiptIcon size={48} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="font-semibold text-gray-900 mb-2">Loading payments...</h3>
+            <p className="text-gray-500">Fetching your latest receipts from the server.</p>
+          </div>
+        ) : receipts.length > 0 ? (
           <div className="rounded-xl shadow-sm bg-white">
             <div className="px-6 pt-5 pb-3">
               <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
@@ -131,7 +144,7 @@ const UserPayments = () => {
                 <tbody>
                   {receipts.map((receipt) => (
                     <tr key={receipt.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-mono text-sm text-gray-700">{receipt.id}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-gray-700">{receipt.receiptId}</td>
                       <td className="px-6 py-4 font-medium text-gray-900">{receipt.eventTitle}</td>
                       <td className="px-6 py-4">
                         <span className="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
@@ -207,7 +220,7 @@ const UserPayments = () => {
             <div className="space-y-6">
               <div className="text-center pb-4 border-b border-gray-200">
                 <p className="text-sm text-gray-500">Receipt ID</p>
-                <p className="font-mono text-lg font-bold text-gray-900">{selectedReceipt.id}</p>
+                <p className="font-mono text-lg font-bold text-gray-900">{selectedReceipt.receiptId}</p>
               </div>
 
               <div className="space-y-3">

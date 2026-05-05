@@ -1,5 +1,6 @@
-const { events } = require('../data/events');
-const { registrations } = require('../data/registrations');
+const { events } = require('../store/events');
+const { registrations } = require('../store/registrations');
+const { persistCollection } = require('../store/mongoSync');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 const { getUserRiskLevel } = require('./userHistoryService');
 
@@ -81,6 +82,88 @@ const getRegistrationCountForEvent = (eventId) =>
       normalizeEventId(registration.eventId) === normalizeEventId(eventId) &&
       isActiveRegistration(registration),
   ).length;
+
+const createRegistrationRecord = async ({
+  event,
+  user,
+  paymentStatus,
+  registrationDate = new Date().toISOString().slice(0, 10),
+}) => {
+  const registration = {
+    id: `reg-${event.id}-${Date.now()}`,
+    eventId: event.id,
+    userName: user.name,
+    userEmail: user.email,
+    registrationDate,
+    paymentStatus,
+    attendanceStatus: 'registered',
+  };
+
+  if (!Array.isArray(event.attendees)) {
+    event.attendees = [];
+  }
+
+  event.attendees.push({
+    id: registration.id,
+    userName: registration.userName,
+    userEmail: registration.userEmail,
+    registrationDate: registration.registrationDate,
+    paymentStatus: registration.paymentStatus,
+    attendanceStatus: registration.attendanceStatus,
+  });
+  registrations.push(registration);
+  await persistCollection('events');
+  await persistCollection('registrations');
+
+  return registration;
+};
+
+const validateRegistrationAvailability = ({ eventId, userEmail }) => {
+  const event = findEventById(eventId);
+
+  if (!event) {
+    return {
+      error: 'Event not found',
+      statusCode: 404,
+    };
+  }
+
+  if (event.status !== 'approved') {
+    return {
+      error: 'Only approved events can be booked',
+      statusCode: 400,
+    };
+  }
+
+  const existingRegistration = registrations.find(
+    (registration) =>
+      String(registration.eventId) === String(event.id) &&
+      normalizeEmail(registration.userEmail) === normalizeEmail(userEmail) &&
+      registration.attendanceStatus !== 'cancelled',
+  );
+
+  if (existingRegistration) {
+    return {
+      error: 'You have already booked this event',
+      statusCode: 409,
+      registration: existingRegistration,
+    };
+  }
+
+  const currentRegistrations = getRegistrationCountForEvent(event.id);
+  const capacity = Number(event.capacity || 0);
+
+  if (capacity > 0 && currentRegistrations >= capacity) {
+    return {
+      error: 'This event is already at full capacity',
+      statusCode: 409,
+    };
+  }
+
+  return {
+    event,
+  };
+};
 
 const buildRegisteredEventPayload = (registration, event) => ({
   registrationId: registration.id,
@@ -374,8 +457,10 @@ const exportOrganizerRegistrations = (organizerEmail, filters = {}) => {
 };
 
 module.exports = {
+  createRegistrationRecord,
   exportOrganizerRegistrations,
   getOrganizerRegistrationDetails,
   getRegistrationCountForEvent,
   getUserEventRegistrationDetails,
+  validateRegistrationAvailability,
 };

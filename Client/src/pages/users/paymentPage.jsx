@@ -1,31 +1,22 @@
-import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import {
-  CreditCard,
   Calendar,
-  MapPin,
-  Clock,
-  Lock,
   CheckCircle,
   AlertCircle,
-  Trash2,
+  Clock,
+  CreditCard,
+  ExternalLink,
+  Lock,
+  MapPin,
 } from "lucide-react";
-import { fetchEventById, registerForEvent } from "../../services/eventService.js";
-
-// ── payment preferences (localStorage) ───────────────────────────────────────
-const PREF_KEY = "sem_payment_prefs";
-const getPaymentPreferences = () => {
-  try {
-    const raw = localStorage.getItem(PREF_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-};
-const savePaymentPreferences = (prefs) => localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
-const clearPaymentPreferences = () => localStorage.removeItem(PREF_KEY);
-
-const generateReceiptId = () =>
-  `RCP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100).padStart(3, "0")}`;
+import { fetchEventById } from "../../services/eventService.js";
+import {
+  confirmStripeCheckoutSession,
+  createStripeCheckoutSession,
+} from "../../services/paymentService.js";
+import { getCurrentUser } from "../../utils/auth.js";
 
 const formatEventDate = (dateString) => {
   if (!dateString) {
@@ -45,73 +36,36 @@ const formatEventDate = (dateString) => {
   }).format(parsedDate);
 };
 
-// ── toast ─────────────────────────────────────────────────────────────────────
 const useToast = () => {
   const [toast, setToast] = useState(null);
+
   const show = (text, type = "success") => {
     setToast({ text, type });
-    setTimeout(() => setToast(null), 2500);
+    window.setTimeout(() => setToast(null), 2500);
   };
+
   return { toast, show };
 };
 
-// ── toggle switch ─────────────────────────────────────────────────────────────
-const Toggle = ({ checked, onChange }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    onClick={() => onChange(!checked)}
-    className={`relative inline-flex h-8 w-14 items-center rounded-full border-2 p-[3px] shadow-[0_0_0_2px_rgba(209,219,232,0.9)] transition-all focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 ${
-      checked
-        ? "border-[#1f4e79] bg-[#1f4e79] shadow-[0_0_0_2px_rgba(31,78,121,0.12)]"
-        : "border-[#d1dbe8] bg-[#dbe4ef]"
-    }`}
-  >
-    <span
-      className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${
-        checked ? "translate-x-6" : "translate-x-0"
-      }`}
-    />
-  </button>
-);
-
-// ── component ─────────────────────────────────────────────────────────────────
 const PaymentPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
 
   const eventId = searchParams.get("eventId") || "";
+  const checkoutStatus = searchParams.get("checkout") || "";
+  const sessionId = searchParams.get("session_id") || "";
+
   const [event, setEvent] = useState(null);
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
   const [eventError, setEventError] = useState("");
-
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [receipt, setReceipt] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
-  const [receiptId, setReceiptId] = useState("");
-  const [hasSavedPrefs, setHasSavedPrefs] = useState(!!getPaymentPreferences());
   const { toast, show } = useToast();
-
-  // Payment form state
-  const [cardholderName, setCardholderName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [billingPostcode, setBillingPostcode] = useState("");
-  const [rememberPreference, setRememberPreference] = useState(false);
-
-  // Load saved preferences
-  useEffect(() => {
-    const prefs = getPaymentPreferences();
-    if (prefs) {
-      setCardholderName(prefs.cardholderName || "");
-      setBillingPostcode(prefs.billingPostcode || "");
-      setRememberPreference(prefs.rememberPreference || false);
-      if (prefs.lastFourDigits) {
-        setCardNumber(`**** **** **** ${prefs.lastFourDigits}`);
-      }
-    }
-  }, []);
+  const hasConfirmedSessionRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -158,77 +112,102 @@ const PaymentPage = () => {
     };
   }, [eventId]);
 
-  const handleClearPreferences = () => {
-    clearPaymentPreferences();
-    setCardholderName("");
-    setCardNumber("");
-    setBillingPostcode("");
-    setRememberPreference(false);
-    setHasSavedPrefs(false);
-    show("Saved payment preferences cleared");
-  };
+  useEffect(() => {
+    if (checkoutStatus !== "cancel") {
+      return;
+    }
 
-  const handlePayment = async (e) => {
-    e.preventDefault();
-    if (!event) return;
+    setPaymentError("Stripe checkout was cancelled. Your registration has not been completed.");
+  }, [checkoutStatus]);
 
-    if (!cardholderName || !cardNumber || !expiryDate || !cvv || !billingPostcode) {
-      show("Please fill in all payment details", "error");
+  useEffect(() => {
+    if (checkoutStatus !== "success" || !sessionId || hasConfirmedSessionRef.current) {
+      return;
+    }
+
+    hasConfirmedSessionRef.current = true;
+    let isMounted = true;
+
+    const confirmSession = async () => {
+      try {
+        setIsConfirming(true);
+        setPaymentError("");
+        const result = await confirmStripeCheckoutSession(sessionId);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setReceipt(result.receipt || null);
+        setIsComplete(true);
+        show("Payment confirmed. Your registration is complete.");
+
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("checkout");
+        nextParams.delete("session_id");
+        setSearchParams(nextParams, { replace: true });
+      } catch (error) {
+        if (isMounted) {
+          setPaymentError(error.message || "Payment was received, but confirmation could not be completed.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsConfirming(false);
+        }
+      }
+    };
+
+    confirmSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [checkoutStatus, searchParams, sessionId, setSearchParams, show]);
+
+  const handleStripeCheckout = async () => {
+    if (!event) {
       return;
     }
 
     try {
-      setIsProcessing(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await registerForEvent(event.id);
+      setIsRedirecting(true);
+      setPaymentError("");
+      const result = await createStripeCheckoutSession(event.id);
 
-      if (rememberPreference) {
-        const clean = cardNumber.replace(/\s/g, "");
-        savePaymentPreferences({
-          preferredMethod: "card",
-          cardholderName,
-          lastFourDigits: clean.slice(-4),
-          billingPostcode,
-          rememberPreference: true,
-        });
-        setHasSavedPrefs(true);
+      if (!result?.checkoutUrl) {
+        throw new Error("Stripe checkout URL was not returned by the server.");
       }
 
-      const newReceiptId = generateReceiptId();
-      setReceiptId(newReceiptId);
-      setIsComplete(true);
-      show("Payment successful! Receipt emailed to you.");
+      window.location.assign(result.checkoutUrl);
     } catch (error) {
-      show(error.message || "Payment succeeded, but registration could not be confirmed.", "error");
-    } finally {
-      setIsProcessing(false);
+      setIsRedirecting(false);
+      show(error.message || "Unable to start Stripe checkout right now.", "error");
     }
   };
 
   if (isLoadingEvent) {
     return (
       <DashboardLayout>
-        <div className="rounded-xl shadow-sm bg-white p-12 text-center">
-          <h3 className="font-semibold text-gray-900 mb-2">Loading event...</h3>
+        <div className="rounded-xl bg-white p-12 text-center shadow-sm">
+          <h3 className="mb-2 font-semibold text-gray-900">Loading event...</h3>
           <p className="text-gray-500">Fetching the latest event details from the server.</p>
         </div>
       </DashboardLayout>
     );
   }
 
-  // ── event not found ───────────────────────────────────────────────────────
   if (!event) {
     return (
       <DashboardLayout>
-        <div className="rounded-xl shadow-sm bg-white p-12 text-center">
-          <AlertCircle size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="font-semibold text-gray-900 mb-2">Event not found</h3>
-          <p className="text-gray-500 mb-4">
+        <div className="rounded-xl bg-white p-12 text-center shadow-sm">
+          <AlertCircle size={48} className="mx-auto mb-4 text-gray-300" />
+          <h3 className="mb-2 font-semibold text-gray-900">Event not found</h3>
+          <p className="mb-4 text-gray-500">
             {eventError || "The event you're trying to pay for doesn't exist."}
           </p>
           <button
             onClick={() => navigate("/browseEvents")}
-            className="bg-[#f36f21] text-white rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-[#e05e10] transition-colors"
+            className="rounded-lg bg-[#f36f21] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#e05e10]"
           >
             Browse Events
           </button>
@@ -237,23 +216,24 @@ const PaymentPage = () => {
     );
   }
 
-  // ── success screen ────────────────────────────────────────────────────────
   if (isComplete) {
     return (
       <DashboardLayout>
-        <div className="max-w-2xl mx-auto">
-          <div className="rounded-xl shadow-lg bg-white p-8 text-center">
-            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-xl bg-white p-8 text-center shadow-lg">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
               <CheckCircle className="text-green-600" size={40} />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
-            <p className="text-gray-500 mb-6">
+            <h2 className="mb-2 text-2xl font-bold text-gray-900">Payment Successful</h2>
+            <p className="mb-6 text-gray-500">
               Your registration for {event.title} has been confirmed.
             </p>
 
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 mb-6 text-left">
-              <p className="text-sm text-gray-500 mb-1 text-center">Receipt ID</p>
-              <p className="font-mono text-xl font-bold text-gray-900 mb-4 text-center">{receiptId}</p>
+            <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-6 text-left">
+              <p className="mb-1 text-center text-sm text-gray-500">Receipt ID</p>
+              <p className="mb-4 text-center font-mono text-xl font-bold text-gray-900">
+                {receipt?.receiptId || "Pending"}
+              </p>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Event</p>
@@ -274,20 +254,20 @@ const PaymentPage = () => {
               </div>
             </div>
 
-            <span className="inline-block bg-green-100 text-green-700 text-sm px-3 py-1 rounded-full mb-6">
-              ✉️ Receipt emailed to student@koi.edu.au
+            <span className="mb-6 inline-block rounded-full bg-green-100 px-3 py-1 text-sm text-green-700">
+              Receipt recorded for {currentUser?.email || "your account"}
             </span>
 
-            <div className="flex gap-3 justify-center">
+            <div className="flex justify-center gap-3">
               <button
                 onClick={() => navigate("/userPayments")}
-                className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
                 View Receipts
               </button>
               <button
                 onClick={() => navigate("/userEvents")}
-                className="bg-[#f36f21] text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-[#e05e10] transition-colors"
+                className="rounded-lg bg-[#f36f21] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#e05e10]"
               >
                 My Events
               </button>
@@ -298,13 +278,11 @@ const PaymentPage = () => {
     );
   }
 
-  // ── payment form ──────────────────────────────────────────────────────────
   return (
     <DashboardLayout>
-      {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-5 right-5 z-50 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg ${
+          className={`fixed right-5 top-5 z-50 rounded-lg px-4 py-2.5 text-sm text-white shadow-lg ${
             toast.type === "error" ? "bg-red-500" : "bg-[#1f4e79]"
           }`}
         >
@@ -312,162 +290,79 @@ const PaymentPage = () => {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto">
-        <div className="grid lg:grid-cols-5 gap-6">
-          {/* Payment Form */}
+      <div className="mx-auto max-w-4xl">
+        <div className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3">
-            <div className="rounded-xl shadow-lg bg-white">
-              <div className="px-6 pt-6 pb-2">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <div className="rounded-xl bg-white shadow-lg">
+              <div className="px-6 pb-2 pt-6">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
                   <Lock size={20} className="text-green-600" />
-                  Secure Payment
+                  Secure Stripe Checkout
                 </h2>
-                <p className="text-sm text-gray-500">Your payment information is encrypted and secure</p>
+                <p className="text-sm text-gray-500">
+                  Card entry is handled on Stripe&apos;s hosted payment page. Your app account
+                  never stores the full card details used for this purchase.
+                </p>
               </div>
 
-              <form onSubmit={handlePayment} className="px-6 pb-6 mt-4 space-y-6">
-                <div className="space-y-4">
-                  {/* Cardholder Name */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="cardholderName" className="text-sm font-medium text-gray-700">
-                      Cardholder Name
-                    </label>
-                    <input
-                      id="cardholderName"
-                      placeholder="Name on card"
-                      value={cardholderName}
-                      onChange={(e) => setCardholderName(e.target.value)}
-                      required
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1f4e79]"
-                    />
-                  </div>
-
-                  {/* Card Number */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="cardNumber" className="text-sm font-medium text-gray-700">
-                      Card Number
-                    </label>
-                    <div className="relative">
-                      <CreditCard
-                        size={18}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      />
-                      <input
-                        id="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        required
-                        className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1f4e79]"
-                      />
+              <div className="mt-4 space-y-6 px-6 pb-6">
+                <div className="rounded-xl border border-[#dbe4ef] bg-[#f7fafc] p-5">
+                  <div className="flex items-start gap-3">
+                    <CreditCard size={20} className="mt-0.5 text-[#1f4e79]" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">What happens next</h3>
+                      <p className="mt-1 text-sm text-gray-600">
+                        You&apos;ll be redirected to Stripe to complete the payment for this event.
+                        After Stripe confirms the payment, your registration will be recorded
+                        automatically in Smart Events.
+                      </p>
                     </div>
-                  </div>
-
-                  {/* Expiry + CVV */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label htmlFor="expiryDate" className="text-sm font-medium text-gray-700">
-                        Expiry Date
-                      </label>
-                      <input
-                        id="expiryDate"
-                        placeholder="MM/YY"
-                        value={expiryDate}
-                        onChange={(e) => setExpiryDate(e.target.value)}
-                        required
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1f4e79]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="cvv" className="text-sm font-medium text-gray-700">
-                        CVV
-                      </label>
-                      <input
-                        id="cvv"
-                        placeholder="123"
-                        type="password"
-                        maxLength={4}
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value)}
-                        required
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1f4e79]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Billing Postcode */}
-                  <div className="space-y-1.5">
-                    <label htmlFor="billingPostcode" className="text-sm font-medium text-gray-700">
-                      Billing Postcode
-                    </label>
-                    <input
-                      id="billingPostcode"
-                      placeholder="2000"
-                      value={billingPostcode}
-                      onChange={(e) => setBillingPostcode(e.target.value)}
-                      required
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1f4e79]"
-                    />
                   </div>
                 </div>
 
-                <hr className="border-gray-200" />
-
-                {/* Save preferences */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Toggle checked={rememberPreference} onChange={setRememberPreference} />
-                    <label className="text-sm font-medium text-gray-700 cursor-pointer">
-                      Save payment preferences
-                    </label>
+                {paymentError ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    {paymentError}
                   </div>
-                  {hasSavedPrefs && (
-                    <button
-                      type="button"
-                      onClick={handleClearPreferences}
-                      className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                      Clear Saved
-                    </button>
-                  )}
-                </div>
+                ) : null}
+
+                {isConfirming ? (
+                  <div className="rounded-xl border border-[#dbe4ef] bg-white p-4 text-sm text-gray-600">
+                    Confirming your Stripe payment and finalising the registration...
+                  </div>
+                ) : null}
 
                 <button
-                  type="submit"
-                  disabled={isProcessing}
-                  className="w-full flex items-center justify-center gap-2 bg-[#f36f21] text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-[#e05e10] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  type="button"
+                  onClick={handleStripeCheckout}
+                  disabled={isRedirecting || isConfirming}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#f36f21] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#e05e10] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isProcessing ? (
-                    "Processing..."
+                  {isRedirecting ? (
+                    "Redirecting to Stripe..."
                   ) : (
                     <>
-                      <Lock size={18} />
-                      Pay ${event.price.toFixed(2)}
+                      <ExternalLink size={18} />
+                      Pay ${event.price.toFixed(2)} with Stripe
                     </>
                   )}
                 </button>
-              </form>
+              </div>
             </div>
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-2">
-            <div className="rounded-xl shadow-lg bg-white sticky top-24">
-              <div className="px-6 pt-6 pb-2">
+            <div className="sticky top-24 rounded-xl bg-white shadow-lg">
+              <div className="px-6 pb-2 pt-6">
                 <h2 className="text-lg font-semibold text-gray-900">Order Summary</h2>
               </div>
-              <div className="px-6 pb-6 mt-2 space-y-4">
-                <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
-                  <img
-                    src={event.image}
-                    alt={event.title}
-                    className="w-full h-full object-cover"
-                  />
+              <div className="mt-2 space-y-4 px-6 pb-6">
+                <div className="aspect-video overflow-hidden rounded-lg bg-gray-100">
+                  <img src={event.image} alt={event.title} className="h-full w-full object-cover" />
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">{event.title}</h3>
+                  <h3 className="mb-2 font-semibold text-gray-900">{event.title}</h3>
                   <div className="space-y-2 text-sm text-gray-500">
                     <div className="flex items-center gap-2">
                       <Calendar size={14} className="text-[#f36f21]" />
@@ -499,14 +394,14 @@ const PaymentPage = () => {
 
                 <hr className="border-gray-200" />
 
-                <div className="flex justify-between font-semibold text-lg">
+                <div className="flex justify-between text-lg font-semibold">
                   <span className="text-gray-900">Total</span>
                   <span className="text-green-600">${event.price.toFixed(2)}</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Lock size={12} />
-                  <span>Secured by 256-bit SSL encryption</span>
+                  <span>Protected by Stripe Checkout and server-side registration confirmation</span>
                 </div>
               </div>
             </div>

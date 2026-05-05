@@ -2,6 +2,7 @@ const express = require('express');
 
 const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/indexController');
 const { login, signup } = require('../controllers/authController');
+const { getRecommendations } = require('../controllers/AiServiceController');
 const {
   approveAdminEventRecord,
   createOrganizerEventRecord,
@@ -14,7 +15,6 @@ const {
   listAdminGalleryImages,
   listEvents,
   getNextEvent,
-  getRecommendations,
   listOrganizerEvents,
   rejectAdminEventRecord,
   updateOrganizerEventRecord,
@@ -44,6 +44,16 @@ const {
   updateMyNotificationReadStatus,
   updateOrganizerNotificationReadStatus,
 } = require('../controllers/notificationController');
+const {
+  deleteMyPaymentPreference,
+  getMyPaymentPreference,
+  upsertMyPaymentPreference,
+} = require('../controllers/paymentPreferenceController');
+const {
+  confirmStripeCheckout,
+  createStripeCheckout,
+  listMyPayments,
+} = require('../controllers/paymentController');
 const { listOrganizerEmailLogs } = require('../controllers/emailLogController');
 const { subscribeToNewsletter } = require('../controllers/newsletterController');
 const {
@@ -123,6 +133,12 @@ router.post('/user-history/reports', requireRole(['admin', 'organizer']), create
 router.get('/organizer/notifications', requireRole('organizer'), listOrganizerNotifications);
 router.patch('/organizer/notifications/read-all', requireRole('organizer'), markAllOrganizerNotificationsRead);
 router.patch('/organizer/notifications/:notificationId/read', requireRole('organizer'), updateOrganizerNotificationReadStatus);
+router.post('/events/:eventId/stripe-checkout-session', requireRole('user'), createStripeCheckout);
+router.get('/payment-preferences/me', requireRole(['admin', 'organizer', 'user']), getMyPaymentPreference);
+router.put('/payment-preferences/me', requireRole(['admin', 'organizer', 'user']), upsertMyPaymentPreference);
+router.delete('/payment-preferences/me', requireRole(['admin', 'organizer', 'user']), deleteMyPaymentPreference);
+router.get('/payments/me', requireRole('user'), listMyPayments);
+router.post('/payments/stripe/confirm-session', requireRole('user'), confirmStripeCheckout);
 router.get('/notifications', requireRole(['admin', 'organizer', 'user']), listMyNotifications);
 router.patch('/notifications/read-all', requireRole(['admin', 'organizer', 'user']), markAllMyNotificationsRead);
 router.patch('/notifications/:notificationId/read', requireRole(['admin', 'organizer', 'user']), updateMyNotificationReadStatus);

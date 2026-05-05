@@ -12,8 +12,8 @@ const listUserHistoryRecords = (req, res) => {
   });
 };
 
-const createUserHistoryReportRecord = (req, res) => {
-  const result = createUserHistoryReport({
+const createUserHistoryReportRecord = async (req, res) => {
+  const result = await createUserHistoryReport({
     reporter: req.user,
     payload: req.body ?? {},
   });

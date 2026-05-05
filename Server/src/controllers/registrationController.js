@@ -1,12 +1,15 @@
 const {
+  createRegistrationRecord,
   exportOrganizerRegistrations,
   getOrganizerRegistrationDetails,
   getRegistrationCountForEvent,
   getUserEventRegistrationDetails,
+  validateRegistrationAvailability,
 } = require('../services/registrationService');
-const { events } = require('../data/events');
-const { registrations } = require('../data/registrations');
-const { registeredUsers } = require('../data/registeredUsers');
+const { events } = require('../store/events');
+const { registrations } = require('../store/registrations');
+const { registeredUsers } = require('../store/registeredUsers');
+const { persistCollection } = require('../store/mongoSync');
 const {
   createSessionToken,
   createUser,
@@ -78,68 +81,39 @@ const findManagedUserByEmail = (email) =>
 
 const getBookableEvents = () => events;
 
-const createEventRegistration = (req, res) => {
+const createEventRegistration = async (req, res) => {
   const user = req.user;
-  const event = getBookableEvents().find(
-    (item) => String(item.id) === String(req.params.eventId),
-  );
-
-  if (!event) {
-    return res.status(404).json({ message: 'Event not found' });
-  }
-
-  if (event.status !== 'approved') {
-    return res.status(400).json({
-      message: 'Only approved events can be booked',
-    });
-  }
-
-  const existingRegistration = registrations.find(
-    (registration) =>
-      String(registration.eventId) === String(event.id) &&
-      normalizeEmail(registration.userEmail) === normalizeEmail(user.email) &&
-      registration.attendanceStatus !== 'cancelled',
-  );
-
-  if (existingRegistration) {
-    return res.status(409).json({
-      message: 'You have already booked this event',
-      registration: existingRegistration,
-    });
-  }
-
-  const currentRegistrations = getRegistrationCountForEvent(event.id);
-  const capacity = Number(event.capacity || 0);
-
-  if (capacity > 0 && currentRegistrations >= capacity) {
-    return res.status(409).json({
-      message: 'This event is already at full capacity',
-    });
-  }
-
-  const registration = {
-    id: `reg-${event.id}-${Date.now()}`,
-    eventId: event.id,
-    userName: user.name,
+  const availability = validateRegistrationAvailability({
+    eventId: req.params.eventId,
     userEmail: user.email,
-    registrationDate: new Date().toISOString().slice(0, 10),
-    paymentStatus: event.isPaid ? 'unpaid' : 'paid',
-    attendanceStatus: 'registered',
-  };
+  });
 
-  if (!Array.isArray(event.attendees)) {
-    event.attendees = [];
+  if (availability.error) {
+    return res.status(availability.statusCode).json({
+      message: availability.error,
+      registration: availability.registration,
+    });
   }
 
-  event.attendees.push({
-    id: registration.id,
-    userName: registration.userName,
-    userEmail: registration.userEmail,
-    registrationDate: registration.registrationDate,
-    paymentStatus: registration.paymentStatus,
-    attendanceStatus: registration.attendanceStatus,
+  const event = availability.event;
+
+  if (event.isPaid && Number(event.price || 0) > 0) {
+    return res.status(402).json({
+      message: 'This is a paid event. Complete payment to confirm your registration.',
+      requiresPayment: true,
+      event: {
+        id: event.id,
+        title: event.title,
+        price: Number(event.price || 0),
+      },
+    });
+  }
+
+  const registration = await createRegistrationRecord({
+    event,
+    user,
+    paymentStatus: 'paid',
   });
-  registrations.push(registration);
   syncEventRegistrationCount(event.id);
 
   return res.status(201).json({
@@ -336,6 +310,9 @@ const updateUserRegistration = async (req, res) => {
   user.role = nextRole;
   user.status = nextStatus;
   user.updatedAt = new Date().toISOString();
+  await persistCollection('users');
+  await persistCollection('registrations');
+  await persistCollection('events');
 
   return res.status(200).json({
     message: 'User updated successfully',
@@ -343,7 +320,7 @@ const updateUserRegistration = async (req, res) => {
   });
 };
 
-const deleteUserRegistration = (req, res) => {
+const deleteUserRegistration = async (req, res) => {
   const email = normalizeEmail(req.params.email);
   const registeredUserIndex = registeredUsers.findIndex(
     (item) => normalizeEmail(item.email) === email,
@@ -355,6 +332,29 @@ const deleteUserRegistration = (req, res) => {
 
   if (normalizeEmail(req.user?.email || '') === email) {
     return res.status(400).json({ message: 'You cannot delete your own account' });
+  }
+
+  const user = registeredUsers[registeredUserIndex];
+
+  if (user.role === 'organizer') {
+    const linkedEvents = events.filter(
+      (event) =>
+        [event.organizerEmail, event.organizerId]
+          .filter(Boolean)
+          .some((value) => normalizeEmail(value) === email),
+    );
+
+    if (linkedEvents.length > 0) {
+      return res.status(409).json({
+        message: 'Delete the organizer\'s related events first',
+        linkedEvents: linkedEvents.map((event) => ({
+          id: event.id,
+          title: event.title,
+          date: event.date,
+          status: event.status,
+        })),
+      });
+    }
   }
 
   registeredUsers.splice(registeredUserIndex, 1);
@@ -374,6 +374,10 @@ const deleteUserRegistration = (req, res) => {
       syncEventRegistrationCount(eventId);
     }
   }
+
+  await persistCollection('users');
+  await persistCollection('registrations');
+  await persistCollection('events');
 
   return res.status(200).json({
     message: 'User deleted successfully',

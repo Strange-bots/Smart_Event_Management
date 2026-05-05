@@ -1,9 +1,10 @@
-const { emailLogs } = require('../data/emailLogs');
-const { messages } = require('../data/messages');
-const { notifications } = require('../data/notifications');
-const { registeredUsers } = require('../data/registeredUsers');
-const { events } = require('../data/events');
-const { registrations } = require('../data/registrations');
+const { emailLogs } = require('../store/emailLogs');
+const { messages } = require('../store/messages');
+const { notifications } = require('../store/notifications');
+const { registeredUsers } = require('../store/registeredUsers');
+const { events } = require('../store/events');
+const { registrations } = require('../store/registrations');
+const { persistCollection } = require('../store/mongoSync');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
@@ -229,7 +230,7 @@ const listAdminMessageLogs = (adminEmail) => {
   };
 };
 
-const sendAdminMessage = ({ adminEmail, recipientGroup, subject, body }) => {
+const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) => {
   const admin = findUserByEmail(adminEmail);
 
   if (!admin) {
@@ -311,6 +312,9 @@ const sendAdminMessage = ({ adminEmail, recipientGroup, subject, body }) => {
       relatedEntityId: null,
     });
   });
+  await persistCollection('emailLogs');
+  await persistCollection('messages');
+  await persistCollection('notifications');
 
   return {
     statusCode: 201,
@@ -412,7 +416,7 @@ const createDirectMessageLog = ({
   return log;
 };
 
-const sendDirectMessage = ({
+const sendDirectMessage = async ({
   senderEmail,
   recipientEmail,
   subject,
@@ -543,6 +547,9 @@ const sendDirectMessage = ({
     relatedEntityType: relatedEvent ? 'event' : 'direct',
     relatedEntityId: relatedEvent?.id ?? null,
   });
+  await persistCollection('emailLogs');
+  await persistCollection('messages');
+  await persistCollection('notifications');
 
   return {
     statusCode: 201,
@@ -579,7 +586,7 @@ const listOrganizerMessageLogs = (organizerEmail) => {
   };
 };
 
-const sendOrganizerMessage = ({ organizerEmail, eventId, audience, subject, body }) => {
+const sendOrganizerMessage = async ({ organizerEmail, eventId, audience, subject, body }) => {
   const organizer = findUserByEmail(organizerEmail);
 
   if (!organizer) {
@@ -671,6 +678,9 @@ const sendOrganizerMessage = ({ organizerEmail, eventId, audience, subject, body
       relatedEntityId: event.id,
     });
   });
+  await persistCollection('emailLogs');
+  await persistCollection('messages');
+  await persistCollection('notifications');
 
   return {
     statusCode: 201,

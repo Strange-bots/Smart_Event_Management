@@ -2,9 +2,9 @@ const {
   createNewsletterSubscription,
 } = require('../services/newsletterService');
 
-const subscribeToNewsletter = (req, res) => {
+const subscribeToNewsletter = async (req, res) => {
   const { email } = req.body ?? {};
-  const result = createNewsletterSubscription(email);
+  const result = await createNewsletterSubscription(email);
 
   if (result.error) {
     return res.status(result.statusCode).json({

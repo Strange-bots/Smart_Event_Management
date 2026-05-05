@@ -44,8 +44,8 @@ const listMyNotifications = (req, res) => {
   });
 };
 
-const updateMyNotificationReadStatus = (req, res) => {
-  const result = markNotificationAsRead(
+const updateMyNotificationReadStatus = async (req, res) => {
+  const result = await markNotificationAsRead(
     req.user?.email,
     req.params.notificationId,
   );
@@ -63,8 +63,8 @@ const updateMyNotificationReadStatus = (req, res) => {
   });
 };
 
-const markAllMyNotificationsRead = (req, res) => {
-  const result = markAllNotificationsAsRead(req.user?.email);
+const markAllMyNotificationsRead = async (req, res) => {
+  const result = await markAllNotificationsAsRead(req.user?.email);
 
   if (result.error) {
     return res.status(result.statusCode).json({
@@ -79,7 +79,7 @@ const markAllMyNotificationsRead = (req, res) => {
   });
 };
 
-const updateOrganizerNotificationReadStatus = (req, res) => {
+const updateOrganizerNotificationReadStatus = async (req, res) => {
   const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
@@ -88,7 +88,7 @@ const updateOrganizerNotificationReadStatus = (req, res) => {
     });
   }
 
-  const result = markNotificationAsRead(
+  const result = await markNotificationAsRead(
     organizerEmail,
     req.params.notificationId,
     'organizer',
@@ -107,7 +107,7 @@ const updateOrganizerNotificationReadStatus = (req, res) => {
   });
 };
 
-const markAllOrganizerNotificationsRead = (req, res) => {
+const markAllOrganizerNotificationsRead = async (req, res) => {
   const organizerEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!organizerEmail) {
@@ -116,7 +116,7 @@ const markAllOrganizerNotificationsRead = (req, res) => {
     });
   }
 
-  const result = markAllNotificationsAsRead(organizerEmail, 'organizer');
+  const result = await markAllNotificationsAsRead(organizerEmail, 'organizer');
 
   if (result.error) {
     return res.status(result.statusCode).json({

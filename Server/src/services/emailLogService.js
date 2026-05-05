@@ -1,4 +1,4 @@
-const { emailLogs } = require('../data/emailLogs');
+const { emailLogs } = require('../store/emailLogs');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const formatDateTime = (dateString) => {

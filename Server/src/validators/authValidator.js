@@ -159,11 +159,24 @@ const validateChangePasswordPayload = ({
   return null;
 };
 
+const validateProfileUpdatePayload = ({ name, phone }) => {
+  if (!name?.trim()) {
+    return 'Name is required';
+  }
+
+  if (phone && !/^[0-9+\s()-]{6,20}$/.test(phone.trim())) {
+    return 'Please enter a valid mobile number';
+  }
+
+  return null;
+};
+
 module.exports = {
   sanitizeSignupRequest,
   validateChangePasswordPayload,
   validateLoginPayload,
   validatePasswordStrength,
+  validateProfileUpdatePayload,
   validateSecureSignupPayload,
   validateSignupPayload,
 };

@@ -1,6 +1,6 @@
-const { registeredUsers } = require('../data/registeredUsers');
-const { events } = require('../data/events');
-const { registrations } = require('../data/registrations');
+const { registeredUsers } = require('../store/registeredUsers');
+const { events } = require('../store/events');
+const { registrations } = require('../store/registrations');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 const { getRegistrationCountForEvent } = require('./registrationService');
 

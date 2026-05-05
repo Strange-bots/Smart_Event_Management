@@ -6,6 +6,7 @@ const {
   connectDatabase,
   markDatabaseUnavailable,
 } = require('./src/config/database');
+const { hydrateMongoBackedData } = require('./src/store/mongoSync');
 
 const PORT = process.env.PORT || 5001;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -18,16 +19,20 @@ const startServer = async () => {
     process.exit(1);
   });
 
-  server.listen(PORT, HOST, async () => {
-    console.log(`Server is running on http://${HOST}:${PORT}`);
+  try {
+    await connectDatabase();
+    await hydrateMongoBackedData();
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    markDatabaseUnavailable();
+    console.error(
+      'MongoDB is unavailable. Falling back to local seed data:',
+      error.message,
+    );
+  }
 
-    try {
-      await connectDatabase();
-      console.log('MongoDB connected successfully');
-    } catch (error) {
-      markDatabaseUnavailable();
-      console.error('MongoDB is unavailable. Auth/contact persistence is temporarily disabled:', error.message);
-    }
+  server.listen(PORT, HOST, () => {
+    console.log(`Server is running on http://${HOST}:${PORT}`);
   });
 };
 

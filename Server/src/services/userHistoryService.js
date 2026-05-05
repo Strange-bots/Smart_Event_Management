@@ -1,6 +1,7 @@
-const { registrations } = require('../data/registrations');
-const { registeredUsers } = require('../data/registeredUsers');
-const { userHistoryReports } = require('../data/userHistory');
+const { registrations } = require('../store/registrations');
+const { registeredUsers } = require('../store/registeredUsers');
+const { userHistoryReports } = require('../store/userHistory');
+const { persistCollection } = require('../store/mongoSync');
 const { findUserByEmail, sanitizeUser } = require('./authService');
 
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
@@ -104,7 +105,7 @@ const listUserHistory = ({ riskLevel } = {}) => {
   };
 };
 
-const createUserHistoryReport = ({ reporter, payload = {} }) => {
+const createUserHistoryReport = async ({ reporter, payload = {} }) => {
   const userEmail = normalizeEmail(payload.userEmail);
   const user = findReportableUser(userEmail);
 
@@ -158,6 +159,7 @@ const createUserHistoryReport = ({ reporter, payload = {} }) => {
   };
 
   userHistoryReports.unshift(report);
+  await persistCollection('userHistoryReports');
 
   return {
     statusCode: 201,

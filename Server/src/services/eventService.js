@@ -1,7 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const { events } = require('../data/events');
+const { events } = require('../store/events');
+const { notifications } = require('../store/notifications');
+const { paymentTransactions } = require('../store/paymentTransactions');
+const { registrations } = require('../store/registrations');
+const { persistCollection } = require('../store/mongoSync');
 const { findUserByEmail } = require('./authService');
 const { getRegistrationCountForEvent } = require('./registrationService');
 
@@ -54,6 +58,73 @@ const eventBelongsToOrganizer = (event, organizerEmail) => {
   return [event.organizerEmail, event.organizerId]
     .filter(Boolean)
     .some((value) => String(value).toLowerCase() === normalizedOrganizer);
+};
+
+const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
+
+const createRefundNotification = ({
+  event,
+  registration,
+  transaction,
+  deletedBy,
+  deletedByEmail,
+}) => {
+  const amount = Number(transaction?.amount || event.price || 0);
+  const refundMessage = amount > 0
+    ? `The paid event '${event.title}' was cancelled. A refund of AUD ${amount.toFixed(2)} will be processed for your registration.`
+    : `The paid event '${event.title}' was cancelled. Your payment will be refunded.`;
+
+  notifications.unshift({
+    id: `notif-refund-${event.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    userEmail: registration.userEmail,
+    role: 'user',
+    type: 'refund',
+    title: 'Refund In Progress',
+    message: refundMessage,
+    body: refundMessage,
+    isRead: false,
+    createdAt: new Date().toISOString(),
+    from: deletedBy,
+    fromEmail: deletedByEmail,
+    relatedEntityType: 'event',
+    relatedEntityId: event.id,
+  });
+};
+
+const cleanupDeletedEvent = async ({ event, deletedBy, deletedByEmail }) => {
+  for (let index = registrations.length - 1; index >= 0; index -= 1) {
+    const registration = registrations[index];
+
+    if (String(registration.eventId) !== String(event.id)) {
+      continue;
+    }
+
+    const transaction = paymentTransactions.find(
+      (item) =>
+        String(item.eventId) === String(event.id) &&
+        normalizeEmail(item.userEmail) === normalizeEmail(registration.userEmail) &&
+        item.paymentStatus === 'paid',
+    );
+
+    if (transaction) {
+      transaction.paymentStatus = 'refund_pending';
+      transaction.refundRequestedAt = new Date().toISOString();
+
+      createRefundNotification({
+        event,
+        registration,
+        transaction,
+        deletedBy,
+        deletedByEmail,
+      });
+    }
+
+    registrations.splice(index, 1);
+  }
+
+  await persistCollection('registrations');
+  await persistCollection('paymentTransactions');
+  await persistCollection('notifications');
 };
 
 const getNextUpcomingEvent = () => {
@@ -185,7 +256,7 @@ const extractImagePayload = (imageData) => {
   };
 };
 
-const uploadAdminEventImage = ({ adminEmail, eventId, imageData }) => {
+const uploadAdminEventImage = async ({ adminEmail, eventId, imageData }) => {
   const adminUser = findUserByEmail(adminEmail);
 
   if (!adminUser) {
@@ -253,6 +324,8 @@ const uploadAdminEventImage = ({ adminEmail, eventId, imageData }) => {
 
   const imageUrl = `/uploads/events/${fileName}`;
   event.image = imageUrl;
+  event.updatedAt = new Date().toISOString();
+  await persistCollection('events');
 
   return {
     statusCode: 200,
@@ -323,7 +396,7 @@ const getAdminGalleryImages = () =>
 const getAdminManagedEvent = (eventId) =>
   events.find((event) => String(event.id) === String(eventId));
 
-const updateAdminEventStatus = ({ eventId, status }) => {
+const updateAdminEventStatus = async ({ eventId, status }) => {
   const event = getAdminManagedEvent(eventId);
 
   if (!event) {
@@ -335,6 +408,7 @@ const updateAdminEventStatus = ({ eventId, status }) => {
 
   event.status = status;
   event.updatedAt = new Date().toISOString();
+  await persistCollection('events');
 
   return {
     statusCode: 200,
@@ -342,7 +416,7 @@ const updateAdminEventStatus = ({ eventId, status }) => {
   };
 };
 
-const createOrganizerEvent = ({ organizer, payload }) => {
+const createOrganizerEvent = async ({ organizer, payload }) => {
   const normalizedEvent = normalizeOrganizerEventPayload(payload);
   const validationError = validateOrganizerEventPayload(normalizedEvent);
 
@@ -367,6 +441,7 @@ const createOrganizerEvent = ({ organizer, payload }) => {
   };
 
   events.unshift(event);
+  await persistCollection('events');
 
   return {
     statusCode: 201,
@@ -379,7 +454,7 @@ const getOrganizerOwnedEvent = ({ organizerEmail, eventId }) =>
     (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizerEmail),
   );
 
-const updateOrganizerEvent = ({ organizerEmail, eventId, payload }) => {
+const updateOrganizerEvent = async ({ organizerEmail, eventId, payload }) => {
   const event = getOrganizerOwnedEvent({ organizerEmail, eventId });
 
   if (!event) {
@@ -407,6 +482,7 @@ const updateOrganizerEvent = ({ organizerEmail, eventId, payload }) => {
     status: 'pending',
     updatedAt: new Date().toISOString(),
   });
+  await persistCollection('events');
 
   return {
     statusCode: 200,
@@ -414,7 +490,7 @@ const updateOrganizerEvent = ({ organizerEmail, eventId, payload }) => {
   };
 };
 
-const duplicateOrganizerEvent = ({ organizer, eventId }) => {
+const duplicateOrganizerEvent = async ({ organizer, eventId }) => {
   const event = getOrganizerOwnedEvent({ organizerEmail: organizer.email, eventId });
 
   if (!event) {
@@ -434,7 +510,7 @@ const duplicateOrganizerEvent = ({ organizer, eventId }) => {
   });
 };
 
-const deleteOrganizerEvent = ({ organizerEmail, eventId }) => {
+const deleteOrganizerEvent = async ({ organizerEmail, eventId }) => {
   const eventIndex = events.findIndex(
     (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizerEmail),
   );
@@ -446,14 +522,20 @@ const deleteOrganizerEvent = ({ organizerEmail, eventId }) => {
     };
   }
 
-  events.splice(eventIndex, 1);
+  const [event] = events.splice(eventIndex, 1);
+  await cleanupDeletedEvent({
+    event,
+    deletedBy: 'Organizer Team',
+    deletedByEmail: organizerEmail,
+  });
+  await persistCollection('events');
 
   return {
     statusCode: 200,
   };
 };
 
-const deleteAdminEvent = (eventId) => {
+const deleteAdminEvent = async (eventId) => {
   const eventIndex = events.findIndex((event) => String(event.id) === String(eventId));
 
   if (eventIndex === -1) {
@@ -463,14 +545,20 @@ const deleteAdminEvent = (eventId) => {
     };
   }
 
-  events.splice(eventIndex, 1);
+  const [event] = events.splice(eventIndex, 1);
+  await cleanupDeletedEvent({
+    event,
+    deletedBy: 'Admin Team',
+    deletedByEmail: 'admin@smartevents.local',
+  });
+  await persistCollection('events');
 
   return {
     statusCode: 200,
   };
 };
 
-const deleteAdminEventImage = (eventId) => {
+const deleteAdminEventImage = async (eventId) => {
   const event = getAdminManagedEvent(eventId);
 
   if (!event) {
@@ -483,6 +571,7 @@ const deleteAdminEventImage = (eventId) => {
   event.image = '';
   event.imagePreview = '';
   event.updatedAt = new Date().toISOString();
+  await persistCollection('events');
 
   return {
     statusCode: 200,

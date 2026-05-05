@@ -1,3 +1,5 @@
+import { getCurrentUser } from "../utils/auth";
+
 const getApiBaseUrl = () => import.meta.env.VITE_API_URL ?? "";
 
 export async function fetchHeroImage() {
@@ -61,7 +63,14 @@ export async function fetchFeaturedEvents() {
 }
 
 export async function fetchRecommendedEvents() {
-  const response = await fetch(`${getApiBaseUrl()}/api/events/recommendations`);
+  const currentUser = getCurrentUser();
+  const response = await fetch(`${getApiBaseUrl()}/api/events/recommendations`, {
+    headers: currentUser?.token
+      ? {
+          Authorization: `Bearer ${currentUser.token}`,
+        }
+      : undefined,
+  });
 
   if (!response.ok) {
     throw new Error(
@@ -71,5 +80,8 @@ export async function fetchRecommendedEvents() {
 
   const data = await response.json();
 
-  return data?.recommendations ?? [];
+  return {
+    recommendations: data?.recommendations ?? [],
+    source: data?.source ?? "fallback",
+  };
 }

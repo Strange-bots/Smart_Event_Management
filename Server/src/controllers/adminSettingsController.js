@@ -28,7 +28,7 @@ const getSettings = (req, res) => {
   });
 };
 
-const updateSettings = (req, res) => {
+const updateSettings = async (req, res) => {
   const adminEmail = req.user?.email || req.headers['x-user-email'];
 
   if (!adminEmail) {
@@ -37,7 +37,7 @@ const updateSettings = (req, res) => {
     });
   }
 
-  const result = saveAdminSettings(adminEmail, req.body);
+  const result = await saveAdminSettings(adminEmail, req.body);
 
   if (result.error) {
     return res.status(result.statusCode).json({

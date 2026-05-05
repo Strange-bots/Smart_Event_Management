@@ -1,7 +1,8 @@
-const { registeredUsers } = require('../data/registeredUsers');
+const { registeredUsers } = require('../store/registeredUsers');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
+const { persistCollection } = require('../store/mongoSync');
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
 const SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000;
@@ -281,15 +282,37 @@ const createUser = async ({ name, email, password, role = 'user', status = 'acti
   const newUser = {
     id: `user-${Date.now()}`,
     name: name.trim(),
+    firstName: name.trim().split(' ')[0],
+    lastName: name.trim().split(' ').slice(1).join(' '),
     email: normalizeEmail(email),
     password: await bcrypt.hash(password, PASSWORD_SALT_ROUNDS),
     role,
     status,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    lastLoginAt: null,
     avatar: null,
+    phone: null,
+    studentId: null,
+    course: null,
+    campus: null,
+    yearLevel: null,
+    department: null,
+    position: null,
+    dateOfBirth: null,
+    address: null,
+    bio: null,
+    emergencyContact: null,
+    interests: [],
+    preferences: {
+      notifications: true,
+      emailDigest: false,
+      preferredEventCategories: [],
+    },
   };
 
   registeredUsers.push(newUser);
+  await persistCollection('users');
 
   return sanitizeUser(newUser);
 };
@@ -305,8 +328,37 @@ const updateUserPassword = async ({ email, newPassword }) => {
   }
 
   user.password = await bcrypt.hash(newPassword, PASSWORD_SALT_ROUNDS);
+  await persistCollection('users');
 
   return sanitizeUser(user);
+};
+
+const updateUserProfile = async ({ currentEmail, name, phone }) => {
+  const normalizedCurrentEmail = normalizeEmail(currentEmail);
+  const trimmedName = String(name || '').trim();
+  const trimmedPhone = phone ? String(phone).trim() : '';
+  const user = registeredUsers.find(
+    (item) => item.email.toLowerCase() === normalizedCurrentEmail,
+  );
+
+  if (!user) {
+    return {
+      error: 'User account not found',
+      statusCode: 404,
+    };
+  }
+
+  user.name = trimmedName;
+  user.firstName = trimmedName.split(/\s+/)[0] || '';
+  user.lastName = trimmedName.split(/\s+/).slice(1).join(' ');
+  user.phone = trimmedPhone;
+  user.updatedAt = new Date().toISOString();
+  await persistCollection('users');
+
+  return {
+    statusCode: 200,
+    user: (({ password, ...profile }) => profile)(user),
+  };
 };
 
 module.exports = {
@@ -315,6 +367,7 @@ module.exports = {
   findUserByCredentials,
   findUserByEmail,
   sanitizeUser,
+  updateUserProfile,
   updateUserPassword,
   verifySessionToken,
   generateOTP,

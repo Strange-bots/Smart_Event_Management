@@ -1,9 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-
+const adminSettings = require('../store/adminSettings.json');
+const { persistCollection } = require('../store/mongoSync');
 const { findUserByEmail, sanitizeUser } = require('./authService');
-
-const settingsFilePath = path.resolve(__dirname, '../data/adminSettings.json');
 
 const DEFAULT_SETTINGS = {
   organization: {
@@ -107,19 +104,7 @@ const mergeSettings = (parsedSettings = {}) => ({
   appearance: { ...DEFAULT_SETTINGS.appearance, ...parsedSettings.appearance },
 });
 
-const readSettingsFromDisk = () => {
-  try {
-    const rawData = fs.readFileSync(settingsFilePath, 'utf8');
-    return mergeSettings(JSON.parse(rawData));
-  } catch (error) {
-    fs.writeFileSync(settingsFilePath, JSON.stringify(DEFAULT_SETTINGS, null, 2));
-    return mergeSettings();
-  }
-};
-
-const writeSettingsToDisk = (settings) => {
-  fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
-};
+const readSettingsFromStore = () => mergeSettings(adminSettings);
 
 const getAdminUser = (adminEmail) => {
   const adminUser = findUserByEmail(adminEmail);
@@ -153,12 +138,12 @@ const getAdminSettings = (adminEmail) => {
   return {
     statusCode: 200,
     admin: adminResult.admin,
-    settings: readSettingsFromDisk(),
+    settings: readSettingsFromStore(),
   };
 };
 
 const getPublicBrandingSettings = () => {
-  const settings = readSettingsFromDisk();
+  const settings = readSettingsFromStore();
 
   return {
     statusCode: 200,
@@ -244,7 +229,7 @@ const validateSettingsPayload = (payload) => {
   return null;
 };
 
-const saveAdminSettings = (adminEmail, nextSettings) => {
+const saveAdminSettings = async (adminEmail, nextSettings) => {
   const adminResult = getAdminUser(adminEmail);
 
   if (adminResult.error) {
@@ -260,7 +245,7 @@ const saveAdminSettings = (adminEmail, nextSettings) => {
     };
   }
 
-  const currentSettings = readSettingsFromDisk();
+  const currentSettings = readSettingsFromStore();
   const mergedSettings = mergeSettings({
     ...currentSettings,
     ...nextSettings,
@@ -275,7 +260,11 @@ const saveAdminSettings = (adminEmail, nextSettings) => {
     appearance: { ...currentSettings.appearance, ...nextSettings.appearance },
   });
 
-  writeSettingsToDisk(mergedSettings);
+  Object.keys(adminSettings).forEach((key) => {
+    delete adminSettings[key];
+  });
+  Object.assign(adminSettings, mergedSettings);
+  await persistCollection('adminSettings');
 
   return {
     statusCode: 200,
@@ -287,6 +276,6 @@ const saveAdminSettings = (adminEmail, nextSettings) => {
 module.exports = {
   getAdminSettings,
   getPublicBrandingSettings,
-  readSettingsFromDisk,
+  readSettingsFromStore,
   saveAdminSettings,
 };

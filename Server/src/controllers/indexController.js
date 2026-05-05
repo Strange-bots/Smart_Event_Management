@@ -1,9 +1,4 @@
-const statsDataPath = require.resolve('../data/stats');
-
-const loadStats = () => {
-  delete require.cache[statsDataPath];
-  return require('../data/stats').stats;
-};
+const { stats } = require('../store/stats');
 
 const getApiStatus = (req, res) => {
   res.send('Hello World');
@@ -11,8 +6,6 @@ const getApiStatus = (req, res) => {
 
 const getEventStats = (req, res) => {
   try {
-    const stats = loadStats();
-
     res.set('Cache-Control', 'no-store');
     res.status(200).json({
       success: true,

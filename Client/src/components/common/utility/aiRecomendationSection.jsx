@@ -9,6 +9,7 @@ const fallbackRecommendations = [
     category: "Tech",
     match: 95,
     attendees: 120,
+    recommendationReason: "Popular with students interested in AI and applied technology.",
     image:
       "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80",
   },
@@ -19,6 +20,7 @@ const fallbackRecommendations = [
     category: "Academic",
     match: 88,
     attendees: 80,
+    recommendationReason: "Strong fit for learners seeking hands-on analytics and technical practice.",
     image:
       "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80",
   },
@@ -29,6 +31,7 @@ const fallbackRecommendations = [
     category: "Tech",
     match: 82,
     attendees: 200,
+    recommendationReason: "Good match for students who enjoy fast-paced collaborative problem solving.",
     image:
       "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&q=80",
   },
@@ -70,13 +73,15 @@ function AIRecommendationSection() {
   const [recommendations, setRecommendations] = useState(fallbackRecommendations);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [recommendationSource, setRecommendationSource] = useState("fallback");
 
   useEffect(() => {
     let isMounted = true;
 
     const loadRecommendations = async () => {
       try {
-        const liveRecommendations = await fetchRecommendedEvents();
+        const result = await fetchRecommendedEvents();
+        const liveRecommendations = result?.recommendations ?? [];
 
         if (!isMounted || !liveRecommendations.length) {
           return;
@@ -90,9 +95,13 @@ function AIRecommendationSection() {
             category: event.category,
             match: event.match,
             attendees: event.attendees,
+            recommendationReason:
+              event.recommendationReason ||
+              "Recommended from upcoming events that best match your profile.",
             image: event.image,
           }))
         );
+        setRecommendationSource(result?.source || "fallback");
         setErrorMessage("");
       } catch {
         if (!isMounted) {
@@ -100,6 +109,7 @@ function AIRecommendationSection() {
         }
 
         setRecommendations(fallbackRecommendations);
+        setRecommendationSource("fallback");
         setErrorMessage(
           "Unable to load live recommendations. Showing default suggestions."
         );
@@ -119,10 +129,6 @@ function AIRecommendationSection() {
 
   const handleJoinNow = (eventId) => {
     window.location.assign(`/event/${eventId}/register`);
-  };
-
-  const handleViewAll = () => {
-    window.location.assign("/recommendations");
   };
 
   return (
@@ -153,6 +159,13 @@ function AIRecommendationSection() {
             Our AI analyzes your interests and activity to suggest the perfect
             events for you
           </p>
+          {!isLoading ? (
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#6d5df6]">
+              {recommendationSource === "openai"
+                ? "Powered by OpenAI using live server event data"
+                : "Showing server fallback recommendations"}
+            </p>
+          ) : null}
           {isLoading ? (
             <p className="mt-4 text-sm font-medium text-[#6d5df6]">
               Loading recommendations...
@@ -212,6 +225,10 @@ function AIRecommendationSection() {
                     {event.title}
                   </h3>
 
+                  <p className="mb-3 min-h-[48px] text-sm leading-6 text-[#5b6c84]">
+                    {event.recommendationReason}
+                  </p>
+
                   <div className="mb-4 flex items-center gap-4 text-sm text-[#6b7c93]">
                     <span className="flex items-center gap-1">
                       <span className="text-[#6d5df6]">📅</span>
@@ -235,17 +252,6 @@ function AIRecommendationSection() {
           ))}
         </div>
 
-        <AnimatedSection className="mt-8 text-center">
-          <button
-            onClick={handleViewAll}
-            className="group inline-flex items-center font-medium text-[#6d5df6] transition-colors hover:text-[#5b4be8]"
-          >
-            View All Recommendations
-            <span className="ml-2 transition-transform group-hover:translate-x-1">
-              →
-            </span>
-          </button>
-        </AnimatedSection>
       </div>
     </section>
   );

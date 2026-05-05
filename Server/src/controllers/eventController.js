@@ -10,7 +10,6 @@ const {
   getFeaturedEvents,
   getNextUpcomingEvent,
   getOrganizerEvents,
-  getRecommendedEvents,
   getAllApprovedEvents,
   updateAdminEventStatus,
   updateOrganizerEvent,
@@ -34,18 +33,6 @@ const getNextEvent = (req, res) => {
   }
 
   return res.json({ event });
-};
-
-const getRecommendations = (req, res) => {
-  const recommendations = getRecommendedEvents();
-
-  if (!recommendations.length) {
-    return res.status(404).json({
-      message: 'No recommended events available',
-    });
-  }
-
-  return res.json({ recommendations });
 };
 
 const getFeaturedEventsList = (req, res) => {
@@ -84,8 +71,8 @@ const listAdminGalleryImages = (req, res) => {
   });
 };
 
-const approveAdminEventRecord = (req, res) => {
-  const result = updateAdminEventStatus({
+const approveAdminEventRecord = async (req, res) => {
+  const result = await updateAdminEventStatus({
     eventId: req.params.eventId,
     status: 'approved',
   });
@@ -100,8 +87,8 @@ const approveAdminEventRecord = (req, res) => {
   });
 };
 
-const rejectAdminEventRecord = (req, res) => {
-  const result = updateAdminEventStatus({
+const rejectAdminEventRecord = async (req, res) => {
+  const result = await updateAdminEventStatus({
     eventId: req.params.eventId,
     status: 'rejected',
   });
@@ -116,8 +103,8 @@ const rejectAdminEventRecord = (req, res) => {
   });
 };
 
-const deleteAdminEventRecord = (req, res) => {
-  const result = deleteAdminEvent(req.params.eventId);
+const deleteAdminEventRecord = async (req, res) => {
+  const result = await deleteAdminEvent(req.params.eventId);
 
   if (result.error) {
     return res.status(result.statusCode).json({ message: result.error });
@@ -128,8 +115,8 @@ const deleteAdminEventRecord = (req, res) => {
   });
 };
 
-const deleteAdminEventImageRecord = (req, res) => {
-  const result = deleteAdminEventImage(req.params.eventId);
+const deleteAdminEventImageRecord = async (req, res) => {
+  const result = await deleteAdminEventImage(req.params.eventId);
 
   if (result.error) {
     return res.status(result.statusCode).json({ message: result.error });
@@ -141,7 +128,7 @@ const deleteAdminEventImageRecord = (req, res) => {
   });
 };
 
-const uploadEventImage = (req, res) => {
+const uploadEventImage = async (req, res) => {
   const adminEmail = req.headers['x-user-email'];
 
   if (!adminEmail) {
@@ -150,7 +137,7 @@ const uploadEventImage = (req, res) => {
     });
   }
 
-  const result = uploadAdminEventImage({
+  const result = await uploadAdminEventImage({
     adminEmail,
     eventId: req.params.eventId,
     imageData: req.body?.imageData,
@@ -176,8 +163,8 @@ const listOrganizerEvents = (req, res) => {
   });
 };
 
-const createOrganizerEventRecord = (req, res) => {
-  const result = createOrganizerEvent({
+const createOrganizerEventRecord = async (req, res) => {
+  const result = await createOrganizerEvent({
     organizer: req.user,
     payload: req.body ?? {},
   });
@@ -192,8 +179,8 @@ const createOrganizerEventRecord = (req, res) => {
   });
 };
 
-const updateOrganizerEventRecord = (req, res) => {
-  const result = updateOrganizerEvent({
+const updateOrganizerEventRecord = async (req, res) => {
+  const result = await updateOrganizerEvent({
     organizerEmail: req.user.email,
     eventId: req.params.eventId,
     payload: req.body ?? {},
@@ -209,8 +196,8 @@ const updateOrganizerEventRecord = (req, res) => {
   });
 };
 
-const duplicateOrganizerEventRecord = (req, res) => {
-  const result = duplicateOrganizerEvent({
+const duplicateOrganizerEventRecord = async (req, res) => {
+  const result = await duplicateOrganizerEvent({
     organizer: req.user,
     eventId: req.params.eventId,
   });
@@ -225,8 +212,8 @@ const duplicateOrganizerEventRecord = (req, res) => {
   });
 };
 
-const deleteOrganizerEventRecord = (req, res) => {
-  const result = deleteOrganizerEvent({
+const deleteOrganizerEventRecord = async (req, res) => {
+  const result = await deleteOrganizerEvent({
     organizerEmail: req.user.email,
     eventId: req.params.eventId,
   });
@@ -252,7 +239,6 @@ module.exports = {
   listAdminEvents,
   listAdminGalleryImages,
   getNextEvent,
-  getRecommendations,
   getAllEvents,
   listOrganizerEvents,
   rejectAdminEventRecord,
