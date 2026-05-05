@@ -15,73 +15,12 @@ import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
 import { fetchOrganizerEvents } from "../../services/organizerEventService.js";
 import {
+  fetchOrganizerMailTemplates,
   fetchOrganizerMessageLogs,
   sendOrganizerMessage,
 } from "../../services/messagingService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
-
-function getOrganizerTemplates(event, tone) {
-  if (!event) {
-    return [];
-  }
-
-  const templates = {
-    formal: [
-      {
-        type: "Reminder",
-        subject: `Reminder: ${event.title} is approaching`,
-        body: `Dear Attendee,\n\nThis is a courteous reminder that "${event.title}" is scheduled for ${event.dateLabel || event.date} at ${event.time}.\n\nVenue: ${event.venue}\n\nPlease arrive 10 minutes early.\n\nBest regards,\nEvent Organizer`,
-      },
-      {
-        type: "Update",
-        subject: `Important Update: ${event.title}`,
-        body: `Dear Attendee,\n\nWe are writing to share an important update regarding "${event.title}".\n\n[Please add the update details here]\n\nThank you for your understanding.\n\nSincerely,\nEvent Organizer`,
-      },
-      {
-        type: "Thank You",
-        subject: `Thank You for Attending ${event.title}`,
-        body: `Dear Attendee,\n\nThank you for attending "${event.title}". We appreciate your participation and hope you found the session valuable.\n\nBest regards,\nEvent Organizer`,
-      },
-    ],
-    friendly: [
-      {
-        type: "Reminder",
-        subject: `Don't forget: ${event.title} is coming up!`,
-        body: `Hey there!\n\nJust a quick reminder that "${event.title}" is happening on ${event.dateLabel || event.date} at ${event.time}.\n\nWe’ll see you at ${event.venue}.\n\nCheers,\nThe Event Team`,
-      },
-      {
-        type: "Update",
-        subject: `Quick update about ${event.title}`,
-        body: `Hi!\n\nWe wanted to share a quick update about "${event.title}".\n\n[What's changed]\n\nThanks for your understanding.\n\nThe Event Team`,
-      },
-      {
-        type: "Recommended Events",
-        subject: `You might love these events too`,
-        body: `Hi!\n\nSince you're interested in "${event.title}", we thought you might enjoy some similar events coming up soon.\n\nSee you again soon!\n\nThe Event Team`,
-      },
-    ],
-    short: [
-      {
-        type: "Reminder",
-        subject: `Reminder: ${event.title} - ${event.dateLabel || event.date}`,
-        body: `Quick reminder:\n\n${event.title}\n${event.dateLabel || event.date} at ${event.time}\n${event.venue}\n\nSee you there!`,
-      },
-      {
-        type: "Update",
-        subject: `Update: ${event.title}`,
-        body: `Event update for ${event.title}:\n\n[Change details]\n\nQuestions? Reply to this email.`,
-      },
-      {
-        type: "Thank You",
-        subject: `Thanks for coming to ${event.title}`,
-        body: `Thanks for attending ${event.title}.\n\nWe'd love your feedback and hope to see you again soon.`,
-      },
-    ],
-  };
-
-  return templates[tone];
-}
 
 function getAudienceLabel(audience) {
   switch (audience) {
@@ -135,6 +74,7 @@ function OrganizerMessages() {
   const [notice, setNotice] = useState(null);
   const [events, setEvents] = useState([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+  const [templates, setTemplates] = useState([]);
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "organizer") {
@@ -215,11 +155,6 @@ function OrganizerMessages() {
     [selectedEvent, selectedAudience],
   );
 
-  const templates = useMemo(
-    () => getOrganizerTemplates(selectedEvent, selectedTone),
-    [selectedEvent, selectedTone],
-  );
-
   const filteredLogs = useMemo(
     () =>
       emailLogs.filter(
@@ -234,12 +169,54 @@ function OrganizerMessages() {
     return <Navigate to="/login" replace />;
   }
 
-  const handleRegenerate = () => {
-    const tones = ["formal", "friendly", "short"];
-    const currentIndex = tones.indexOf(selectedTone);
-    const nextTone = tones[(currentIndex + 1) % tones.length];
-    setSelectedTone(nextTone);
+  const loadTemplates = async ({ eventId, tone, audience }) => {
+    if (!eventId) {
+      setTemplates([]);
+      return;
+    }
+
+    const result = await fetchOrganizerMailTemplates({
+      eventId,
+      tone,
+      audience,
+    });
+
+    setTemplates(result.templates);
+
+    if (result.source !== "gemini" && result.reason) {
+      setNotice({
+        type: "success",
+        message: `Mail templates loaded with server fallback: ${result.reason}.`,
+      });
+    }
   };
+
+  const handleRegenerate = async () => {
+    await loadTemplates({
+      eventId: selectedEventId,
+      tone: selectedTone,
+      audience: selectedAudience,
+    });
+  };
+
+  useEffect(() => {
+    if (!selectedEventId) {
+      setTemplates([]);
+      return;
+    }
+
+    loadTemplates({
+      eventId: selectedEventId,
+      tone: selectedTone,
+      audience: selectedAudience,
+    }).catch((error) => {
+      setTemplates([]);
+      setNotice({
+        type: "error",
+        message: error.message || "Unable to load AI email templates.",
+      });
+    });
+  }, [selectedAudience, selectedEventId, selectedTone]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim() || !selectedEventId || !selectedAudience) {

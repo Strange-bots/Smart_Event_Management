@@ -34,6 +34,37 @@ export async function fetchEvents({ category, search } = {}) {
   return data?.events ?? [];
 }
 
+export async function fetchRecommendedUserEvents(limit = 3) {
+  const currentUser = getCurrentUser();
+  const params = new URLSearchParams();
+
+  if (limit) {
+    params.set("limit", String(limit));
+  }
+
+  const response = await fetch(
+    `${getApiBaseUrl()}/api/events/recommendations${params.toString() ? `?${params.toString()}` : ""}`,
+    {
+      headers: currentUser?.token
+        ? {
+            Authorization: `Bearer ${currentUser.token}`,
+          }
+        : undefined,
+    }
+  );
+  const data = await parseJsonResponse(
+    response,
+    `Recommended events request failed with status ${response.status}`
+  );
+
+  return {
+    recommendations: data?.recommendations ?? [],
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
+  };
+}
+
 export async function fetchEventById(eventId) {
   const events = await fetchEvents();
 

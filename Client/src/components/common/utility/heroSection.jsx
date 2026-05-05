@@ -5,6 +5,7 @@ import {
   fetchHeroImage,
   fetchNextEvent,
 } from "../../../services/homepageService.js";
+import { getCurrentUser } from "../../../utils/auth.js";
 
 const fallbackEvent = {
   title: "Next event coming soon",
@@ -38,6 +39,7 @@ const formatEventDate = (dateString) => {
 };
 
 function HeroSection() {
+  const currentUser = getCurrentUser();
   const [stats, setStats] = useState(fallbackStats);
   const [nextEvent, setNextEvent] = useState(fallbackEvent);
   const [heroImage, setHeroImage] = useState(fallbackEvent.image);
@@ -167,9 +169,20 @@ function HeroSection() {
               >
                 Browse Events
               </Link>
-              <button className="rounded-lg border border-white bg-transparent px-6 py-3 text-base font-semibold text-white transition duration-300 hover:bg-white/20">
+              <Link
+                to={
+                  !currentUser
+                    ? "/login"
+                    : currentUser.role === "organizer"
+                      ? "/organizer/organizerdashboard"
+                      : currentUser.role === "admin"
+                        ? "/admin/admindashboard"
+                        : "/user/dashboard"
+                }
+                className="rounded-lg border border-white bg-transparent px-6 py-3 text-base font-semibold text-white transition duration-300 hover:bg-white/20"
+              >
                 Create Event
-              </button>
+              </Link>
             </div>
 
             <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/20 pt-8">

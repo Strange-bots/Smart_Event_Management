@@ -162,7 +162,9 @@ function AIRecommendationSection() {
           {!isLoading ? (
             <p className="mt-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#6d5df6]">
               {recommendationSource === "openai"
-                ? "Powered by OpenAI using live server event data"
+                ? "Powered by Gemini using live server event data"
+                : recommendationSource === "gemini"
+                  ? "Powered by Gemini using live server event data"
                 : "Showing server fallback recommendations"}
             </p>
           ) : null}

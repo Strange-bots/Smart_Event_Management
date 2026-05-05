@@ -4,6 +4,11 @@ const { getApiStatus, getEventStats, getHeroImage } = require('../controllers/in
 const { login, signup } = require('../controllers/authController');
 const { getRecommendations } = require('../controllers/AiServiceController');
 const {
+  generateOrganizerEventDescription,
+  suggestOrganizerEventTags,
+  suggestOrganizerEventTimes,
+} = require('../controllers/organizerAiController');
+const {
   approveAdminEventRecord,
   createOrganizerEventRecord,
   deleteAdminEventRecord,
@@ -65,6 +70,13 @@ const {
   listMySentMessages,
   listOrganizerMessages,
 } = require('../controllers/messagingController');
+const {
+  getAdminMailTemplates,
+  getOrganizerMailTemplates,
+} = require('../controllers/mailAiController');
+const {
+  listAdminEventReviewRecommendations,
+} = require('../controllers/adminEventAiController');
 const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
 const {
   createUserHistoryReportRecord,
@@ -97,6 +109,7 @@ router.get('/events/next', getNextEvent);
 router.get('/events/featured', getFeaturedEventsList);
 router.get('/events/recommendations', getRecommendations);
 router.get('/admin/events', requireRole('admin'), listAdminEvents);
+router.get('/admin/events/ai-recommendations', requireRole('admin'), listAdminEventReviewRecommendations);
 router.get('/admin/gallery', requireRole('admin'), listAdminGalleryImages);
 router.patch('/admin/events/:eventId/approve', requireRole('admin'), approveAdminEventRecord);
 router.patch('/admin/events/:eventId/reject', requireRole('admin'), rejectAdminEventRecord);
@@ -106,6 +119,9 @@ router.post('/events/:eventId/registrations', requireRole('user'), createEventRe
 router.get('/users/events', requireRole('user'), listCurrentUserEventRegistrations);
 router.get('/organizer/events', requireRole('organizer'), listOrganizerEvents);
 router.post('/organizer/events', requireRole('organizer'), createOrganizerEventRecord);
+router.post('/organizer/events/ai/description', requireRole('organizer'), generateOrganizerEventDescription);
+router.post('/organizer/events/ai/tags', requireRole('organizer'), suggestOrganizerEventTags);
+router.post('/organizer/events/ai/time-suggestions', requireRole('organizer'), suggestOrganizerEventTimes);
 router.put('/organizer/events/:eventId', requireRole('organizer'), updateOrganizerEventRecord);
 router.post('/organizer/events/:eventId/duplicate', requireRole('organizer'), duplicateOrganizerEventRecord);
 router.delete('/organizer/events/:eventId', requireRole('organizer'), deleteOrganizerEventRecord);
@@ -113,6 +129,7 @@ router.post('/admin/events/:eventId/image', requireRole('admin'), uploadEventIma
 router.get('/admin/dashboard/overview', requireRole('admin'), getAdminOverviewStats);
 router.get('/admin/messages', requireRole('admin'), listAdminMessages);
 router.post('/admin/messages', requireRole('admin'), createAdminMessage);
+router.post('/admin/messages/ai-templates', requireRole('admin'), getAdminMailTemplates);
 router.get('/organizer/registrations/export', requireRole('organizer'), downloadOrganizerRegistrations);
 router.get('/registrations/users', requireRole('admin'), listUserRegistrations);
 router.post('/registrations/users', createUserRegistration);
@@ -125,6 +142,7 @@ router.post('/admin/users', requireRole('admin'), createAdminManagedUser);
 router.get('/organizer/feedback', requireRole('organizer'), listOrganizerFeedback);
 router.get('/organizer/messages', requireRole('organizer'), listOrganizerMessages);
 router.post('/organizer/messages', requireRole('organizer'), createOrganizerMessage);
+router.post('/organizer/messages/ai-templates', requireRole('organizer'), getOrganizerMailTemplates);
 router.get('/feedback/my', requireRole('user'), listMyFeedback);
 router.post('/feedback', requireRole('user'), createFeedback);
 router.get('/organizer/registrations', requireRole('organizer'), listOrganizerRegistrations);

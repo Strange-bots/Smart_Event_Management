@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
-import { createOrganizerEvent } from "../../services/organizerEventService.js";
+import {
+  createOrganizerEvent,
+  generateOrganizerEventDescription,
+  suggestOrganizerEventTags,
+  suggestOrganizerEventTimes,
+} from "../../services/organizerEventService.js";
 
 const venues = ["Main Auditorium", "Conference Hall", "Room 301", "Room 302", "Computer Lab A", "Computer Lab B", "Exhibition Hall", "Outdoor Area"];
 const categories = ["Workshop", "Seminar", "Conference", "Networking", "Career Fair", "Cultural Event", "Sports Event", "Technology", "Academic", "Other"];
@@ -43,10 +48,6 @@ function formatDisplayDate(dateValue) {
   return new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(dateValue));
 }
 
-function wait(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     if (!file) {
@@ -59,28 +60,6 @@ function readFileAsDataUrl(file) {
     reader.onerror = () => reject(new Error("Unable to read image file"));
     reader.readAsDataURL(file);
   });
-}
-
-function buildDescription({ title, category, venue, capacity, isPaid, price, tags }) {
-  const tagLine = tags.length ? ` Topics include ${tags.join(", ")}.` : "";
-  const priceLine = isPaid && price ? ` Tickets are $${price}.` : " This event is free to attend.";
-  return `${title} is a ${category || "campus"} event designed to bring the community together at ${venue || "our campus venue"}. It is planned for up to ${capacity || "a select number of"} attendees and aims to deliver an engaging experience.${tagLine}${priceLine}`;
-}
-
-function getSuggestedTimes(category) {
-  return timeSuggestionsByCategory[(category || "").toLowerCase()] || [
-    { startTime: "10:00", endTime: "12:00", reason: "This is a balanced daytime slot for most campus events." },
-    { startTime: "13:00", endTime: "15:00", reason: "A post-lunch session is a good general option." },
-  ];
-}
-
-function getSuggestedTags(title, category) {
-  const haystack = `${title} ${category}`.toLowerCase();
-  if (haystack.includes("tech") || haystack.includes("ai")) return ["Technology", "AI", "Innovation", "Data Science"];
-  if (haystack.includes("career") || haystack.includes("job")) return ["Career", "Leadership", "Professional Development", "Business"];
-  if (haystack.includes("sport")) return ["Sports", "Networking"];
-  if (haystack.includes("culture")) return ["Cultural", "Networking"];
-  return availableTags.filter((tag) => tag.toLowerCase() === (category || "").toLowerCase());
 }
 
 function OrganizerDashboard() {
@@ -167,38 +146,95 @@ function OrganizerDashboard() {
     if (!title.trim()) return setNotice({ type: "error", message: "Enter an event title first." });
     setIsGeneratingDescription(true);
     clearNotice();
-    await wait(700);
-    setDescription(buildDescription({ title, category, venue, capacity, isPaid, price, tags: selectedTags }));
-    setErrors((prev) => ({ ...prev, description: "" }));
-    setNotice({ type: "success", message: "Description generated successfully." });
-    setIsGeneratingDescription(false);
+    try {
+      const result = await generateOrganizerEventDescription({
+        title,
+        category,
+        venue,
+        capacity,
+        isPaid,
+        price,
+        tags: selectedTags,
+      });
+      setDescription(result.description);
+      setErrors((prev) => ({ ...prev, description: "" }));
+      setNotice({
+        type: "success",
+        message:
+          result.source === "gemini"
+            ? "Description generated successfully."
+            : `Description generated using server fallback${result.reason ? `: ${result.reason}` : ""}.`,
+      });
+    } catch (error) {
+      setNotice({ type: "error", message: error.message || "Unable to generate description." });
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
 
   const handleSuggestTime = async () => {
     if (!category) return setNotice({ type: "error", message: "Select a category first." });
     setIsSuggestingTime(true);
     clearNotice();
-    await wait(600);
-    setSuggestedTimes(getSuggestedTimes(category));
-    setShowTimeSuggestions(true);
-    setNotice({ type: "success", message: "Suggested time slots are ready." });
-    setIsSuggestingTime(false);
+    try {
+      const result = await suggestOrganizerEventTimes({
+        category,
+        venue,
+        date,
+      });
+      setSuggestedTimes(result.suggestions);
+      setShowTimeSuggestions(Boolean(result.suggestions.length));
+      setNotice({
+        type: "success",
+        message:
+          result.source === "gemini"
+            ? "Suggested time slots are ready."
+            : `Time suggestions generated using server fallback${result.reason ? `: ${result.reason}` : ""}.`,
+      });
+    } catch (error) {
+      setNotice({ type: "error", message: error.message || "Unable to suggest time slots." });
+    } finally {
+      setIsSuggestingTime(false);
+    }
   };
 
   const handleSuggestTags = async () => {
     if (!title.trim() && !category) return setNotice({ type: "error", message: "Add a title or choose a category first." });
     setIsSuggestingTags(true);
     clearNotice();
-    await wait(600);
-    const tagsToAdd = getSuggestedTags(title, category).filter((tag) => !selectedTags.includes(tag)).slice(0, 5 - selectedTags.length);
-    if (!tagsToAdd.length) {
-      setNotice({ type: "error", message: "No new tag suggestions were found." });
-    } else {
-      setSelectedTags((prev) => [...prev, ...tagsToAdd]);
-      setErrors((prev) => ({ ...prev, tags: "" }));
-      setNotice({ type: "success", message: `Added ${tagsToAdd.length} suggested tag(s).` });
+    try {
+      const result = await suggestOrganizerEventTags({
+        title,
+        category,
+        selectedTags,
+      });
+      const tagsToAdd = result.tags
+        .filter((tag) => !selectedTags.includes(tag))
+        .slice(0, 5 - selectedTags.length);
+
+      if (!tagsToAdd.length) {
+        setNotice({
+          type: "error",
+          message: result.reason
+            ? `No new tag suggestions were found. Backend reason: ${result.reason}`
+            : "No new tag suggestions were found.",
+        });
+      } else {
+        setSelectedTags((prev) => [...prev, ...tagsToAdd]);
+        setErrors((prev) => ({ ...prev, tags: "" }));
+        setNotice({
+          type: "success",
+          message:
+            result.source === "gemini"
+              ? `Added ${tagsToAdd.length} suggested tag(s).`
+              : `Added ${tagsToAdd.length} fallback tag suggestion(s)${result.reason ? `: ${result.reason}` : ""}.`,
+        });
+      }
+    } catch (error) {
+      setNotice({ type: "error", message: error.message || "Unable to suggest tags." });
+    } finally {
+      setIsSuggestingTags(false);
     }
-    setIsSuggestingTags(false);
   };
 
   const handleSubmit = async () => {

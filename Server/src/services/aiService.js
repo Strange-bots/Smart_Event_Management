@@ -1,8 +1,10 @@
-const OpenAI = require('openai');
-
+const { readCollection } = require('../database/collections');
 const { findUserByEmail } = require('./authService');
-const { getEvents } = require('./eventService');
-const { getRegistrationCountForEvent } = require('./registrationService');
+
+const DEFAULT_GEMINI_MODEL = 'gemini-flash-lite-latest';
+const MAX_CANDIDATES_FOR_AI = 6;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const recommendationCache = new Map();
 
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
 
@@ -11,20 +13,29 @@ const getEventStart = (event) => {
   return new Date(`${event.date} ${startTime}`);
 };
 
+const getRegistrationCountForEventFrom = (registrations, eventId) =>
+  registrations.filter(
+    (registration) =>
+      String(registration.eventId) === String(eventId) &&
+      registration.attendanceStatus !== 'cancelled',
+  ).length;
+
 const getUpcomingCandidateEvents = async () => {
   const now = new Date();
-  const events = await getEvents({});
+  const eventCollection = await readCollection('events');
 
-  return events
+  return eventCollection
+    .filter((event) => event.status === 'approved')
     .filter((event) => getEventStart(event).getTime() > now.getTime())
+    .sort((left, right) => getEventStart(left) - getEventStart(right))
     .slice(0, 12);
 };
 
-const buildFallbackRecommendations = async (limit, candidates) => {
+const buildFallbackRecommendations = async (limit, candidates, registrations) => {
   const recommendations = [];
 
   for (const event of candidates.slice(0, limit)) {
-    const attendeeCount = await getRegistrationCountForEvent(event.id);
+    const attendeeCount = getRegistrationCountForEventFrom(registrations, event.id);
     recommendations.push({
       ...event,
       attendees: attendeeCount,
@@ -36,28 +47,27 @@ const buildFallbackRecommendations = async (limit, candidates) => {
   return recommendations;
 };
 
-const getOpenAiClient = () => {
-  if (!process.env.OPENAI_API_KEY) {
+const getGeminiConfig = () => {
+  if (!process.env.GEMINI_API_KEY) {
     return null;
   }
 
-  return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  return {
+    apiKey: process.env.GEMINI_API_KEY,
+    model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+  };
 };
 
 const buildUserContext = (user) => {
   if (!user) {
     return {
       role: 'guest',
-      summary:
-        'Guest visitor without a signed-in profile. Prefer broadly appealing upcoming events.',
+      interests: [],
+      preferredEventCategories: [],
     };
   }
 
   return {
-    name: user.name,
-    email: user.email,
     role: user.role,
     course: user.course || null,
     campus: user.campus || null,
@@ -69,53 +79,91 @@ const buildUserContext = (user) => {
   };
 };
 
-const buildRecommendationPrompt = ({ user, candidates, limit }) => [
-  {
-    role: 'system',
-    content:
-      'You recommend university events for students. Choose only from the provided candidate events. Base the ranking on the user profile and event details. Keep recommendation reasons concise and practical.',
-  },
-  {
-    role: 'user',
-    content: JSON.stringify({
-      instruction: `Return up to ${limit} recommendations from the candidate events.`,
-      user,
-      candidateEvents: candidates.map((event) => ({
-        eventId: String(event.id),
-        title: event.title,
-        category: event.category,
-        date: event.date,
-        time: event.time,
-        venue: event.venue || event.location,
-        price: Number(event.price || 0),
-        isPaid: Boolean(event.isPaid),
-        description: event.description,
-        tags: event.tags || [],
-      })),
-    }),
-  },
-];
-
-const recommendationJsonSchema = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    recommendations: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          eventId: { type: 'string' },
-          match: { type: 'integer', minimum: 70, maximum: 99 },
-          reason: { type: 'string' },
-        },
-        required: ['eventId', 'match', 'reason'],
-      },
-    },
-  },
-  required: ['recommendations'],
+const clampText = (value, maxLength) => {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, Math.max(0, maxLength - 1))}…`
+    : normalized;
 };
+
+const getCandidatePriority = (event, userContext, attendeeCount) => {
+  let score = 0;
+  const preferredCategories = new Set(
+    (userContext.preferredEventCategories || []).map((value) =>
+      String(value).trim().toLowerCase(),
+    ),
+  );
+  const interests = (userContext.interests || []).map((value) =>
+    String(value).trim().toLowerCase(),
+  );
+  const category = String(event.category || '').toLowerCase();
+  const tags = Array.isArray(event.tags)
+    ? event.tags.map((value) => String(value).trim().toLowerCase())
+    : [];
+  const titleAndDescription = `${event.title || ''} ${event.description || ''}`.toLowerCase();
+
+  if (preferredCategories.has(category)) {
+    score += 30;
+  }
+
+  for (const interest of interests) {
+    if (category.includes(interest)) {
+      score += 12;
+      continue;
+    }
+
+    if (tags.some((tag) => tag.includes(interest) || interest.includes(tag))) {
+      score += 8;
+      continue;
+    }
+
+    if (interest && titleAndDescription.includes(interest)) {
+      score += 6;
+    }
+  }
+
+  score += Math.min(20, attendeeCount);
+  score += event.isPaid ? 0 : 4;
+
+  return score;
+};
+
+const selectAiCandidates = (candidates, registrations, userContext) =>
+  candidates
+    .map((event) => ({
+      event,
+      attendeeCount: getRegistrationCountForEventFrom(registrations, event.id),
+    }))
+    .sort((left, right) => {
+      const scoreDifference =
+        getCandidatePriority(right.event, userContext, right.attendeeCount) -
+        getCandidatePriority(left.event, userContext, left.attendeeCount);
+
+      if (scoreDifference !== 0) {
+        return scoreDifference;
+      }
+
+      return getEventStart(left.event) - getEventStart(right.event);
+    })
+    .slice(0, MAX_CANDIDATES_FOR_AI)
+    .map(({ event, attendeeCount }) => ({
+      eventId: String(event.id),
+      title: clampText(event.title, 60),
+      category: event.category,
+      date: event.date,
+      price: Number(event.price || 0),
+      isPaid: Boolean(event.isPaid),
+      attendees: attendeeCount,
+      tags: Array.isArray(event.tags) ? event.tags.slice(0, 4) : [],
+      description: clampText(event.description, 140),
+    }));
+
+const buildRecommendationPrompt = ({ user, candidates, limit }) => JSON.stringify({
+  task: 'Choose the best campus event recommendations.',
+  maxRecommendations: limit,
+  user,
+  candidateEvents: candidates,
+});
 
 const parseAiRecommendationPayload = (text) => {
   try {
@@ -144,53 +192,188 @@ const parseAiRecommendationPayload = (text) => {
   }
 };
 
+const extractGeminiText = (responseBody) => {
+  const parts = responseBody?.candidates?.[0]?.content?.parts;
+
+  if (!Array.isArray(parts)) {
+    return '';
+  }
+
+  return parts
+    .map((part) => part?.text || '')
+    .join('')
+    .trim();
+};
+
+const requestGeminiRecommendations = async ({
+  apiKey,
+  model,
+  user,
+  candidates,
+  limit,
+}) => {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+    model,
+  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const prompt = [
+    'You recommend university events for students.',
+    'Choose only from the provided candidate events.',
+    'Return valid JSON only with this exact shape:',
+    '{"recommendations":[{"eventId":"string","match":70-99,"reason":"string"}]}',
+    'Do not include markdown fences or any extra text.',
+    buildRecommendationPrompt({ user, candidates, limit }),
+  ].join('\n\n');
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+        responseJsonSchema: {
+          type: 'object',
+          properties: {
+            recommendations: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  eventId: { type: 'string' },
+                  match: { type: 'number' },
+                  reason: { type: 'string' },
+                },
+                required: ['eventId', 'match', 'reason'],
+              },
+            },
+          },
+          required: ['recommendations'],
+        },
+        maxOutputTokens: 220,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API request failed (${response.status}): ${errorText}`);
+  }
+
+  return response.json();
+};
+
+const buildCacheKey = ({ userContext, limit, candidates }) => {
+  const userSignature = JSON.stringify({
+    role: userContext.role,
+    course: userContext.course || null,
+    campus: userContext.campus || null,
+    yearLevel: userContext.yearLevel || null,
+    department: userContext.department || null,
+    interests: (userContext.interests || []).slice(0, 5),
+    preferredEventCategories: (userContext.preferredEventCategories || []).slice(0, 5),
+  });
+  const eventSignature = candidates
+    .map((event) => `${event.eventId}:${event.date || ''}`)
+    .join('|');
+
+  return `${limit}:${userSignature}:${eventSignature}`;
+};
+
+const getCachedRecommendations = (cacheKey) => {
+  const cachedEntry = recommendationCache.get(cacheKey);
+
+  if (!cachedEntry) {
+    return null;
+  }
+
+  if (cachedEntry.expiresAt <= Date.now()) {
+    recommendationCache.delete(cacheKey);
+    return null;
+  }
+
+  return cachedEntry.value;
+};
+
+const setCachedRecommendations = (cacheKey, value) => {
+  recommendationCache.set(cacheKey, {
+    value,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+};
+
 const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
   const safeLimit = Math.max(1, Math.min(9, Number(limit) || 3));
-  const candidates = await getUpcomingCandidateEvents();
+  const taskDataFromMongo = await Promise.all([
+    getUpcomingCandidateEvents(),
+    readCollection('registrations'),
+  ]);
+  const [candidateEventsConst, registrationsConst] = taskDataFromMongo;
 
-  if (!candidates.length) {
+  console.log('AI recommendations MongoDB fetch:', {
+    candidateEventsConst,
+  });
+
+  if (!candidateEventsConst.length) {
     return {
       statusCode: 404,
       recommendations: [],
       source: 'none',
+      modelResult: null,
     };
   }
 
-  const fallbackRecommendations = await buildFallbackRecommendations(safeLimit, candidates);
-  const client = getOpenAiClient();
+  const fallbackRecommendations = await buildFallbackRecommendations(
+    safeLimit,
+    candidateEventsConst,
+    registrationsConst,
+  );
+  const geminiConfig = getGeminiConfig();
 
-  if (!client) {
+  if (!geminiConfig) {
     return {
       statusCode: fallbackRecommendations.length ? 200 : 404,
       recommendations: fallbackRecommendations,
       source: 'fallback',
       reason: 'missing_api_key',
+      modelResult: null,
     };
   }
 
   const user = userEmail ? await findUserByEmail(normalizeEmail(userEmail)) : null;
+  const userContext = buildUserContext(user);
+  const aiPayloadConst = selectAiCandidates(
+    candidateEventsConst,
+    registrationsConst,
+    userContext,
+  );
+  const cacheKey = buildCacheKey({
+    userContext,
+    limit: safeLimit,
+    candidates: aiPayloadConst,
+  });
+  const cachedRecommendations = getCachedRecommendations(cacheKey);
+
+  if (cachedRecommendations) {
+    return cachedRecommendations;
+  }
 
   try {
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || 'gpt-5.2',
-      input: buildRecommendationPrompt({
-        user: buildUserContext(user),
-        candidates,
-        limit: safeLimit,
-      }),
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'event_recommendations',
-          strict: true,
-          schema: recommendationJsonSchema,
-        },
-      },
+    const geminiResponseConst = await requestGeminiRecommendations({
+      ...geminiConfig,
+      user: userContext,
+      candidates: aiPayloadConst,
+      limit: safeLimit,
     });
-
-    const parsedRecommendations = parseAiRecommendationPayload(
-      response.output_text || '',
-    );
+    const modelResult = extractGeminiText(geminiResponseConst);
+    const parsedRecommendations = parseAiRecommendationPayload(modelResult);
 
     if (!parsedRecommendations?.length) {
       return {
@@ -198,10 +381,13 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
         recommendations: fallbackRecommendations,
         source: 'fallback',
         reason: 'invalid_ai_payload',
+        modelResult,
       };
     }
 
-    const eventsById = new Map(candidates.map((event) => [String(event.id), event]));
+    const eventsById = new Map(
+      candidateEventsConst.map((event) => [String(event.id), event]),
+    );
     const recommendations = [];
 
     for (const item of parsedRecommendations.slice(0, safeLimit)) {
@@ -213,7 +399,7 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
 
       recommendations.push({
         ...event,
-        attendees: await getRegistrationCountForEvent(event.id),
+        attendees: getRegistrationCountForEventFrom(registrationsConst, event.id),
         match: Math.max(70, Math.min(99, Math.round(item.match))),
         recommendationReason: item.reason,
       });
@@ -225,22 +411,29 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
         recommendations: fallbackRecommendations,
         source: 'fallback',
         reason: 'no_matching_events',
+        modelResult,
       };
     }
 
-    return {
+    const result = {
       statusCode: 200,
       recommendations,
-      source: 'openai',
+      source: 'gemini',
+      modelResult,
     };
+
+    setCachedRecommendations(cacheKey, result);
+
+    return result;
   } catch (error) {
-    console.error('OpenAI recommendation request failed:', error?.message || error);
+    console.error('Gemini recommendation request failed:', error?.message || error);
 
     return {
       statusCode: fallbackRecommendations.length ? 200 : 404,
       recommendations: fallbackRecommendations,
       source: 'fallback',
-      reason: 'openai_request_failed',
+      reason: 'gemini_request_failed',
+      modelResult: error?.message || null,
     };
   }
 };

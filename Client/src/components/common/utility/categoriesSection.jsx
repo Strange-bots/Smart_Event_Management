@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { fetchEventStats } from "../../../services/homepageService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -43,7 +45,7 @@ const categories = [
     id: "technology",
     title: "Technology",
     description: "Hackathons, coding workshops, and digital innovation events.",
-    count: 120,
+    fallbackCount: 120,
     color: "bg-[#1f4e79]",
     icon: CodeIcon,
   },
@@ -51,7 +53,7 @@ const categories = [
     id: "business",
     title: "Business",
     description: "Networking sessions, startup showcases, and leadership forums.",
-    count: 85,
+    fallbackCount: 85,
     color: "bg-[#f36f21]",
     icon: BriefcaseIcon,
   },
@@ -59,7 +61,7 @@ const categories = [
     id: "academics",
     title: "Academics",
     description: "Seminars, research presentations, and student success programs.",
-    count: 140,
+    fallbackCount: 140,
     color: "bg-[#6d5df6]",
     icon: BookIcon,
   },
@@ -67,13 +69,39 @@ const categories = [
     id: "community",
     title: "Community",
     description: "Cultural gatherings, social activities, and campus engagement events.",
-    count: 95,
+    fallbackCount: 95,
     color: "bg-[#0f1e33]",
     icon: UsersIcon,
   },
 ];
 
 const CategoriesSection = () => {
+  const [categoryCounts, setCategoryCounts] = useState({});
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchEventStats()
+      .then((data) => {
+        if (!isMounted || !data?.categoryCounts) {
+          return;
+        }
+
+        setCategoryCounts(data.categoryCounts);
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setCategoryCounts({});
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <section id="categories" className="bg-[#f5f7fa] py-16 md:py-24">
       <style>{`
@@ -103,6 +131,7 @@ const CategoriesSection = () => {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {categories.map((category, index) => {
             const Icon = category.icon;
+            const count = Number(categoryCounts?.[category.id] ?? category.fallbackCount);
 
             return (
               <AnimatedSection key={category.id} delay={index * 100}>
@@ -131,7 +160,7 @@ const CategoriesSection = () => {
                     {category.description}
                   </p>
                   <span className="text-sm font-medium text-[#f36f21]">
-                    {category.count} Events {"\u2192"}
+                    {count} Events {"\u2192"}
                   </span>
                 </Link>
               </AnimatedSection>

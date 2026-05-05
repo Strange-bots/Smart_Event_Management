@@ -1,3 +1,6 @@
+import { Link } from "react-router-dom";
+import { getCurrentUser } from "../../../utils/auth.js";
+
 const benefits = [
   "Easy event creation and management",
   "AI-powered scheduling recommendations",
@@ -6,6 +9,8 @@ const benefits = [
 ];
 
 function CTASection() {
+  const currentUser = getCurrentUser();
+
   return (
     <section className="bg-[#f5f7fa] py-16 md:py-24">
       <div className="mx-auto w-full max-w-[1440px] px-6 lg:px-12">
@@ -36,21 +41,29 @@ function CTASection() {
               </ul>
 
               <div className="flex flex-col gap-4 sm:flex-row">
-                <a
-                  href="/signup"
+                <Link
+                  to={
+                    !currentUser
+                      ? "/signup"
+                      : currentUser.role === "organizer"
+                        ? "/organizer/organizerdashboard"
+                        : currentUser.role === "admin"
+                          ? "/admin/admindashboard"
+                          : "/user/dashboard"
+                  }
                   className="group inline-flex items-center justify-center rounded-lg bg-[#f36f21] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#ff8a3d]"
                 >
                   Start Free Today
                   <span className="ml-2 transition-transform group-hover:translate-x-1">
                     →
                   </span>
-                </a>
-                <a
-                  href="/contact"
+                </Link>
+                <Link
+                  to="/contact"
                   className="inline-flex items-center justify-center rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                 >
                   Contact Sales
-                </a>
+                </Link>
               </div>
             </div>
 

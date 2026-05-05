@@ -48,6 +48,22 @@ export async function sendAdminMessage(payload) {
   };
 }
 
+export async function fetchAdminMailTemplates(payload) {
+  const response = await fetch(`${getApiBaseUrl()}/api/admin/messages/ai-templates`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJsonResponse(response, "Failed to fetch admin mail templates");
+
+  return {
+    templates: data?.templates ?? [],
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
+  };
+}
+
 export async function fetchOrganizerMessageLogs() {
   const response = await fetch(`${getApiBaseUrl()}/api/organizer/messages`, {
     headers: getAuthHeaders(),
@@ -68,6 +84,22 @@ export async function sendOrganizerMessage(payload) {
   return {
     log: data?.log ?? null,
     recipientCount: data?.recipientCount ?? 0,
+  };
+}
+
+export async function fetchOrganizerMailTemplates(payload) {
+  const response = await fetch(`${getApiBaseUrl()}/api/organizer/messages/ai-templates`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJsonResponse(response, "Failed to fetch organizer mail templates");
+
+  return {
+    templates: data?.templates ?? [],
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
   };
 }
 

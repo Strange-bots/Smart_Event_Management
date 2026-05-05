@@ -51,8 +51,7 @@ const AIEmailComposer = ({
   const handleRegenerate = async () => {
     if (onRegenerate) {
       setIsRegenerating(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      onRegenerate();
+      await Promise.resolve(onRegenerate());
       setIsRegenerating(false);
     }
   };

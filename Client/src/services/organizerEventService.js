@@ -47,6 +47,63 @@ export async function createOrganizerEvent(eventPayload) {
   return data?.event;
 }
 
+export async function generateOrganizerEventDescription(payload) {
+  const response = await fetch(`${getApiBaseUrl()}/api/organizer/events/ai/description`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJsonResponse(response, "Failed to generate event description");
+
+  return {
+    description: data?.description ?? "",
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
+  };
+}
+
+export async function suggestOrganizerEventTags(payload) {
+  const response = await fetch(`${getApiBaseUrl()}/api/organizer/events/ai/tags`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJsonResponse(response, "Failed to suggest event tags");
+
+  return {
+    tags: data?.tags ?? [],
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
+  };
+}
+
+export async function suggestOrganizerEventTimes(payload) {
+  const response = await fetch(`${getApiBaseUrl()}/api/organizer/events/ai/time-suggestions`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJsonResponse(response, "Failed to suggest event times");
+
+  return {
+    suggestions: data?.suggestions ?? [],
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
+  };
+}
+
 export async function updateOrganizerEvent(eventId, eventPayload) {
   const response = await fetch(`${getApiBaseUrl()}/api/organizer/events/${eventId}`, {
     method: "PUT",

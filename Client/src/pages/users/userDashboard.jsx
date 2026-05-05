@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import EventCalendar from "../../components/dashboard/EventCalendar";
+import { fetchRecommendedUserEvents } from "../../services/eventService.js";
 import { getCurrentUser } from "../../utils/auth";
 const upcomingEvents = [
   {
@@ -21,33 +23,45 @@ const upcomingEvents = [
   },
 ];
 
-const recommendations = [
-  {
-    id: 1,
-    title: "AI & Machine Learning Seminar",
-    date: "March 25, 2024",
-    match: 95,
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=300&q=80",
-  },
-  {
-    id: 2,
-    title: "Data Science Workshop",
-    date: "March 28, 2024",
-    match: 88,
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&q=80",
-  },
-  {
-    id: 3,
-    title: "Cloud Computing Fundamentals",
-    date: "April 2, 2024",
-    match: 82,
-    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",
-  },
-];
-
 const UserDashboard = () => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
+  const [recommendations, setRecommendations] = useState([]);
+  const [recommendationSource, setRecommendationSource] = useState("fallback");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchRecommendedUserEvents(3)
+      .then((result) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setRecommendations(
+          (result?.recommendations ?? []).map((event) => ({
+            id: event.id,
+            title: event.title,
+            date: event.date,
+            match: event.match,
+            image: event.image,
+          }))
+        );
+        setRecommendationSource(result?.source || "fallback");
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setRecommendations([]);
+        setRecommendationSource("fallback");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   if (!currentUser || currentUser.role !== "user") {
     return <Navigate to="/login" replace />;
@@ -233,9 +247,14 @@ const UserDashboard = () => {
               <span>✨</span>
               <h2 className="text-lg font-semibold text-gray-900">Recommended For You</h2>
             </div>
+            <p className="text-xs font-medium text-purple-600">
+              {recommendationSource === "gemini"
+                ? "Powered by Gemini"
+                : "Showing server fallback recommendations"}
+            </p>
 
             <div className="space-y-3">
-              {recommendations.map((event) => (
+              {recommendations.length ? recommendations.map((event) => (
                 <div
                   key={event.id}
                   className="bg-white border border-purple-100 rounded-xl shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer overflow-hidden"
@@ -265,7 +284,11 @@ const UserDashboard = () => {
                     </button>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
+                  No AI recommendations are available right now.
+                </div>
+              )}
             </div>
 
             {/* Activity Mini Card */}

@@ -78,10 +78,12 @@ export async function fetchRecommendedEvents() {
     );
   }
 
-  const data = await response.json();
+  const aiResponseConst = await response.json();
 
   return {
-    recommendations: data?.recommendations ?? [],
-    source: data?.source ?? "fallback",
+    recommendations: aiResponseConst?.recommendations ?? [],
+    source: aiResponseConst?.source ?? "fallback",
+    reason: aiResponseConst?.reason ?? null,
+    modelResult: aiResponseConst?.modelResult ?? null,
   };
 }

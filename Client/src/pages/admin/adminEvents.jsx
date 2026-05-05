@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   approveAdminEvent,
+  fetchAdminEventAiRecommendations,
   fetchAdminEvents,
   rejectAdminEvent,
 } from "@/services/adminEventService.js";
@@ -67,17 +68,6 @@ const mapToDisplayEvent = (event) => ({
   category: event.category,
 });
 
-const generateAIRecommendations = (events) => {
-  return events
-    .filter((event) => event.status === "pending")
-    .map((event) => ({
-      eventId: event.id,
-      recommendation: "approve",
-      confidence: Math.floor(Math.random() * 15) + 85,
-      reason: `Strong organizer track record, reasonable capacity (${event.capacity}), appropriate timing`,
-    }));
-};
-
 function AdminEvents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -87,18 +77,27 @@ function AdminEvents() {
   const [aiRecommendations, setAiRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [aiSource, setAiSource] = useState("fallback");
+  const [aiReason, setAiReason] = useState("");
 
   const loadEvents = async () => {
     try {
       setIsLoading(true);
-      const backendEvents = await fetchAdminEvents();
+      const [backendEvents, aiResult] = await Promise.all([
+        fetchAdminEvents(),
+        fetchAdminEventAiRecommendations(),
+      ]);
       const nextEvents = backendEvents.map(mapToDisplayEvent);
       setEvents(nextEvents);
-      setAiRecommendations(generateAIRecommendations(nextEvents));
+      setAiRecommendations(aiResult.recommendations);
+      setAiSource(aiResult.source || "fallback");
+      setAiReason(aiResult.reason || "");
       setError("");
     } catch (loadError) {
       setEvents([]);
       setAiRecommendations([]);
+      setAiSource("fallback");
+      setAiReason("");
       setError(loadError.message || "Unable to load events.");
     } finally {
       setIsLoading(false);
@@ -251,6 +250,13 @@ function AdminEvents() {
               <p className="text-sm text-muted-foreground">
                 Our AI has analyzed pending events based on organizer history,
                 event type, timing, and capacity utilization.
+              </p>
+              <p className="text-xs font-medium text-[#6D5DF6]">
+                {aiSource === "gemini"
+                  ? "Powered by Gemini"
+                  : aiReason
+                    ? `Showing server fallback recommendations: ${aiReason}`
+                    : "Showing server fallback recommendations"}
               </p>
 
               <div className="grid gap-3">

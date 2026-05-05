@@ -38,151 +38,11 @@ import AIEmailComposer from "@/components/messaging/AIemailComposer.jsx";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+  fetchAdminMailTemplates,
   fetchAdminMessageLogs,
   sendAdminMessage,
 } from "@/services/messagingService.js";
 import { fetchAdminUsers } from "@/services/adminUserService.js";
-
-const getAdminAITemplates = (tone) => {
-  const templates = {
-    formal: [
-      {
-        type: "Announcement",
-        subject: "Important Announcement: Platform Updates",
-        body: `Dear Users,
-
-We are pleased to announce important updates to the Smart Events platform that will enhance your experience.
-
-[Add announcement details here]
-
-Thank you for being a valued member of our community.
-
-Best regards,
-Smart Events Administration`,
-        tone: "formal",
-      },
-      {
-        type: "Policy Update",
-        subject: "Policy Update: Terms of Service Changes",
-        body: `Dear Users,
-
-We are writing to inform you of updates to our Terms of Service and Privacy Policy, effective [DATE].
-
-Key changes include:
-• [Change 1]
-• [Change 2]
-• [Change 3]
-
-Please review the full policy at [LINK]. Your continued use of the platform constitutes acceptance of these terms.
-
-Sincerely,
-Smart Events Administration`,
-        tone: "formal",
-      },
-      {
-        type: "Payment Reminder",
-        subject: "Action Required: Outstanding Payment",
-        body: `Dear User,
-
-This is a reminder regarding an outstanding payment for your event registration.
-
-Amount Due: $[AMOUNT]
-Due Date: [DATE]
-
-Please complete your payment to secure your registration.
-
-If you have already made this payment, please disregard this notice.
-
-Best regards,
-Smart Events Administration`,
-        tone: "formal",
-      },
-    ],
-    friendly: [
-      {
-        type: "Announcement",
-        subject: "Exciting News: New Features Just Dropped! 🎉",
-        body: `Hey there!
-
-We've got some exciting news to share - we've just rolled out some awesome new features to make your event experience even better!
-
-[Add announcement details here]
-
-Can't wait for you to try them out!
-
-Cheers,
-The Smart Events Team`,
-        tone: "friendly",
-      },
-      {
-        type: "Policy Update",
-        subject: "Quick Heads Up: Some Policy Updates",
-        body: `Hi there!
-
-Just wanted to give you a quick heads up about some changes we've made to our policies.
-
-Don't worry - nothing major, but we want to keep you in the loop!
-
-Here's what's new:
-• [Change 1]
-• [Change 2]
-
-Check out the full details at [LINK] when you get a chance.
-
-Thanks for being awesome!
-The Smart Events Team`,
-        tone: "friendly",
-      },
-      {
-        type: "General Support",
-        subject: "We're Here to Help! 💪",
-        body: `Hi there!
-
-Just checking in to make sure everything is going smoothly with your events.
-
-If you ever need any help or have questions, don't hesitate to reach out - we're always here!
-
-Happy eventing!
-The Smart Events Team`,
-        tone: "friendly",
-      },
-    ],
-    short: [
-      {
-        type: "Announcement",
-        subject: "Platform Update",
-        body: `Quick update: [Brief description]
-
-Details: [LINK]
-
-- Smart Events Team`,
-        tone: "short",
-      },
-      {
-        type: "Payment Reminder",
-        subject: "Payment Due",
-        body: `Payment reminder:
-Amount: $[AMOUNT]
-Due: [DATE]
-
-Pay now: [LINK]`,
-        tone: "short",
-      },
-      {
-        type: "Event Notice",
-        subject: "Event Change Notice",
-        body: `Notice: [Event Name] has been updated.
-
-What changed: [Brief description]
-
-Check details: [LINK]`,
-        tone: "short",
-      },
-    ],
-  };
-
-  return templates[tone];
-};
 
 function AdminMessage() {
   const [activeTab, setActiveTab] = useState("compose");
@@ -197,6 +57,9 @@ function AdminMessage() {
   const [allUsers, setAllUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [templates, setTemplates] = useState([]);
+
+  const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
   useEffect(() => {
     let isMounted = true;
@@ -215,7 +78,11 @@ function AdminMessage() {
 
         setEmailLogs(logs);
         setAllUsers(users);
-        setError("");
+        setError(
+          users.length === 0
+            ? "No non-admin users are currently available for admin messaging."
+            : ""
+        );
       } catch (loadError) {
         if (!isMounted) {
           return;
@@ -239,12 +106,17 @@ function AdminMessage() {
   }, []);
 
   const totalUsers = useMemo(
-    () => allUsers.filter((user) => user.role === "user").length,
+    () =>
+      allUsers.filter((user) => {
+        const role = normalizeRole(user.role);
+        return role !== "admin" && role !== "organizer";
+      }).length,
     [allUsers]
   );
 
   const totalOrganizers = useMemo(
-    () => allUsers.filter((user) => user.role === "organizer").length,
+    () =>
+      allUsers.filter((user) => normalizeRole(user.role) === "organizer").length,
     [allUsers]
   );
 
@@ -267,17 +139,35 @@ function AdminMessage() {
     }
   }, [selectedRecipients, totalOrganizers, totalUsers]);
 
-  const templates = useMemo(
-    () => getAdminAITemplates(selectedTone),
-    [selectedTone]
-  );
+  const loadTemplates = async ({ tone, recipientGroup }) => {
+    const result = await fetchAdminMailTemplates({
+      tone,
+      recipientGroup,
+    });
 
-  const handleRegenerate = () => {
-    const tones = ["formal", "friendly", "short"];
-    const currentIndex = tones.indexOf(selectedTone);
-    const nextTone = tones[(currentIndex + 1) % tones.length];
-    setSelectedTone(nextTone);
+    setTemplates(result.templates);
+
+    if (result.source !== "gemini" && result.reason) {
+      toast.info(`Mail templates loaded with server fallback: ${result.reason}`);
+    }
   };
+
+  const handleRegenerate = async () => {
+    await loadTemplates({
+      tone: selectedTone,
+      recipientGroup: selectedRecipients,
+    });
+  };
+
+  useEffect(() => {
+    loadTemplates({
+      tone: selectedTone,
+      recipientGroup: selectedRecipients,
+    }).catch((loadError) => {
+      setTemplates([]);
+      toast.error(loadError.message || "Unable to load AI templates.");
+    });
+  }, [selectedRecipients, selectedTone]);
 
   const handleSend = async () => {
     if (!subject || !body || !selectedRecipients) {

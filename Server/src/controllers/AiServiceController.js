@@ -6,28 +6,30 @@ const getBearerToken = (req) =>
 
 const getRecommendations = async (req, res) => {
   const sessionUser = await verifySessionToken(getBearerToken(req));
-  const result = await getAiRecommendations({
+  const aiResponseConst = await getAiRecommendations({
     userEmail: sessionUser?.email,
     limit: req.query?.limit,
   });
 
-  if (!result.recommendations.length) {
-    return res.status(result.statusCode).json({
+  if (!aiResponseConst.recommendations.length) {
+    return res.status(aiResponseConst.statusCode).json({
       message: 'No recommended events available',
       recommendations: [],
-      source: result.source,
-      reason: result.reason || null,
+      source: aiResponseConst.source,
+      reason: aiResponseConst.reason || null,
+      modelResult: aiResponseConst.modelResult || null,
     });
   }
 
-  return res.status(result.statusCode).json({
+  return res.status(aiResponseConst.statusCode).json({
     message:
-      result.source === 'openai'
+      aiResponseConst.source === 'gemini'
         ? 'AI recommendations fetched successfully'
         : 'Recommendations fetched successfully',
-    recommendations: result.recommendations,
-    source: result.source,
-    reason: result.reason || null,
+    recommendations: aiResponseConst.recommendations,
+    source: aiResponseConst.source,
+    reason: aiResponseConst.reason || null,
+    modelResult: aiResponseConst.modelResult || null,
   });
 };
 

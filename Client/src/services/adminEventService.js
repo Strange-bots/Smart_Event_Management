@@ -33,6 +33,20 @@ export async function fetchAdminEvents() {
   return data?.events ?? [];
 }
 
+export async function fetchAdminEventAiRecommendations() {
+  const response = await fetch(`${getApiBaseUrl()}/api/admin/events/ai-recommendations`, {
+    headers: getAuthHeaders(),
+  });
+  const data = await parseJsonResponse(response, "Failed to fetch admin AI recommendations");
+
+  return {
+    recommendations: data?.recommendations ?? [],
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
+  };
+}
+
 export async function approveAdminEvent(eventId) {
   const response = await fetch(`${getApiBaseUrl()}/api/admin/events/${eventId}/approve`, {
     method: "PATCH",

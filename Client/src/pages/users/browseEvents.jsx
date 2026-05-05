@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import { ViewModeToggle } from "../../components/ui/view-mode-toggle";
-import { fetchEvents, registerForEvent } from "../../services/eventService.js";
+import {
+  fetchEvents,
+  fetchRecommendedUserEvents,
+  registerForEvent,
+} from "../../services/eventService.js";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -15,9 +19,6 @@ const categories = [
   "Networking",
   "Career",
 ];
-
-// Stable AI match scores per event id
-const aiScores = { "1": 92, "2": 85, "3": 95, "4": 78, "5": 82, "6": 88 };
 
 const formatEventDate = (dateString) => {
   if (!dateString) {
@@ -49,6 +50,7 @@ const BrowseEvents = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [registeringEventId, setRegisteringEventId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [aiRecommendationSource, setAiRecommendationSource] = useState("fallback");
 
   useEffect(() => {
     let isMounted = true;
@@ -56,7 +58,13 @@ const BrowseEvents = () => {
     const loadEvents = async () => {
       try {
         setIsLoading(true);
-        const events = await fetchEvents();
+        const [events, aiResult] = await Promise.all([
+          fetchEvents(),
+          fetchRecommendedUserEvents(9),
+        ]);
+        const recommendationsById = new Map(
+          (aiResult?.recommendations ?? []).map((event) => [String(event.id), event])
+        );
 
         if (!isMounted) {
           return;
@@ -70,10 +78,12 @@ const BrowseEvents = () => {
             isPaid: Boolean(event.isPaid),
             price: Number(event.price || 0),
             tags: event.tags ?? [],
-            aiMatch:
-              aiScores[String(event.id)] ?? (78 + (Number(event.id) % 18 || 0)),
+            aiMatch: recommendationsById.get(String(event.id))?.match ?? null,
+            aiReason:
+              recommendationsById.get(String(event.id))?.recommendationReason ?? "",
           }))
         );
+        setAiRecommendationSource(aiResult?.source || "fallback");
         setErrorMessage("");
       } catch {
         if (!isMounted) {
@@ -81,6 +91,7 @@ const BrowseEvents = () => {
         }
 
         setAllEvents([]);
+        setAiRecommendationSource("fallback");
         setErrorMessage("Unable to load events right now. Please try again.");
       } finally {
         if (isMounted) {
@@ -109,11 +120,13 @@ const BrowseEvents = () => {
         const matchesCategory =
           categoryFilter === "All Categories" ||
           event.category.toLowerCase() === categoryFilter.toLowerCase();
-        const matchesAi = !showAiRecommended || event.aiMatch >= 80;
+        const matchesAi = !showAiRecommended || Number.isFinite(event.aiMatch);
 
         return matchesSearch && matchesCategory && matchesAi;
       })
-      .sort((left, right) => (showAiRecommended ? right.aiMatch - left.aiMatch : 0));
+      .sort((left, right) =>
+        showAiRecommended ? (right.aiMatch || 0) - (left.aiMatch || 0) : 0
+      );
   }, [allEvents, searchQuery, categoryFilter, showAiRecommended]);
 
   const handleViewDetails = (event) => {
@@ -227,6 +240,13 @@ const BrowseEvents = () => {
           {isLoading ? "Loading events..." : `Showing ${filteredEvents.length} events`}
           {showAiRecommended && " (AI recommended)"}
         </p>
+        {showAiRecommended ? (
+          <p className="text-xs font-medium text-purple-600">
+            {aiRecommendationSource === "gemini"
+              ? "Powered by Gemini"
+              : "Showing server fallback recommendations"}
+          </p>
+        ) : null}
 
         {errorMessage ? (
           <div className="rounded-xl border border-rose-200 bg-white p-4 text-sm text-rose-700 shadow-sm">
@@ -255,7 +275,7 @@ const BrowseEvents = () => {
                     alt={event.title}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
-                  {event.aiMatch >= 80 && (
+                  {Number.isFinite(event.aiMatch) && (
                     <span className="absolute right-2 top-2 rounded-full bg-purple-600 px-2 py-1 text-xs text-white">
                       {event.aiMatch}% match
                     </span>
@@ -339,7 +359,7 @@ const BrowseEvents = () => {
                       alt={event.title}
                       className="h-full w-full object-cover"
                     />
-                    {event.aiMatch >= 80 && (
+                    {Number.isFinite(event.aiMatch) && (
                       <span className="absolute left-2 top-2 rounded-full bg-purple-600 px-2 py-1 text-xs text-white">
                         {event.aiMatch}%
                       </span>
@@ -352,7 +372,7 @@ const BrowseEvents = () => {
                           <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
                             {event.category}
                           </span>
-                          {event.aiMatch >= 80 && (
+                          {Number.isFinite(event.aiMatch) && (
                             <span className="rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-700 md:hidden">
                               {event.aiMatch}% match
                             </span>
@@ -366,6 +386,9 @@ const BrowseEvents = () => {
                           <span>Time: {event.time}</span>
                           <span>Place: {event.venue}</span>
                         </div>
+                        {event.aiReason ? (
+                          <p className="mb-3 text-sm text-purple-700">{event.aiReason}</p>
+                        ) : null}
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-gray-500">
                             Registered{" "}
