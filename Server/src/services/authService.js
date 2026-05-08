@@ -251,6 +251,10 @@ const sendOTPEmail = async (email, otp, options = {}) => {
         host: process.env.EMAIL_HOST,
         port: Number(process.env.EMAIL_PORT || 587),
         secure: process.env.EMAIL_SECURE === 'true',
+        family: 4,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
@@ -258,6 +262,13 @@ const sendOTPEmail = async (email, otp, options = {}) => {
       }
     : {
         service: process.env.EMAIL_SERVICE || 'gmail',
+        host: process.env.EMAIL_SERVICE === 'gmail' ? 'smtp.gmail.com' : undefined,
+        port: Number(process.env.EMAIL_PORT || 587),
+        secure: process.env.EMAIL_SECURE === 'true',
+        family: 4,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
