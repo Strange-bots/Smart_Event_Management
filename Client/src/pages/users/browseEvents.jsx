@@ -271,7 +271,7 @@ const BrowseEvents = () => {
               >
                 <div className="absolute inset-0 bg-[#f8fafc]" />
 
-                <div className="absolute inset-0 z-30 overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/85 via-[#07111f]/30 to-transparent transition duration-500 group-hover:opacity-0" />
                   <img
                     src={event.image}
