@@ -9,6 +9,9 @@ const getEventStart = (event) => {
   return new Date(`${event.date} ${startTime}`);
 };
 
+const getApprovedEventSortTime = (event) =>
+  new Date(event.approvedAt || event.updatedAt || event.createdAt || 0).getTime();
+
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
 
 const eventBelongsToOrganizer = (event, organizerEmail) => {
@@ -240,7 +243,15 @@ const getAllApprovedEvents = async () => {
 
   return events
     .filter((event) => event.status === 'approved')
-    .sort((left, right) => getEventStart(left) - getEventStart(right))
+    .sort((left, right) => {
+      const approvalDifference = getApprovedEventSortTime(right) - getApprovedEventSortTime(left);
+
+      if (approvalDifference !== 0) {
+        return approvalDifference;
+      }
+
+      return getEventStart(left) - getEventStart(right);
+    })
     .map((event) => ({
       ...formatEventWithRegistrations(event, registrations),
       categoryLabel: event.category,
@@ -283,7 +294,15 @@ const getEvents = async ({ category, search } = {}) => {
         field?.toLowerCase().includes(normalizedSearch),
       );
     })
-    .sort((left, right) => getEventStart(left) - getEventStart(right))
+    .sort((left, right) => {
+      const approvalDifference = getApprovedEventSortTime(right) - getApprovedEventSortTime(left);
+
+      if (approvalDifference !== 0) {
+        return approvalDifference;
+      }
+
+      return getEventStart(left) - getEventStart(right);
+    })
     .map((event) => formatEventWithRegistrations(event, registrations));
 };
 
@@ -489,6 +508,11 @@ const updateAdminEventStatus = async ({ eventId, status }) => {
 
   event.status = status;
   event.updatedAt = new Date().toISOString();
+
+  if (status === 'approved') {
+    event.approvedAt = event.updatedAt;
+  }
+
   await writeCollection('events', events);
 
   return {
