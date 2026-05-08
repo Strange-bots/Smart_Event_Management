@@ -317,10 +317,6 @@ const getAiRecommendations = async ({ userEmail, limit = 3 }) => {
   ]);
   const [candidateEventsConst, registrationsConst] = taskDataFromMongo;
 
-  console.log('AI recommendations MongoDB fetch:', {
-    candidateEventsConst,
-  });
-
   if (!candidateEventsConst.length) {
     return {
       statusCode: 404,
