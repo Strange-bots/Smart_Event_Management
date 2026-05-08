@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
 const { Resend } = require('resend');
 
@@ -238,30 +237,10 @@ const sendOTPEmail = async (email, otp, options = {}) => {
     purpose === 'password-reset'
       ? `Your Smart Events password reset code is ${otp}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`
       : `Your Smart Events verification code is ${otp}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`;
-  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  const fromAddress = process.env.EMAIL_FROM;
   const html = buildOtpEmailHtml(otp, options);
 
-  if (process.env.RESEND_API_KEY) {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error } = await resend.emails.send({
-      from: fromAddress || 'KOI Smart Events <onboarding@resend.dev>',
-      to: [email],
-      subject,
-      html,
-      text,
-    });
-
-    if (error) {
-      throw new Error(error.message || 'Resend failed to deliver the OTP email');
-    }
-
-    return {
-      delivered: true,
-      provider: 'resend',
-    };
-  }
-
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!process.env.RESEND_API_KEY || !fromAddress) {
     console.log(`OTP for ${email}: ${otp}`);
     return {
       delivered: false,
@@ -269,48 +248,22 @@ const sendOTPEmail = async (email, otp, options = {}) => {
     };
   }
 
-  const transporterOptions = process.env.EMAIL_HOST
-    ? {
-        host: process.env.EMAIL_HOST,
-        port: Number(process.env.EMAIL_PORT || 587),
-        secure: process.env.EMAIL_SECURE === 'true',
-        family: 4,
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      }
-    : {
-        service: process.env.EMAIL_SERVICE || 'gmail',
-        host: process.env.EMAIL_SERVICE === 'gmail' ? 'smtp.gmail.com' : undefined,
-        port: Number(process.env.EMAIL_PORT || 587),
-        secure: process.env.EMAIL_SECURE === 'true',
-        family: 4,
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      };
-
-  const transporter = nodemailer.createTransport(transporterOptions);
-
-  await transporter.sendMail({
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { error } = await resend.emails.send({
     from: fromAddress,
-    to: email,
+    to: [email],
     subject,
-    text,
     html,
+    text,
   });
+
+  if (error) {
+    throw new Error(error.message || 'Resend failed to deliver the OTP email');
+  }
 
   return {
     delivered: true,
-    provider: 'smtp',
+    provider: 'resend',
   };
 };
 
