@@ -3,6 +3,7 @@ const {
   authorizeDashboard,
   changePassword,
   getCurrentUserProfile,
+  requestSignupOtp,
   requestPasswordResetOtp,
   resetPasswordWithOtp,
   signup,
@@ -12,6 +13,7 @@ const {
 const router = express.Router();
 
 router.post('/signup', signup);
+router.post('/signup/request', requestSignupOtp);
 router.post('/forgot-password/request', requestPasswordResetOtp);
 router.post('/forgot-password/reset', resetPasswordWithOtp);
 router.post('/authorize-dashboard', authorizeDashboard);

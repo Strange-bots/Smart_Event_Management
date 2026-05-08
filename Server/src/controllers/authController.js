@@ -134,6 +134,55 @@ const registerUser = async (req, res) => {
   }
 };
 
+const requestSignupOtp = async (req, res) => {
+  const {
+    name,
+    email,
+    password,
+    confirmPassword,
+    acceptedTerms,
+  } = req.body ?? {};
+
+  const validationError = validateSignupPayload({
+    name,
+    email,
+    password,
+    confirmPassword,
+    acceptedTerms,
+  });
+
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
+  }
+
+  if (await findUserByEmail(email)) {
+    return res.status(409).json({ message: 'An account with this email already exists' });
+  }
+
+  const generatedOTP = generateOTP();
+  storeOTP(email, generatedOTP);
+
+  try {
+    const deliveryResult = await sendOTPEmail(email, generatedOTP);
+    const response = {
+      message: 'OTP sent successfully. Please verify your email to complete registration.',
+      email,
+      requiresOtp: true,
+    };
+
+    if (deliveryResult?.preview) {
+      response.previewOtp = deliveryResult.preview;
+    }
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error('Failed to send signup OTP email:', error.message);
+    return res.status(500).json({
+      message: 'Failed to send OTP email. Please try again.',
+    });
+  }
+};
+
 const signup = async (req, res) => {
   try {
     const {
@@ -146,45 +195,7 @@ const signup = async (req, res) => {
     } = req.body ?? {};
 
     if (!otp) {
-      const validationError = validateSignupPayload({
-        name,
-        email,
-        password,
-        confirmPassword,
-        acceptedTerms,
-      });
-
-      if (validationError) {
-        return res.status(400).json({ message: validationError });
-      }
-
-      if (await findUserByEmail(email)) {
-        return res.status(409).json({ message: 'An account with this email already exists' });
-      }
-
-      const generatedOTP = generateOTP();
-
-      storeOTP(email, generatedOTP);
-
-      try {
-        const deliveryResult = await sendOTPEmail(email, generatedOTP);
-        const response = {
-          message: 'OTP sent successfully. Please verify your email to complete registration.',
-          email,
-          requiresOtp: true,
-        };
-
-        if (deliveryResult?.preview) {
-          response.previewOtp = deliveryResult.preview;
-        }
-
-        return res.status(200).json(response);
-      } catch (error) {
-        console.error('Failed to send OTP email:', error.message);
-        return res.status(500).json({
-          message: 'Failed to send OTP email. Please try again.',
-        });
-      }
+      return requestSignupOtp(req, res);
     }
 
     if (!email || !otp || !name || !password) {
@@ -390,6 +401,7 @@ module.exports = {
   changePassword,
   getCurrentUserProfile,
   login,
+  requestSignupOtp,
   requestPasswordResetOtp,
   registerUser,
   resetPasswordWithOtp,

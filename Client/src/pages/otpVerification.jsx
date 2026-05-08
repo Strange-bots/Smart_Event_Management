@@ -14,6 +14,23 @@ const authPanelBackground = {
   background: "linear-gradient(160deg, #2155C4 0%, #0E2A66 100%)",
 };
 
+const requestSignupOtp = async (payload) => {
+  const response = await fetch(`${apiBaseUrl}/api/auth/signup/request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "Unable to resend OTP.");
+  }
+
+  return data;
+};
+
 const OtpVerification = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -141,25 +158,13 @@ const OtpVerification = () => {
       setNotice("");
       setIsResending(true);
 
-      const response = await fetch(`${apiBaseUrl}/api/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: pendingSignup.name,
-          email: pendingSignup.email,
-          password: pendingSignup.password,
-          confirmPassword: pendingSignup.confirmPassword,
-          acceptedTerms: pendingSignup.acceptedTerms,
-        }),
+      const data = await requestSignupOtp({
+        name: pendingSignup.name,
+        email: pendingSignup.email,
+        password: pendingSignup.password,
+        confirmPassword: pendingSignup.confirmPassword,
+        acceptedTerms: pendingSignup.acceptedTerms,
       });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setError(data.message || "Unable to resend OTP.");
-        return;
-      }
 
       setNotice("A new OTP has been sent to your email.");
       if (data.previewOtp) {

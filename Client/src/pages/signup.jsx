@@ -12,6 +12,23 @@ import {
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
 
+const requestSignupOtp = async (payload) => {
+  const response = await fetch(`${apiBaseUrl}/api/auth/signup/request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "Unable to create account");
+  }
+
+  return data;
+};
+
 const Signup = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -111,23 +128,7 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Unable to create account");
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(false);
+      const data = await requestSignupOtp(formData);
       navigate("/verify-otp", {
         state: {
           name: formData.name,
@@ -138,9 +139,10 @@ const Signup = () => {
           previewOtp: data.previewOtp,
         },
       });
-    } catch {
+    } catch (requestError) {
+      setError(requestError.message || "Unable to connect to the server");
+    } finally {
       setIsLoading(false);
-      setError("Unable to connect to the server");
     }
   };
 
