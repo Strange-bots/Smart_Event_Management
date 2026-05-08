@@ -265,84 +265,128 @@ const BrowseEvents = () => {
         ) : viewMode === "grid" ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredEvents.map((event) => (
-              <div
+              <section
                 key={event.id}
-                className="group overflow-hidden rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md"
+                className="group relative min-h-[13.25rem] overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#0f1e33] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl"
               >
-                <div className="relative aspect-video overflow-hidden">
+                <div className="absolute inset-0 bg-[#f8fafc]" />
+
+                <div className="absolute inset-0 z-30 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/85 via-[#07111f]/30 to-transparent transition duration-500 group-hover:opacity-0" />
                   <img
                     src={event.image}
                     alt={event.title}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="h-full w-full object-cover transition-all duration-700 ease-out group-hover:w-[34%] group-hover:translate-x-0 group-hover:scale-105 sm:group-hover:w-[32%] xl:group-hover:w-[30%]"
                   />
                   {Number.isFinite(event.aiMatch) && (
-                    <span className="absolute right-2 top-2 rounded-full bg-purple-600 px-2 py-1 text-xs text-white">
+                    <span className="absolute right-2 top-2 rounded-full bg-purple-600 px-2 py-1 text-[0.68rem] text-white">
                       {event.aiMatch}% match
                     </span>
                   )}
                 </div>
-                <div className="p-4">
-                  <span className="mb-2 inline-block rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
-                    {event.category}
-                  </span>
-                  <h3 className="mb-2 line-clamp-2 font-semibold text-gray-900">
+
+                <div className="absolute inset-x-0 bottom-0 z-10 p-3.5 text-white transition duration-500 group-hover:translate-y-2 group-hover:opacity-0 sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex rounded-full bg-white/18 px-2.5 py-1 text-[0.68rem] font-semibold backdrop-blur">
+                      {event.category}
+                    </span>
+                    <span className="rounded-full bg-black/35 px-2.5 py-1 text-[0.68rem] font-medium text-white">
+                      {event.isPaid ? `$${event.price}` : "Free"}
+                    </span>
+                  </div>
+                  <h3 className="mt-2 text-lg font-semibold leading-tight sm:text-[1.2rem]">
                     {event.title}
                   </h3>
-                  <div className="mb-4 space-y-1.5 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#f36f21]">Date</span>
-                      <span>{event.date}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#f36f21]">Time</span>
-                      <span>{event.time}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#f36f21]">Place</span>
-                      <span>{event.venue}</span>
-                    </div>
-                  </div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-sm text-gray-500">
-                      Registered{" "}
-                      <span className="font-medium text-gray-800">
-                        {event.registrations}
-                      </span>{" "}
-                      / {event.capacity}
-                    </span>
-                    <div className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className={cn(
-                          "h-full rounded-full",
-                          event.registrations / event.capacity > 0.9
-                            ? "bg-red-500"
-                            : "bg-[#f36f21]"
+                  <p className="mt-1 text-[0.68rem] font-medium tracking-[0.08em] text-white/75 sm:text-xs sm:tracking-[0.1em]">
+                    {event.date} • {event.time}
+                  </p>
+                </div>
+
+                <div className="relative z-20 flex h-full min-h-[13.25rem] flex-col justify-end p-2.5 sm:p-3">
+                  <div className="ml-0 rounded-[1.1rem] bg-white/97 p-3 shadow-lg backdrop-blur transition-all duration-500 ease-out sm:translate-x-3 sm:translate-y-6 sm:opacity-0 sm:delay-0 sm:group-hover:ml-[32%] sm:group-hover:translate-x-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-hover:delay-150 xl:group-hover:ml-[30%]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[0.68rem] font-semibold text-gray-600">
+                          {event.category}
+                        </span>
+                        <h3 className="mt-1.5 text-[0.95rem] font-semibold leading-snug text-gray-900">
+                          {event.title}
+                        </h3>
+                        {event.aiReason ? (
+                          <p className="mt-1 max-h-8 overflow-hidden text-[0.72rem] leading-4 text-purple-700 sm:text-[0.76rem]">
+                            {event.aiReason}
+                          </p>
+                        ) : (
+                          <p className="mt-1 max-h-8 overflow-hidden text-[0.72rem] leading-4 text-[#5f7088] sm:text-[0.76rem]">
+                            {event.description || "Browse details, availability, and booking options before registering."}
+                          </p>
                         )}
-                        style={{
-                          width: `${(event.registrations / event.capacity) * 100}%`,
-                        }}
-                      />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="flex-1 rounded-lg border border-gray-300 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50"
-                      onClick={() => handleViewDetails(event)}
-                    >
-                      View
-                    </button>
-                    <button
-                      className="flex-1 rounded-lg bg-[#f36f21] py-1.5 text-sm text-white transition-colors hover:bg-[#e05e10] disabled:cursor-not-allowed disabled:bg-gray-300"
-                      onClick={() => handleRegister(event)}
-                      disabled={registeringEventId === event.id}
-                    >
-                      {registeringEventId === event.id
-                        ? "Registering..."
-                        : `${event.isPaid ? `$${event.price}` : "Free"} - Register`}
-                    </button>
+
+                    <div className="mt-3 grid gap-2 text-[0.72rem] font-medium text-[#516072] sm:text-[0.76rem]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#f36f21]">Date</span>
+                        <span>{event.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#f36f21]">Time</span>
+                        <span>{event.time}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#f36f21]">Place</span>
+                        <span>{event.venue}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 rounded-[0.95rem] bg-[#f8fafc] p-2.5">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-[0.72rem] text-gray-500 sm:text-xs">
+                          Registered{" "}
+                          <span className="font-medium text-gray-800">
+                            {event.registrations}
+                          </span>{" "}
+                          / {event.capacity}
+                        </span>
+                        <span className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-[#1f4e79]">
+                          {Math.round((event.registrations / event.capacity) * 100)}%
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className={cn(
+                            "h-full rounded-full",
+                            event.registrations / event.capacity > 0.9
+                              ? "bg-red-500"
+                              : "bg-[#f36f21]"
+                          )}
+                          style={{
+                            width: `${(event.registrations / event.capacity) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        className="flex-1 rounded-lg border border-gray-300 py-1.5 text-[0.78rem] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        onClick={() => handleViewDetails(event)}
+                      >
+                        View
+                      </button>
+                      <button
+                        className="flex-1 rounded-lg bg-[#f36f21] py-1.5 text-[0.78rem] font-medium text-white transition-colors hover:bg-[#e05e10] disabled:cursor-not-allowed disabled:bg-gray-300"
+                        onClick={() => handleRegister(event)}
+                        disabled={registeringEventId === event.id}
+                      >
+                        {registeringEventId === event.id
+                          ? "Registering..."
+                          : `${event.isPaid ? `$${event.price}` : "Free"} - Register`}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         ) : (
