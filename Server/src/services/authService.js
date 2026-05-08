@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
+const { Resend } = require('resend');
 
 const { readCollection, writeCollection } = require('../database/collections');
 
@@ -237,6 +238,28 @@ const sendOTPEmail = async (email, otp, options = {}) => {
     purpose === 'password-reset'
       ? `Your Smart Events password reset code is ${otp}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`
       : `Your Smart Events verification code is ${otp}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`;
+  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  const html = buildOtpEmailHtml(otp, options);
+
+  if (process.env.RESEND_API_KEY) {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: fromAddress || 'KOI Smart Events <onboarding@resend.dev>',
+      to: [email],
+      subject,
+      html,
+      text,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Resend failed to deliver the OTP email');
+    }
+
+    return {
+      delivered: true,
+      provider: 'resend',
+    };
+  }
 
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.log(`OTP for ${email}: ${otp}`);
@@ -278,15 +301,16 @@ const sendOTPEmail = async (email, otp, options = {}) => {
   const transporter = nodemailer.createTransport(transporterOptions);
 
   await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    from: fromAddress,
     to: email,
     subject,
     text,
-    html: buildOtpEmailHtml(otp, options),
+    html,
   });
 
   return {
     delivered: true,
+    provider: 'smtp',
   };
 };
 
