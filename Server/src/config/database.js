@@ -22,6 +22,25 @@ const connectDatabase = async () => {
   return connection;
 };
 
+const getDatabaseDiagnostics = async () => {
+  if (!isDatabaseAvailable()) {
+    return {
+      connected: false,
+      databaseName: null,
+      usersCount: null,
+    };
+  }
+
+  const database = mongoose.connection.db;
+  const usersCount = await database.collection('users').countDocuments();
+
+  return {
+    connected: true,
+    databaseName: database.databaseName,
+    usersCount,
+  };
+};
+
 const markDatabaseUnavailable = () => {
   databaseAvailable = false;
 };
@@ -32,6 +51,7 @@ const isDatabaseAvailable = () => {
 
 module.exports = {
   connectDatabase,
+  getDatabaseDiagnostics,
   isDatabaseAvailable,
   markDatabaseUnavailable,
 };

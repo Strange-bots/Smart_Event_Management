@@ -4,6 +4,7 @@ const http = require('http');
 const app = require('./src/app');
 const {
   connectDatabase,
+  getDatabaseDiagnostics,
   markDatabaseUnavailable,
 } = require('./src/config/database');
 
@@ -21,6 +22,8 @@ const startServer = async () => {
   try {
     await connectDatabase();
     console.log('MongoDB connected successfully');
+    const diagnostics = await getDatabaseDiagnostics();
+    console.log('MongoDB diagnostics:', diagnostics);
   } catch (error) {
     markDatabaseUnavailable();
     console.error(
