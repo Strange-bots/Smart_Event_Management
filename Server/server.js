@@ -8,7 +8,7 @@ const {
 } = require('./src/config/database');
 
 const PORT = process.env.PORT || 5001;
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 
 const startServer = async () => {
   const server = http.createServer(app);
