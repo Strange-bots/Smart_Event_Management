@@ -78,6 +78,7 @@ const {
   listAdminEventReviewRecommendations,
 } = require('../controllers/adminEventAiController');
 const { getAdminOverviewStats } = require('../controllers/adminDashboardController');
+const { getRoleScopedCalendar } = require('../controllers/calendarController');
 const {
   createUserHistoryReportRecord,
   listUserHistoryRecords,
@@ -127,6 +128,7 @@ router.post('/organizer/events/:eventId/duplicate', requireRole('organizer'), du
 router.delete('/organizer/events/:eventId', requireRole('organizer'), deleteOrganizerEventRecord);
 router.post('/admin/events/:eventId/image', requireRole('admin'), uploadEventImage);
 router.get('/admin/dashboard/overview', requireRole('admin'), getAdminOverviewStats);
+router.get('/calendar/events', requireRole(['admin', 'organizer', 'user']), getRoleScopedCalendar);
 router.get('/admin/messages', requireRole('admin'), listAdminMessages);
 router.post('/admin/messages', requireRole('admin'), createAdminMessage);
 router.post('/admin/messages/ai-templates', requireRole('admin'), getAdminMailTemplates);

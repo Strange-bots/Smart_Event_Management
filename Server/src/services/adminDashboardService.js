@@ -1,5 +1,6 @@
 const { readCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser } = require('./authService');
+const { getRoleScopedCalendarEvents } = require('./calendarService');
 
 const DASHBOARD_COLORS = ['#1F4E79', '#F36F21', '#6D5DF6', '#6B7C93', '#16A34A', '#DC2626'];
 
@@ -117,23 +118,10 @@ const getAdminDashboardOverview = async (adminEmail) => {
       value,
       color: DASHBOARD_COLORS[index % DASHBOARD_COLORS.length],
     }));
-  const calendarEvents = events
-    .slice()
-    .sort((left, right) => getEventStartDate(left) - getEventStartDate(right))
-    .map((event) => ({
-      id: event.id,
-      title: event.title,
-      date: event.date,
-      time: event.time,
-      venue: getEventVenue(event),
-      status: event.status,
-      registrations: registrations.filter(
-        (registration) =>
-          String(registration.eventId) === String(event.id) &&
-          registration.attendanceStatus !== 'cancelled',
-      ).length,
-      capacity: event.capacity,
-    }));
+  const calendarData = await getRoleScopedCalendarEvents({
+    role: 'admin',
+    email: adminUser.email,
+  });
 
   return {
     statusCode: 200,
@@ -152,7 +140,8 @@ const getAdminDashboardOverview = async (adminEmail) => {
     },
     eventsByMonth,
     venueDistribution,
-    calendarEvents,
+    calendarEvents: calendarData.events,
+    calendarSummary: calendarData.summary,
   };
 };
 

@@ -24,6 +24,7 @@ const getAdminOverviewStats = async (req, res) => {
     eventsByMonth: result.eventsByMonth,
     venueDistribution: result.venueDistribution,
     calendarEvents: result.calendarEvents,
+    calendarSummary: result.calendarSummary,
   });
 };
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import EventCalendar from "../../components/dashboard/eventCalendar.jsx";
+import { fetchRoleScopedCalendarEvents } from "../../services/calendarService.js";
 import { fetchRecommendedUserEvents } from "../../services/eventService.js";
 import { fetchMyFeedback } from "../../services/feedbackService.js";
 import { fetchMyNotifications } from "../../services/notificationService.js";
@@ -77,6 +78,13 @@ const UserDashboard = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationSource, setRecommendationSource] = useState("fallback");
   const [dashboardEvents, setDashboardEvents] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [calendarSummary, setCalendarSummary] = useState({
+    ongoing: 0,
+    coming: 0,
+    gone: 0,
+    total: 0,
+  });
   const [dashboardStats, setDashboardStats] = useState({
     registeredCount: 0,
     attendedCount: 0,
@@ -93,7 +101,7 @@ const UserDashboard = () => {
 
     const loadDashboard = async () => {
       try {
-        const [registrations, notifications, feedback, recommendedResult] = await Promise.all([
+        const [registrations, notifications, feedback, recommendedResult, calendarResult] = await Promise.all([
           fetchMyEventRegistrations(),
           fetchMyNotifications().catch(() => []),
           fetchMyFeedback().catch(() => []),
@@ -101,6 +109,7 @@ const UserDashboard = () => {
             recommendations: [],
             source: "fallback",
           })),
+          fetchRoleScopedCalendarEvents(),
         ]);
 
         if (!isMounted) {
@@ -141,6 +150,15 @@ const UserDashboard = () => {
             : 0;
 
         setDashboardEvents(upcomingEvents);
+        setCalendarEvents(calendarResult?.events ?? []);
+        setCalendarSummary(
+          calendarResult?.summary ?? {
+            ongoing: 0,
+            coming: 0,
+            gone: 0,
+            total: 0,
+          },
+        );
         setDashboardStats({
           registeredCount: events.length,
           attendedCount,
@@ -170,6 +188,13 @@ const UserDashboard = () => {
         }
 
         setDashboardEvents([]);
+        setCalendarEvents([]);
+        setCalendarSummary({
+          ongoing: 0,
+          coming: 0,
+          gone: 0,
+          total: 0,
+        });
         setDashboardStats({
           registeredCount: 0,
           attendedCount: 0,
@@ -466,7 +491,13 @@ const UserDashboard = () => {
             </div>
           </div>
         </div>
-        <EventCalendar events={dashboardEvents} onEventClick={() => navigate("/userEvents")} />
+        <EventCalendar
+          events={calendarEvents}
+          summary={calendarSummary}
+          onEventClick={() => navigate("/userEvents")}
+          title="My Registered Event Calendar"
+          emptyStateMessage="Select another date or change the status filter."
+        />
       </div>
 
     </DashboardLayout>

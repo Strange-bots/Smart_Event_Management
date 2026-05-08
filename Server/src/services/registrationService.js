@@ -60,12 +60,19 @@ const getRiskReason = (riskLevel) => {
   }
 };
 
-const eventBelongsToOrganizer = (event, organizerEmail) => {
-  const normalizedOrganizer = normalizeEmail(organizerEmail);
+const getNormalizedOrganizerIdentifiers = (organizer = {}) =>
+  new Set(
+    [organizer.email, organizer.id]
+      .filter(Boolean)
+      .map((value) => normalizeEmail(value)),
+  );
+
+const eventBelongsToOrganizer = (event, organizer) => {
+  const normalizedIdentifiers = getNormalizedOrganizerIdentifiers(organizer);
 
   return [event.organizerEmail, event.organizerId]
     .filter(Boolean)
-    .some((value) => normalizeEmail(value) === normalizedOrganizer);
+    .some((value) => normalizedIdentifiers.has(normalizeEmail(value)));
 };
 
 const isActiveRegistration = (registration) =>
@@ -265,7 +272,7 @@ const getOrganizerContext = async (organizerEmail) => {
 
   const { events, registrations } = await getCollections();
   const organizerEvents = events.filter(
-    (event) => eventBelongsToOrganizer(event, organizer.email),
+    (event) => eventBelongsToOrganizer(event, organizer),
   );
 
   const organizerEventMap = new Map(

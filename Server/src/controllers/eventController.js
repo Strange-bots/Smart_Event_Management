@@ -159,7 +159,7 @@ const uploadEventImage = async (req, res) => {
 const listOrganizerEvents = async (req, res) => {
   return res.status(200).json({
     message: 'Organizer events fetched successfully',
-    events: await getOrganizerEvents(req.user.email),
+    events: await getOrganizerEvents(req.user),
   });
 };
 
@@ -181,7 +181,7 @@ const createOrganizerEventRecord = async (req, res) => {
 
 const updateOrganizerEventRecord = async (req, res) => {
   const result = await updateOrganizerEvent({
-    organizerEmail: req.user.email,
+    organizer: req.user,
     eventId: req.params.eventId,
     payload: req.body ?? {},
   });
@@ -214,7 +214,7 @@ const duplicateOrganizerEventRecord = async (req, res) => {
 
 const deleteOrganizerEventRecord = async (req, res) => {
   const result = await deleteOrganizerEvent({
-    organizerEmail: req.user.email,
+    organizer: req.user,
     eventId: req.params.eventId,
   });
 

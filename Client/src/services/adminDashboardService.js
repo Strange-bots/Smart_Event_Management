@@ -27,5 +27,11 @@ export async function fetchAdminDashboardOverview() {
     eventsByMonth: data?.eventsByMonth ?? [],
     venueDistribution: data?.venueDistribution ?? [],
     calendarEvents: data?.calendarEvents ?? [],
+    calendarSummary: data?.calendarSummary ?? {
+      ongoing: 0,
+      coming: 0,
+      gone: 0,
+      total: 0,
+    },
   };
 }

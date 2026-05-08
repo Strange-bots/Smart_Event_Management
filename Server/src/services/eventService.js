@@ -14,12 +14,22 @@ const getApprovedEventSortTime = (event) =>
 
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
 
-const eventBelongsToOrganizer = (event, organizerEmail) => {
-  const normalizedOrganizer = organizerEmail.toLowerCase();
+const getNormalizedOrganizerIdentifiers = (organizer) =>
+  new Set(
+    [
+      typeof organizer === 'string' ? organizer : organizer?.email,
+      typeof organizer === 'string' ? null : organizer?.id,
+    ]
+      .filter(Boolean)
+      .map((value) => normalizeEmail(value)),
+  );
+
+const eventBelongsToOrganizer = (event, organizer) => {
+  const normalizedIdentifiers = getNormalizedOrganizerIdentifiers(organizer);
 
   return [event.organizerEmail, event.organizerId]
     .filter(Boolean)
-    .some((value) => String(value).toLowerCase() === normalizedOrganizer);
+    .some((value) => normalizedIdentifiers.has(normalizeEmail(value)));
 };
 
 const getRegistrationCountForEventFrom = (registrations, eventId) =>
@@ -448,7 +458,7 @@ const validateOrganizerEventPayload = (event) => {
   return null;
 };
 
-const getOrganizerEvents = async (organizerEmail) => {
+const getOrganizerEvents = async (organizer) => {
   const [events, registrations, users] = await Promise.all([
     readCollection('events'),
     readCollection('registrations'),
@@ -456,7 +466,7 @@ const getOrganizerEvents = async (organizerEmail) => {
   ]);
 
   return events
-    .filter((event) => eventBelongsToOrganizer(event, organizerEmail))
+    .filter((event) => eventBelongsToOrganizer(event, organizer))
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
     .map((event) => formatEventWithRegistrations(event, registrations, users));
 };
@@ -555,13 +565,13 @@ const createOrganizerEvent = async ({ organizer, payload }) => {
   };
 };
 
-const updateOrganizerEvent = async ({ organizerEmail, eventId, payload }) => {
+const updateOrganizerEvent = async ({ organizer, eventId, payload }) => {
   const [events, registrations] = await Promise.all([
     readCollection('events'),
     readCollection('registrations'),
   ]);
   const event = events.find(
-    (item) => String(item.id) === String(eventId) && eventBelongsToOrganizer(item, organizerEmail),
+    (item) => String(item.id) === String(eventId) && eventBelongsToOrganizer(item, organizer),
   );
 
   if (!event) {
@@ -620,10 +630,10 @@ const duplicateOrganizerEvent = async ({ organizer, eventId }) => {
   });
 };
 
-const deleteOrganizerEvent = async ({ organizerEmail, eventId }) => {
+const deleteOrganizerEvent = async ({ organizer, eventId }) => {
   const collections = await getCollections();
   const eventIndex = collections.events.findIndex(
-    (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizerEmail),
+    (event) => String(event.id) === String(eventId) && eventBelongsToOrganizer(event, organizer),
   );
 
   if (eventIndex === -1) {
@@ -637,7 +647,7 @@ const deleteOrganizerEvent = async ({ organizerEmail, eventId }) => {
   await cleanupDeletedEvent({
     event,
     deletedBy: 'Organizer Team',
-    deletedByEmail: organizerEmail,
+    deletedByEmail: organizer.email,
     registrations: collections.registrations,
     paymentTransactions: collections.paymentTransactions,
     notifications: collections.notifications,

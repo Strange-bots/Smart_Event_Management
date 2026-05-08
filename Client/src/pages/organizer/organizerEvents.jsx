@@ -19,7 +19,9 @@ import {
 } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import EventCalendar from "../../components/dashboard/eventCalendar.jsx";
 import OrganizerMobileEventCard from "../../components/events/OrganizerMobileEventCard.jsx";
+import { fetchRoleScopedCalendarEvents } from "../../services/calendarService.js";
 import {
   deleteOrganizerEvent,
   duplicateOrganizerEvent,
@@ -116,6 +118,13 @@ function OrganizerEvents() {
   const [notice, setNotice] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [events, setEvents] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [calendarSummary, setCalendarSummary] = useState({
+    ongoing: 0,
+    coming: 0,
+    gone: 0,
+    total: 0,
+  });
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "organizer") {
@@ -128,7 +137,10 @@ function OrganizerEvents() {
       setIsLoadingEvents(true);
 
       try {
-        const organizerEvents = await fetchOrganizerEvents();
+        const [organizerEvents, calendarResult] = await Promise.all([
+          fetchOrganizerEvents(),
+          fetchRoleScopedCalendarEvents(),
+        ]);
 
         if (!isMounted) {
           return;
@@ -144,10 +156,26 @@ function OrganizerEvents() {
             capacity: Number(event.capacity || 0),
           })),
         );
+        setCalendarEvents(calendarResult?.events ?? []);
+        setCalendarSummary(
+          calendarResult?.summary ?? {
+            ongoing: 0,
+            coming: 0,
+            gone: 0,
+            total: 0,
+          },
+        );
         setNotice(null);
       } catch (error) {
         if (isMounted) {
           setNotice({ type: "error", message: error.message || "Unable to load events." });
+          setCalendarEvents([]);
+          setCalendarSummary({
+            ongoing: 0,
+            coming: 0,
+            gone: 0,
+            total: 0,
+          });
         }
       } finally {
         if (isMounted) {
@@ -437,6 +465,16 @@ function OrganizerEvents() {
             </div>
           </div>
         </section>
+
+        {!isLoadingEvents ? (
+          <EventCalendar
+            events={calendarEvents}
+            summary={calendarSummary}
+            onEventClick={handleViewDetails}
+            title="My Organizer Event Calendar"
+            emptyStateMessage="Select another date or adjust the event state filter."
+          />
+        ) : null}
 
         {isLoadingEvents ? (
           <section className="rounded-3xl bg-white p-12 text-center shadow-sm">

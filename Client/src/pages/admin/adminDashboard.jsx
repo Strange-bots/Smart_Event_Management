@@ -311,7 +311,10 @@ function AdminDashboard() {
 
         <EventCalendar
           events={overview.calendarEvents}
+          summary={overview.calendarSummary}
           onEventClick={handleEventClick}
+          title="Platform Event Calendar"
+          emptyStateMessage="Select another date or switch to a different event state."
         />
       </div>
     </DashboardLayout>
