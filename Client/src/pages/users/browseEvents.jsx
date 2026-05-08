@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
+import UserMobileEventCard from "../../components/events/UserMobileEventCard.jsx";
 import { ViewModeToggle } from "../../components/ui/view-mode-toggle";
 import {
   fetchEvents,
@@ -265,9 +266,15 @@ const BrowseEvents = () => {
         ) : viewMode === "grid" ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredEvents.map((event) => (
+              <div key={event.id} className="contents">
+              <UserMobileEventCard
+                event={event}
+                registeringEventId={registeringEventId}
+                onViewDetails={handleViewDetails}
+                onRegister={handleRegister}
+              />
               <section
-                key={event.id}
-                className="group relative overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#f8fafc] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl sm:min-h-[13.25rem] sm:bg-[#0f1e33]"
+                className="group relative hidden overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#0f1e33] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl sm:block sm:min-h-[13.25rem]"
               >
                 <div className="absolute inset-0 hidden bg-[#f8fafc] sm:block" />
 
@@ -387,6 +394,7 @@ const BrowseEvents = () => {
                   </div>
                 </div>
               </section>
+              </div>
             ))}
           </div>
         ) : (

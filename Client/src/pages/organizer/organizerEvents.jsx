@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard.jsx";
+import OrganizerMobileEventCard from "../../components/events/OrganizerMobileEventCard.jsx";
 import {
   deleteOrganizerEvent,
   duplicateOrganizerEvent,
@@ -459,9 +460,21 @@ function OrganizerEvents() {
                 : 0;
 
             return (
+              <div key={event.id} className="contents">
+              <OrganizerMobileEventCard
+                event={event}
+                status={status}
+                progress={progress}
+                activeMenuId={activeMenuId}
+                setActiveMenuId={setActiveMenuId}
+                onViewDetails={handleViewDetails}
+                onEditEvent={handleEditEvent}
+                onOpenEmail={handleOpenEmail}
+                onDuplicate={handleDuplicate}
+                onDelete={handleDelete}
+              />
               <section
-                key={event.id}
-                className="group relative overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#f8fafc] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl sm:min-h-[13.25rem] sm:bg-[#0f1e33]"
+                className="group relative hidden overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#0f1e33] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl sm:block sm:min-h-[13.25rem]"
               >
                 <div className="absolute inset-0 hidden bg-[#f8fafc] sm:block" />
 
@@ -616,6 +629,7 @@ function OrganizerEvents() {
                   </div>
                 </div>
               </section>
+              </div>
             );
           })}
         </div>
