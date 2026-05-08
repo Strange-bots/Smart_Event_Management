@@ -23,6 +23,7 @@ Server/.vite
 .env
 .env.*
 !.env.example
+!Client/.env
 
 # Editor directories and files
 .vscode/*
