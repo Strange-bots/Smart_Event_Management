@@ -9,6 +9,7 @@ const getOrganizerMailTemplates = async (req, res) => {
     eventId: req.body?.eventId,
     tone: req.body?.tone,
     audience: req.body?.audience,
+    subjectHint: req.body?.subjectHint,
   });
 
   if (result.error) {
@@ -29,6 +30,7 @@ const getAdminMailTemplates = async (req, res) => {
     adminEmail: req.user?.email,
     tone: req.body?.tone,
     recipientGroup: req.body?.recipientGroup,
+    subjectHint: req.body?.subjectHint,
   });
 
   if (result.error) {

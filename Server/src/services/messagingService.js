@@ -2,6 +2,7 @@ const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail, sanitizeUser, listUsers } = require('./authService');
 
 const normalizeEmail = (email = '') => String(email).trim().toLowerCase();
+const normalizeRole = (role = '') => String(role).trim().toLowerCase();
 
 const formatDateTimeLabel = (dateString) => {
   if (!dateString) {
@@ -38,7 +39,7 @@ const buildMessagePreview = (body) => {
 };
 
 const getUsersByRole = (users, role) =>
-  users.filter((user) => user.role === role);
+  users.filter((user) => normalizeRole(user.role) === normalizeRole(role));
 
 const dedupeUsers = (users) => {
   const seen = new Set();
@@ -54,6 +55,9 @@ const dedupeUsers = (users) => {
     return true;
   });
 };
+
+const formatRecipientLine = (user) =>
+  user?.email ? `${user.name || user.email} <${user.email}>` : user?.name || 'Selected Recipient';
 
 const createNotificationRecord = ({
   notifications,
@@ -167,22 +171,45 @@ const getAdminRecipientGroup = (users, recipientGroup) => {
   const userGroup = getUsersByRole(users, 'user');
   const organizerGroup = getUsersByRole(users, 'organizer');
   const everyone = dedupeUsers([...userGroup, ...organizerGroup]);
+  const normalizedRecipientGroup = String(recipientGroup || '').trim();
 
-  switch (recipientGroup) {
+  if (normalizedRecipientGroup.startsWith('individual:')) {
+    const recipientEmail = normalizedRecipientGroup.slice('individual:'.length).trim().toLowerCase();
+    const recipient = users.find(
+      (user) =>
+        normalizeEmail(user.email) === recipientEmail &&
+        normalizeRole(user.role) !== 'admin',
+    );
+
+    if (!recipient) {
+      return null;
+    }
+
+    return {
+      label: formatRecipientLine(recipient),
+      recipients: [recipient],
+      groupValue: 'individual',
+    };
+  }
+
+  switch (normalizedRecipientGroup) {
     case 'all-users':
       return {
         label: 'All Users',
         recipients: userGroup,
+        groupValue: 'all-users',
       };
     case 'all-organizers':
       return {
         label: 'All Organizers',
         recipients: organizerGroup,
+        groupValue: 'all-organizers',
       };
     case 'all':
       return {
         label: 'Everyone',
         recipients: everyone,
+        groupValue: 'all',
       };
     default:
       return null;
@@ -274,7 +301,7 @@ const sendAdminMessage = async ({ adminEmail, recipientGroup, subject, body }) =
     senderEmail: admin.email,
     senderName: admin.name,
     senderRole: admin.role,
-    recipientGroup,
+    recipientGroup: group.groupValue || recipientGroup,
     recipient: group.label,
     recipientCount: recipients.length,
     subject: normalizedSubject,

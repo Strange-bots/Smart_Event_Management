@@ -169,7 +169,7 @@ function OrganizerMessages() {
     return <Navigate to="/login" replace />;
   }
 
-  const loadTemplates = async ({ eventId, tone, audience }) => {
+  const loadTemplates = async ({ eventId, tone, audience, subjectHint }) => {
     if (!eventId) {
       setTemplates([]);
       return;
@@ -179,6 +179,7 @@ function OrganizerMessages() {
       eventId,
       tone,
       audience,
+      subjectHint,
     });
 
     setTemplates(result.templates);
@@ -196,6 +197,7 @@ function OrganizerMessages() {
       eventId: selectedEventId,
       tone: selectedTone,
       audience: selectedAudience,
+      subjectHint: subject,
     });
   };
 
@@ -209,6 +211,7 @@ function OrganizerMessages() {
       eventId: selectedEventId,
       tone: selectedTone,
       audience: selectedAudience,
+      subjectHint: subject,
     }).catch((error) => {
       setTemplates([]);
       setNotice({
@@ -216,7 +219,7 @@ function OrganizerMessages() {
         message: error.message || "Unable to load AI email templates.",
       });
     });
-  }, [selectedAudience, selectedEventId, selectedTone]);
+  }, [selectedAudience, selectedEventId, selectedTone, subject]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim() || !selectedEventId || !selectedAudience) {

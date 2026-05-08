@@ -126,6 +126,26 @@ function AdminMessage() {
     { value: "all", label: "Everyone", count: totalUsers + totalOrganizers },
   ];
 
+  const individualRecipientOptions = useMemo(
+    () =>
+      allUsers
+        .filter((user) => normalizeRole(user.role) !== "admin")
+        .map((user) => ({
+          value: `individual:${user.email}`,
+          label: `${user.name} (${user.role})`,
+          count: 1,
+        })),
+    [allUsers]
+  );
+
+  const allRecipientOptions = useMemo(
+    () => [
+      ...recipientOptions,
+      ...individualRecipientOptions,
+    ],
+    [individualRecipientOptions, recipientOptions]
+  );
+
   const recipientCount = useMemo(() => {
     switch (selectedRecipients) {
       case "all-users":
@@ -135,11 +155,11 @@ function AdminMessage() {
       case "all":
         return totalUsers + totalOrganizers;
       default:
-        return 0;
+        return selectedRecipients.startsWith("individual:") ? 1 : 0;
     }
   }, [selectedRecipients, totalOrganizers, totalUsers]);
 
-  const loadTemplates = async ({ tone, recipientGroup }) => {
+  const loadTemplates = async ({ tone, recipientGroup, subjectHint }) => {
     if (!recipientGroup) {
       setTemplates([]);
       return;
@@ -148,6 +168,7 @@ function AdminMessage() {
     const result = await fetchAdminMailTemplates({
       tone,
       recipientGroup,
+      subjectHint,
     });
 
     setTemplates(result.templates);
@@ -166,6 +187,7 @@ function AdminMessage() {
     await loadTemplates({
       tone: selectedTone,
       recipientGroup: selectedRecipients,
+      subjectHint: subject,
     });
   };
 
@@ -178,11 +200,12 @@ function AdminMessage() {
     loadTemplates({
       tone: selectedTone,
       recipientGroup: selectedRecipients,
+      subjectHint: subject,
     }).catch((loadError) => {
       setTemplates([]);
       toast.error(loadError.message || "Unable to load AI templates.");
     });
-  }, [selectedRecipients, selectedTone]);
+  }, [selectedRecipients, selectedTone, subject]);
 
   const handleSend = async () => {
     if (!subject || !body || !selectedRecipients) {
@@ -220,6 +243,17 @@ function AdminMessage() {
   });
 
   const getRecipientLabel = (group) => {
+    if (String(group || "").startsWith("individual:")) {
+      const email = String(group).slice("individual:".length);
+      const matchedUser = allUsers.find(
+        (user) => user.email.toLowerCase() === email.toLowerCase()
+      );
+
+      return matchedUser
+        ? `${matchedUser.name} (${matchedUser.role})`
+        : email;
+    }
+
     switch (group) {
       case "all-users":
         return "All Users";
@@ -231,6 +265,11 @@ function AdminMessage() {
         return group;
     }
   };
+
+  const getLogRecipientLabel = (log) =>
+    log.recipientGroup === "individual"
+      ? log.recipient
+      : `${getRecipientLabel(log.recipientGroup)} (${log.recipientCount})`;
 
   return (
     <DashboardLayout>
@@ -331,7 +370,7 @@ function AdminMessage() {
               <CardContent>
                 <AIEmailComposer
                   role="admin"
-                  recipientOptions={recipientOptions}
+                  recipientOptions={allRecipientOptions}
                   selectedRecipients={selectedRecipients}
                   onRecipientsChange={setSelectedRecipients}
                   templates={templates}
@@ -397,8 +436,7 @@ function AdminMessage() {
                           <TableCell>
                             <Badge variant="secondary" className="gap-1">
                               <Users size={12} />
-                              {getRecipientLabel(log.recipientGroup)} (
-                              {log.recipientCount})
+                              {getLogRecipientLabel(log)}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -463,8 +501,7 @@ function AdminMessage() {
                   <span className="text-muted-foreground">Recipients:</span>
                   <p className="mt-1 flex items-center gap-2 font-medium">
                     <Users size={14} />
-                    {getRecipientLabel(selectedLog.recipientGroup)} (
-                    {selectedLog.recipientCount})
+                    {getLogRecipientLabel(selectedLog)}
                   </p>
                 </div>
               </div>
