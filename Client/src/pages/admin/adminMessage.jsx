@@ -140,6 +140,11 @@ function AdminMessage() {
   }, [selectedRecipients, totalOrganizers, totalUsers]);
 
   const loadTemplates = async ({ tone, recipientGroup }) => {
+    if (!recipientGroup) {
+      setTemplates([]);
+      return;
+    }
+
     const result = await fetchAdminMailTemplates({
       tone,
       recipientGroup,
@@ -153,6 +158,11 @@ function AdminMessage() {
   };
 
   const handleRegenerate = async () => {
+    if (!selectedRecipients) {
+      toast.error("Select a recipient group first.");
+      return;
+    }
+
     await loadTemplates({
       tone: selectedTone,
       recipientGroup: selectedRecipients,
@@ -160,6 +170,11 @@ function AdminMessage() {
   };
 
   useEffect(() => {
+    if (!selectedRecipients) {
+      setTemplates([]);
+      return;
+    }
+
     loadTemplates({
       tone: selectedTone,
       recipientGroup: selectedRecipients,

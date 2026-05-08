@@ -131,6 +131,12 @@ const UserNotifications = () => {
         return <Bell className="text-yellow-600" size={20} />;
       case "update":
         return <AlertCircle className="text-blue-600" size={20} />;
+      case "organizerMessage":
+        return <Mail className="text-[#1f4e79]" size={20} />;
+      case "adminMessage":
+        return <User className="text-red-600" size={20} />;
+      case "userMessage":
+        return <Mail className="text-slate-700" size={20} />;
       case "organizer":
         return <Mail className="text-[#1f4e79]" size={20} />;
       case "admin":
@@ -146,6 +152,9 @@ const UserNotifications = () => {
       payment: "bg-green-100 text-green-700",
       reminder: "bg-yellow-100 text-yellow-700",
       update: "bg-blue-100 text-blue-700",
+      organizerMessage: "bg-blue-50 text-[#1f4e79]",
+      adminMessage: "bg-red-100 text-red-700",
+      userMessage: "bg-slate-100 text-slate-700",
       system: "bg-gray-100 text-gray-700",
       organizer: "bg-blue-50 text-[#1f4e79]",
       admin: "bg-red-100 text-red-700",
@@ -155,6 +164,9 @@ const UserNotifications = () => {
       payment: "Payment",
       reminder: "Reminder",
       update: "Update",
+      organizerMessage: "Organizer Message",
+      adminMessage: "Admin Message",
+      userMessage: "Direct Message",
       system: "System",
       organizer: "Organizer",
       admin: "Admin",

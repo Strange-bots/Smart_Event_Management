@@ -267,16 +267,16 @@ const BrowseEvents = () => {
             {filteredEvents.map((event) => (
               <section
                 key={event.id}
-                className="group relative min-h-[13.25rem] overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#0f1e33] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl"
+                className="group relative overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#f8fafc] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl sm:min-h-[13.25rem] sm:bg-[#0f1e33]"
               >
-                <div className="absolute inset-0 bg-[#f8fafc]" />
+                <div className="absolute inset-0 hidden bg-[#f8fafc] sm:block" />
 
-                <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/85 via-[#07111f]/30 to-transparent transition duration-500 group-hover:opacity-0" />
+                <div className="pointer-events-none relative h-44 overflow-hidden sm:absolute sm:inset-0 sm:z-30 sm:h-auto">
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/85 via-[#07111f]/30 to-transparent transition duration-500 sm:block sm:group-hover:opacity-0" />
                   <img
                     src={event.image}
                     alt={event.title}
-                    className="h-full w-full object-cover transition-all duration-700 ease-out group-hover:w-[34%] group-hover:translate-x-0 group-hover:scale-105 sm:group-hover:w-[32%] xl:group-hover:w-[30%]"
+                    className="h-full w-full object-cover transition-all duration-700 ease-out sm:group-hover:w-[34%] sm:group-hover:translate-x-0 sm:group-hover:scale-105 sm:group-hover:w-[32%] xl:group-hover:w-[30%]"
                   />
                   {Number.isFinite(event.aiMatch) && (
                     <span className="absolute right-2 top-2 rounded-full bg-purple-600 px-2 py-1 text-[0.68rem] text-white">
@@ -285,7 +285,7 @@ const BrowseEvents = () => {
                   )}
                 </div>
 
-                <div className="absolute inset-x-0 bottom-0 z-10 p-3.5 text-white transition duration-500 group-hover:translate-y-2 group-hover:opacity-0 sm:p-4">
+                <div className="absolute inset-x-0 bottom-0 z-10 hidden p-3.5 text-white transition duration-500 sm:block sm:p-4 sm:group-hover:translate-y-2 sm:group-hover:opacity-0">
                   <div className="flex items-center justify-between gap-3">
                     <span className="inline-flex rounded-full bg-white/18 px-2.5 py-1 text-[0.68rem] font-semibold backdrop-blur">
                       {event.category}
@@ -302,8 +302,8 @@ const BrowseEvents = () => {
                   </p>
                 </div>
 
-                <div className="relative z-20 flex h-full min-h-[13.25rem] flex-col justify-end p-2.5 sm:p-3">
-                  <div className="ml-0 rounded-[1.1rem] bg-white/97 p-3 shadow-lg backdrop-blur transition-all duration-500 ease-out sm:translate-x-3 sm:translate-y-6 sm:opacity-0 sm:delay-0 sm:group-hover:ml-[32%] sm:group-hover:translate-x-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-hover:delay-150 xl:group-hover:ml-[30%]">
+                <div className="relative z-20 flex h-full flex-col justify-end p-2.5 sm:min-h-[13.25rem] sm:p-3">
+                  <div className="rounded-[1.1rem] bg-white p-3 shadow-sm transition-all duration-500 ease-out sm:ml-0 sm:bg-white/97 sm:shadow-lg sm:backdrop-blur sm:translate-x-3 sm:translate-y-6 sm:opacity-0 sm:delay-0 sm:group-hover:ml-[32%] sm:group-hover:translate-x-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-hover:delay-150 xl:group-hover:ml-[30%]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[0.68rem] font-semibold text-gray-600">

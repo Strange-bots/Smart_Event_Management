@@ -131,6 +131,10 @@ const OrganizerNotifications = () => {
         return <AlertCircle className="text-red-600" size={20} />;
       case "adminMessage":
         return <Mail className="text-[#1f4e79]" size={20} />;
+      case "userMessage":
+        return <Mail className="text-slate-700" size={20} />;
+      case "organizerMessage":
+        return <Mail className="text-[#1f4e79]" size={20} />;
       case "admin":
         return <User className="text-red-600" size={20} />;
       default:
@@ -144,6 +148,8 @@ const OrganizerNotifications = () => {
       pending: "bg-yellow-100 text-yellow-700",
       rejected: "bg-red-100 text-red-700",
       adminMessage: "bg-blue-50 text-[#1f4e79]",
+      userMessage: "bg-slate-100 text-slate-700",
+      organizerMessage: "bg-blue-50 text-[#1f4e79]",
       admin: "bg-slate-100 text-slate-700",
     };
     const labels = {
@@ -151,6 +157,8 @@ const OrganizerNotifications = () => {
       pending: "Pending Review",
       rejected: "Needs Revision",
       adminMessage: "Admin Message",
+      userMessage: "Direct Message",
+      organizerMessage: "Organizer Message",
       admin: "Admin",
     };
     return (
