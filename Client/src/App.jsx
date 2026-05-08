@@ -8,6 +8,7 @@ import Contact from "./pages/contact.jsx";
 import Login from "./pages/login.jsx";
 import Signup from "./pages/signup.jsx";
 import OtpVerification from "./pages/otpVerification.jsx";
+import ForgotPassword from "./pages/forgotPassword.jsx";
 import AdminDashboard from "./pages/admin/adminDashboard.jsx";
 import AdminEvents from "./pages/admin/adminEvents.jsx";
 import AdminGallery from "./pages/admin/adminGallery.jsx";
@@ -121,6 +122,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<OtpVerification />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Admin routes */}
           <Route path="/admin/admindashboard" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />

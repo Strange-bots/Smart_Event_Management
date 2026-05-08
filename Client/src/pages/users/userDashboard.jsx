@@ -3,43 +3,158 @@ import { useNavigate, Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
 import EventCalendar from "../../components/dashboard/EventCalendar";
 import { fetchRecommendedUserEvents } from "../../services/eventService.js";
+import { fetchMyFeedback } from "../../services/feedbackService.js";
+import { fetchMyNotifications } from "../../services/notificationService.js";
+import { fetchMyEventRegistrations } from "../../services/registrationService.js";
 import { getCurrentUser } from "../../utils/auth";
-const upcomingEvents = [
-  {
-    id: 1,
-    title: "Annual Technology Summit 2024",
-    date: "March 15, 2024",
-    time: "9:00 AM - 5:00 PM",
-    location: "Main Auditorium",
-    image: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=300&q=80",
-  },
-  {
-    id: 2,
-    title: "Business Analytics Workshop",
-    date: "March 20, 2024",
-    time: "10:00 AM - 2:00 PM",
-    location: "Room 301",
-    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&q=80",
-  },
-];
+
+const formatEventDate = (dateString) => {
+  if (!dateString) {
+    return "Date to be announced";
+  }
+
+  const parsedDate = new Date(dateString);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsedDate);
+};
+
+const parseEventDate = (dateString) => {
+  if (!dateString) {
+    return null;
+  }
+
+  const parsedDate = new Date(dateString);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const getEventStatus = (registration) => {
+  if (registration.attendanceStatus === "attended") {
+    return "attended";
+  }
+
+  if (registration.attendanceStatus === "cancelled") {
+    return "cancelled";
+  }
+
+  if (registration.attendanceStatus === "no-show") {
+    return "no-show";
+  }
+
+  return "upcoming";
+};
+
+const mapRegistrationToDashboardEvent = (registration) => ({
+  id: registration.event?.id,
+  registrationId: registration.registrationId,
+  title: registration.event?.title || "Untitled Event",
+  date: registration.event?.date,
+  dateLabel: formatEventDate(registration.event?.date),
+  time: registration.event?.time || "Time to be announced",
+  location: registration.event?.location || registration.event?.venue || "Venue to be announced",
+  venue: registration.event?.venue || registration.event?.location || "Venue to be announced",
+  image:
+    registration.event?.image ||
+    registration.event?.imagePreview ||
+    "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=300&q=80",
+  registrations: Number(registration.event?.registrations || 0),
+  capacity: Number(registration.event?.capacity || 0),
+  status: "approved",
+  attendanceStatus: registration.attendanceStatus,
+  userStatus: getEventStatus(registration),
+});
 
 const UserDashboard = () => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationSource, setRecommendationSource] = useState("fallback");
+  const [dashboardEvents, setDashboardEvents] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    registeredCount: 0,
+    attendedCount: 0,
+    certificateCount: 0,
+    unreadNotificationCount: 0,
+    upcomingCount: 0,
+    attendanceRate: 0,
+    averageRating: 0,
+  });
+  const [dashboardError, setDashboardError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
 
-    fetchRecommendedUserEvents(3)
-      .then((result) => {
+    const loadDashboard = async () => {
+      try {
+        const [registrations, notifications, feedback, recommendedResult] = await Promise.all([
+          fetchMyEventRegistrations(),
+          fetchMyNotifications().catch(() => []),
+          fetchMyFeedback().catch(() => []),
+          fetchRecommendedUserEvents(3).catch(() => ({
+            recommendations: [],
+            source: "fallback",
+          })),
+        ]);
+
         if (!isMounted) {
           return;
         }
 
+        const events = (registrations ?? []).map(mapRegistrationToDashboardEvent);
+        const now = new Date();
+        const upcomingEvents = events
+          .filter((event) => {
+            if (event.userStatus !== "upcoming") {
+              return false;
+            }
+
+            const eventDate = parseEventDate(event.date);
+            return !eventDate || eventDate >= now;
+          })
+          .sort((left, right) => {
+            const leftTime = parseEventDate(left.date)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            const rightTime = parseEventDate(right.date)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            return leftTime - rightTime;
+          });
+        const attendedCount = events.filter(
+          (event) => event.attendanceStatus === "attended"
+        ).length;
+        const completedAttendanceCount = events.filter((event) =>
+          ["attended", "no-show"].includes(event.attendanceStatus)
+        ).length;
+        const unreadNotificationCount = (notifications ?? []).filter(
+          (notification) => !notification.isRead
+        ).length;
+        const averageRating =
+          feedback.length > 0
+            ? feedback.reduce(
+                (total, item) => total + Number(item.rating || 0),
+                0
+              ) / feedback.length
+            : 0;
+
+        setDashboardEvents(upcomingEvents);
+        setDashboardStats({
+          registeredCount: events.length,
+          attendedCount,
+          certificateCount: attendedCount,
+          unreadNotificationCount,
+          upcomingCount: upcomingEvents.length,
+          attendanceRate:
+            completedAttendanceCount > 0
+              ? Math.round((attendedCount / completedAttendanceCount) * 100)
+              : 0,
+          averageRating,
+        });
         setRecommendations(
-          (result?.recommendations ?? []).map((event) => ({
+          (recommendedResult?.recommendations ?? []).map((event) => ({
             id: event.id,
             title: event.title,
             date: event.date,
@@ -47,16 +162,32 @@ const UserDashboard = () => {
             image: event.image,
           }))
         );
-        setRecommendationSource(result?.source || "fallback");
-      })
-      .catch(() => {
+        setRecommendationSource(recommendedResult?.source || "fallback");
+        setDashboardError("");
+      } catch (error) {
         if (!isMounted) {
           return;
         }
 
+        setDashboardEvents([]);
+        setDashboardStats({
+          registeredCount: 0,
+          attendedCount: 0,
+          certificateCount: 0,
+          unreadNotificationCount: 0,
+          upcomingCount: 0,
+          attendanceRate: 0,
+          averageRating: 0,
+        });
         setRecommendations([]);
         setRecommendationSource("fallback");
-      });
+        setDashboardError(
+          error.message || "Unable to load your dashboard right now."
+        );
+      }
+    };
+
+    loadDashboard();
 
     return () => {
       isMounted = false;
@@ -78,7 +209,9 @@ const UserDashboard = () => {
               Good to see you! 👋
             </h1>
             <p className="text-white/80 max-w-lg">
-              You have 2 upcoming events this week. Discover new opportunities tailored just for you.
+              {dashboardStats.upcomingCount > 0
+                ? `You have ${dashboardStats.upcomingCount} upcoming event${dashboardStats.upcomingCount === 1 ? "" : "s"} coming up. Discover new opportunities tailored just for you.`
+                : "You have no upcoming events right now. Discover new opportunities tailored just for you."}
             </p>
 
             <div className="flex flex-wrap gap-3 mt-6">
@@ -134,12 +267,14 @@ const UserDashboard = () => {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-3xl font-bold text-gray-900">5</p>
+                <p className="text-3xl font-bold text-gray-900">{dashboardStats.registeredCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Registered Events</p>
               </div>
               <div className="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center text-2xl">📅</div>
             </div>
-            <p className="mt-3 text-xs text-green-600">↑ 2 upcoming</p>
+            <p className="mt-3 text-xs text-green-600">
+              {dashboardStats.upcomingCount} upcoming
+            </p>
           </div>
 
           <div
@@ -148,12 +283,12 @@ const UserDashboard = () => {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-3xl font-bold text-gray-900">12</p>
+                <p className="text-3xl font-bold text-gray-900">{dashboardStats.attendedCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Events Attended</p>
               </div>
               <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center text-2xl">⭐</div>
             </div>
-            <p className="mt-3 text-xs text-gray-400">This semester</p>
+            <p className="mt-3 text-xs text-gray-400">From your attendance history</p>
           </div>
 
           <div
@@ -162,12 +297,12 @@ const UserDashboard = () => {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-3xl font-bold text-gray-900">8</p>
+                <p className="text-3xl font-bold text-gray-900">{dashboardStats.certificateCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Certificates</p>
               </div>
               <div className="w-11 h-11 rounded-xl bg-purple-100 flex items-center justify-center text-2xl">🏆</div>
             </div>
-            <p className="mt-3 text-xs text-purple-600">View all →</p>
+            <p className="mt-3 text-xs text-purple-600">Earned from attended events</p>
           </div>
 
           <div
@@ -176,7 +311,7 @@ const UserDashboard = () => {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-3xl font-bold text-gray-900">3</p>
+                <p className="text-3xl font-bold text-gray-900">{dashboardStats.unreadNotificationCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Notifications</p>
               </div>
               <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center text-2xl">🔔</div>
@@ -184,6 +319,12 @@ const UserDashboard = () => {
             <p className="mt-3 text-xs text-red-500">Unread messages</p>
           </div>
         </div>
+
+        {dashboardError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {dashboardError}
+          </div>
+        ) : null}
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-5 gap-6">
@@ -200,7 +341,7 @@ const UserDashboard = () => {
             </div>
 
             <div className="space-y-3">
-              {upcomingEvents.map((event) => (
+              {dashboardEvents.length ? dashboardEvents.map((event) => (
                 <div
                   key={event.id}
                   className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden flex"
@@ -222,22 +363,38 @@ const UserDashboard = () => {
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                        <span>📅 {event.date}</span>
+                        <span>📅 {event.dateLabel}</span>
                         <span>🕐 {event.time}</span>
                         <span>📍 {event.location}</span>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <button className="border border-gray-300 text-gray-700 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                      <button
+                        className="border border-gray-300 text-gray-700 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={(eventClick) => {
+                          eventClick.stopPropagation();
+                          navigate("/userEvents");
+                        }}
+                      >
                         View Details
                       </button>
-                      <button className="text-gray-400 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                      <button
+                        className="text-gray-400 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={(eventClick) => {
+                          eventClick.stopPropagation();
+                          navigate("/userEvents");
+                        }}
+                      >
                         Cancel
                       </button>
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
+                  You have no upcoming registered events right now.
+                </div>
+              )}
             </div>
           </div>
 
@@ -296,18 +453,20 @@ const UserDashboard = () => {
               <p className="text-sm font-medium text-gray-800 mb-3">Your Activity</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center p-2 bg-white rounded-lg">
-                  <p className="text-xl font-bold text-[#1f4e79]">85%</p>
+                  <p className="text-xl font-bold text-[#1f4e79]">{dashboardStats.attendanceRate}%</p>
                   <p className="text-xs text-gray-500">Attendance Rate</p>
                 </div>
                 <div className="text-center p-2 bg-white rounded-lg">
-                  <p className="text-xl font-bold text-[#f36f21]">4.8</p>
+                  <p className="text-xl font-bold text-[#f36f21]">
+                    {dashboardStats.averageRating.toFixed(1)}
+                  </p>
                   <p className="text-xs text-gray-500">Avg. Rating</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <EventCalendar />
+        <EventCalendar events={dashboardEvents} onEventClick={() => navigate("/userEvents")} />
       </div>
 
     </DashboardLayout>

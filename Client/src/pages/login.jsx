@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import Navbar from "../components/layout/navbar";
 import AuthPanelDivider from "../components/auth/AuthPanelDivider.jsx";
@@ -16,9 +16,11 @@ const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState(location.state?.notice || "");
   const [branding, setBranding] = useState({
     organization: {
       name: "KOI Smart Events",
@@ -29,6 +31,15 @@ const Login = () => {
     email: "",
     password: "",
   });
+
+  useEffect(() => {
+    if (location.state?.email) {
+      setFormData((current) => ({
+        ...current,
+        email: location.state.email,
+      }));
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -208,7 +219,7 @@ const Login = () => {
                   <div className="flex justify-between items-center">
                     <label htmlFor="password">Password</label>
                     <Link
-                      to="/login"
+                      to="/forgot-password"
                       className="text-sm text-brand-orange hover:underline"
                     >
                       Forgot password?
@@ -241,6 +252,7 @@ const Login = () => {
                 </div>
 
                 {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                {notice ? <p className="text-sm text-emerald-700">{notice}</p> : null}
 
                 <button
                   type="submit"

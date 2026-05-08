@@ -171,7 +171,62 @@ const validateProfileUpdatePayload = ({ name, phone }) => {
   return null;
 };
 
+const validateForgotPasswordRequestPayload = ({ email }) => {
+  if (!email?.trim()) {
+    return 'Email is required';
+  }
+
+  if (!EMAIL_REGEX.test(email.trim())) {
+    return 'Please enter a valid email address';
+  }
+
+  if (!KOI_EMAIL_REGEX.test(email.trim())) {
+    return 'Only @koi.edu.au email addresses are allowed';
+  }
+
+  return null;
+};
+
+const validateForgotPasswordResetPayload = ({
+  email,
+  otp,
+  newPassword,
+  confirmPassword,
+}) => {
+  const emailValidationError = validateForgotPasswordRequestPayload({ email });
+
+  if (emailValidationError) {
+    return emailValidationError;
+  }
+
+  if (!otp?.trim()) {
+    return 'OTP is required';
+  }
+
+  if (!/^\d{6}$/.test(otp.trim())) {
+    return 'OTP must be a 6 digit code';
+  }
+
+  if (!newPassword) {
+    return 'New password is required';
+  }
+
+  const passwordValidationError = validatePasswordStrength(newPassword);
+
+  if (passwordValidationError) {
+    return passwordValidationError;
+  }
+
+  if (newPassword !== confirmPassword) {
+    return 'New password and confirm password do not match';
+  }
+
+  return null;
+};
+
 module.exports = {
+  validateForgotPasswordRequestPayload,
+  validateForgotPasswordResetPayload,
   sanitizeSignupRequest,
   validateChangePasswordPayload,
   validateLoginPayload,

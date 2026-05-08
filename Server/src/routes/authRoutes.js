@@ -3,13 +3,17 @@ const {
   authorizeDashboard,
   changePassword,
   getCurrentUserProfile,
-  registerUser,
+  requestPasswordResetOtp,
+  resetPasswordWithOtp,
+  signup,
   updateMyProfile,
 } = require('../controllers/authController');
 
 const router = express.Router();
 
-router.post('/signup', registerUser);
+router.post('/signup', signup);
+router.post('/forgot-password/request', requestPasswordResetOtp);
+router.post('/forgot-password/reset', resetPasswordWithOtp);
 router.post('/authorize-dashboard', authorizeDashboard);
 router.post('/change-password', changePassword);
 router.get('/me', getCurrentUserProfile);

@@ -106,6 +106,8 @@ const mergeSettings = (parsedSettings = {}) => ({
 const readSettingsFromStore = async () =>
   mergeSettings((await readCollection('adminSettings')) || {});
 
+const readSettingsFromDisk = () => mergeSettings({});
+
 const getAdminUser = async (adminEmail) => {
   const adminUser = await findUserByEmail(adminEmail);
 
@@ -272,6 +274,7 @@ const saveAdminSettings = async (adminEmail, nextSettings) => {
 module.exports = {
   getAdminSettings,
   getPublicBrandingSettings,
+  readSettingsFromDisk,
   readSettingsFromStore,
   saveAdminSettings,
 };

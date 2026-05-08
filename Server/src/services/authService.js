@@ -123,7 +123,24 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-const buildOtpEmailHtml = (otp) => `
+const buildOtpEmailHtml = (otp, options = {}) => {
+  const purpose = options.purpose === 'password-reset' ? 'password-reset' : 'signup';
+  const title =
+    purpose === 'password-reset'
+      ? 'Reset your Smart Events password'
+      : 'Verify your email address';
+  const eyebrow =
+    purpose === 'password-reset' ? 'Password Reset' : 'Email Verification';
+  const intro =
+    purpose === 'password-reset'
+      ? 'Use the one-time password below to reset your KOI Smart Events account password. This helps us confirm that the request came from you.'
+      : 'Use the one-time password below to finish creating your KOI Smart Events account. This helps us confirm that your student email address belongs to you.';
+  const footer =
+    purpose === 'password-reset'
+      ? 'If you did not request a password reset, you can ignore this email and keep using your current password.'
+      : 'If you did not request this verification email, you can safely ignore it.';
+
+  return `
 <!doctype html>
 <html lang="en">
   <head>
@@ -147,7 +164,7 @@ const buildOtpEmailHtml = (otp) => `
                     </td>
                     <td align="right" style="vertical-align:middle;">
                       <div style="color:#ffffff; font-size:18px; font-weight:700; letter-spacing:0.2px;">Smart Events</div>
-                      <div style="color:#cbdceb; font-size:12px; text-transform:uppercase; letter-spacing:2px; margin-top:4px;">Email Verification</div>
+                      <div style="color:#cbdceb; font-size:12px; text-transform:uppercase; letter-spacing:2px; margin-top:4px;">${eyebrow}</div>
                     </td>
                   </tr>
                 </table>
@@ -156,10 +173,10 @@ const buildOtpEmailHtml = (otp) => `
             <tr>
               <td style="padding:34px 32px 10px;">
                 <h1 style="margin:0; color:#0f1e33; font-size:26px; line-height:1.25; font-weight:800;">
-                  Verify your email address
+                  ${title}
                 </h1>
                 <p style="margin:14px 0 0; color:#53657a; font-size:15px; line-height:1.7;">
-                  Use the one-time password below to finish creating your KOI Smart Events account. This helps us confirm that your student email address belongs to you.
+                  ${intro}
                 </p>
               </td>
             </tr>
@@ -195,7 +212,7 @@ const buildOtpEmailHtml = (otp) => `
             <tr>
               <td style="padding:22px 32px; background-color:#f8fafc; border-top:1px solid #e8eef5;">
                 <p style="margin:0; color:#6b7c93; font-size:12px; line-height:1.6;">
-                  If you did not request this verification email, you can safely ignore it.
+                  ${footer}
                 </p>
                 <p style="margin:10px 0 0; color:#9aa9bc; font-size:12px;">
                   KOI Smart Events
@@ -208,8 +225,19 @@ const buildOtpEmailHtml = (otp) => `
     </table>
   </body>
 </html>`;
+};
 
-const sendOTPEmail = async (email, otp) => {
+const sendOTPEmail = async (email, otp, options = {}) => {
+  const purpose = options.purpose === 'password-reset' ? 'password-reset' : 'signup';
+  const subject =
+    purpose === 'password-reset'
+      ? 'Your Smart Events password reset code'
+      : 'Your Smart Events verification code';
+  const text =
+    purpose === 'password-reset'
+      ? `Your Smart Events password reset code is ${otp}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`
+      : `Your Smart Events verification code is ${otp}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`;
+
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.log(`OTP for ${email}: ${otp}`);
     return {
@@ -241,11 +269,9 @@ const sendOTPEmail = async (email, otp) => {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to: email,
-    subject: 'Your Smart Events verification code',
-    text:
-      `Your Smart Events verification code is ${otp}. ` +
-      'It expires in 10 minutes. If you did not request this code, you can ignore this email.',
-    html: buildOtpEmailHtml(otp),
+    subject,
+    text,
+    html: buildOtpEmailHtml(otp, options),
   });
 
   return {
@@ -253,17 +279,18 @@ const sendOTPEmail = async (email, otp) => {
   };
 };
 
-const storeOTP = (email, otp) => {
+const storeOTP = (email, otp, purpose = 'signup') => {
   const normalizedEmail = normalizeEmail(email);
   const expiresAt = Date.now() + OTP_EXPIRY_MS;
 
   otpStorage[normalizedEmail] = {
+    purpose,
     otpHash: hashOTP(otp),
     expiresAt,
   };
 };
 
-const verifyOTP = (email, otp) => {
+const verifyOTP = (email, otp, purpose = 'signup') => {
   const normalizedEmail = normalizeEmail(email);
   const stored = otpStorage[normalizedEmail];
 
@@ -273,6 +300,10 @@ const verifyOTP = (email, otp) => {
 
   if (Date.now() > stored.expiresAt) {
     delete otpStorage[normalizedEmail];
+    return false;
+  }
+
+  if (stored.purpose !== purpose) {
     return false;
   }
 

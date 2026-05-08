@@ -17,6 +17,8 @@ const {
 const {
   sanitizeSignupRequest,
   validateChangePasswordPayload,
+  validateForgotPasswordRequestPayload,
+  validateForgotPasswordResetPayload,
   validateLoginPayload,
   validateProfileUpdatePayload,
   validateSecureSignupPayload,
@@ -133,9 +135,54 @@ const registerUser = async (req, res) => {
 };
 
 const signup = async (req, res) => {
-  const { email, otp, name, password, confirmPassword } = req.body ?? {};
+  try {
+    const { email, otp, name, password, confirmPassword } = req.body ?? {};
 
-  if (!otp) {
+    if (!otp) {
+      const validationError = validateSignupPayload({
+        name,
+        email,
+        password,
+        confirmPassword,
+      });
+
+      if (validationError) {
+        return res.status(400).json({ message: validationError });
+      }
+
+      if (await findUserByEmail(email)) {
+        return res.status(409).json({ message: 'An account with this email already exists' });
+      }
+
+      const generatedOTP = generateOTP();
+
+      storeOTP(email, generatedOTP);
+
+      try {
+        const deliveryResult = await sendOTPEmail(email, generatedOTP);
+        const response = {
+          message: 'OTP sent successfully. Please verify your email to complete registration.',
+          email,
+          requiresOtp: true,
+        };
+
+        if (deliveryResult?.preview) {
+          response.previewOtp = deliveryResult.preview;
+        }
+
+        return res.status(200).json(response);
+      } catch (error) {
+        console.error('Failed to send OTP email:', error.message);
+        return res.status(500).json({
+          message: 'Failed to send OTP email. Please try again.',
+        });
+      }
+    }
+
+    if (!email || !otp || !name || !password) {
+      return res.status(400).json({ message: 'Email, OTP, name, and password are required' });
+    }
+
     const validationError = validateSignupPayload({
       name,
       email,
@@ -151,56 +198,27 @@ const signup = async (req, res) => {
       return res.status(409).json({ message: 'An account with this email already exists' });
     }
 
-    const generatedOTP = generateOTP();
+    const isValidOTP = verifyOTP(email, otp);
 
-    storeOTP(email, generatedOTP);
+    if (!isValidOTP) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
 
-    sendOTPEmail(email, generatedOTP)
-      .then((deliveryResult) => {
-        const response = {
-          message: 'OTP sent successfully. Please verify your email to complete registration.',
-          email,
-          requiresOtp: true,
-        };
+    const user = await createUser({ name, email, password });
+    const createdUser = await findUserByEmail(user.email);
 
-        if (deliveryResult?.preview) {
-          response.previewOtp = deliveryResult.preview;
-        }
+    return res.status(201).json({
+      message: 'Account created successfully',
+      user,
+      token: createSessionToken(createdUser),
+    });
+  } catch (error) {
+    console.error('Signup request failed:', error.message);
 
-        return res.status(200).json(response);
-      })
-      .catch((error) => {
-        console.error('Failed to send OTP email:', error.message);
-        return res.status(500).json({
-          message: 'Failed to send OTP email. Please try again.',
-        });
-      });
-
-    return;
+    return res.status(500).json({
+      message: 'Unable to complete signup right now',
+    });
   }
-
-  if (!email || !otp || !name || !password) {
-    return res.status(400).json({ message: 'Email, OTP, name, and password are required' });
-  }
-
-  if (await findUserByEmail(email)) {
-    return res.status(409).json({ message: 'An account with this email already exists' });
-  }
-
-  const isValidOTP = verifyOTP(email, otp);
-
-  if (!isValidOTP) {
-    return res.status(400).json({ message: 'Invalid or expired OTP' });
-  }
-
-  const user = await createUser({ name, email, password });
-  const createdUser = await findUserByEmail(user.email);
-
-  return res.status(201).json({
-    message: 'Account created successfully',
-    user,
-    token: createSessionToken(createdUser),
-  });
 };
 
 const changePassword = async (req, res) => {
@@ -244,6 +262,81 @@ const changePassword = async (req, res) => {
   });
 };
 
+const requestPasswordResetOtp = async (req, res) => {
+  const { email } = req.body ?? {};
+  const validationError = validateForgotPasswordRequestPayload({ email });
+
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
+  }
+
+  const user = await findUserByEmail(email);
+
+  if (!user) {
+    return res.status(404).json({ message: 'No account found for this email address' });
+  }
+
+  const generatedOTP = generateOTP();
+  storeOTP(email, generatedOTP, 'password-reset');
+
+  try {
+    const deliveryResult = await sendOTPEmail(email, generatedOTP, {
+      purpose: 'password-reset',
+    });
+    const response = {
+      message: 'OTP sent successfully. Please verify the code to reset your password.',
+      email,
+      requiresOtp: true,
+    };
+
+    if (deliveryResult?.preview) {
+      response.previewOtp = deliveryResult.preview;
+    }
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error('Failed to send password reset OTP email:', error.message);
+    return res.status(500).json({
+      message: 'Failed to send OTP email. Please try again.',
+    });
+  }
+};
+
+const resetPasswordWithOtp = async (req, res) => {
+  const { email, otp, newPassword, confirmPassword } = req.body ?? {};
+  const validationError = validateForgotPasswordResetPayload({
+    email,
+    otp,
+    newPassword,
+    confirmPassword,
+  });
+
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
+  }
+
+  const user = await findUserByEmail(email);
+
+  if (!user) {
+    return res.status(404).json({ message: 'No account found for this email address' });
+  }
+
+  const isValidOtp = verifyOTP(email, otp, 'password-reset');
+
+  if (!isValidOtp) {
+    return res.status(400).json({ message: 'Invalid or expired OTP' });
+  }
+
+  await updateUserPassword({
+    email,
+    newPassword,
+  });
+
+  return res.status(200).json({
+    message: 'Password reset successfully. You can sign in with your new password.',
+  });
+};
+
 const updateMyProfile = async (req, res) => {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   const sessionUser = await verifySessionToken(token);
@@ -283,7 +376,9 @@ module.exports = {
   changePassword,
   getCurrentUserProfile,
   login,
+  requestPasswordResetOtp,
   registerUser,
+  resetPasswordWithOtp,
   signup,
   updateMyProfile,
 };
