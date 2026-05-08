@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import DashboardLayout from "../../components/dashboard/dashboard";
-import EventCalendar from "../../components/dashboard/EventCalendar";
+import EventCalendar from "../../components/dashboard/eventCalendar.jsx";
 import { fetchRecommendedUserEvents } from "../../services/eventService.js";
 import { fetchMyFeedback } from "../../services/feedbackService.js";
 import { fetchMyNotifications } from "../../services/notificationService.js";
