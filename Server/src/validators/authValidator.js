@@ -46,7 +46,13 @@ const validatePasswordStrength = (password) => {
   return getPasswordComplexityError(password);
 };
 
-const validateSignupPayload = ({ name, email, password, confirmPassword }) => {
+const validateSignupPayload = ({
+  name,
+  email,
+  password,
+  confirmPassword,
+  acceptedTerms,
+}) => {
   if (!name?.trim()) {
     return 'Please enter your name';
   }
@@ -75,6 +81,10 @@ const validateSignupPayload = ({ name, email, password, confirmPassword }) => {
 
   if (password !== confirmPassword) {
     return 'Passwords do not match';
+  }
+
+  if (acceptedTerms !== true) {
+    return 'You must accept the Terms, Privacy Policy, and platform guidelines to continue';
   }
 
   return null;

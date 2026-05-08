@@ -303,7 +303,14 @@ const verifyOTP = (email, otp, purpose = 'signup') => {
   return false;
 };
 
-const createUser = async ({ name, email, password, role = 'user', status = 'active' }) => {
+const createUser = async ({
+  name,
+  email,
+  password,
+  role = 'user',
+  status = 'active',
+  acceptedTermsAt = null,
+}) => {
   const users = await listUsers();
   const newUser = {
     id: `user-${Date.now()}`,
@@ -316,6 +323,7 @@ const createUser = async ({ name, email, password, role = 'user', status = 'acti
     status,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    acceptedTermsAt,
     lastLoginAt: null,
     avatar: null,
     phone: null,

@@ -83,7 +83,12 @@ const OtpVerification = () => {
     };
   }, []);
 
-  if (!pendingSignup?.email || !pendingSignup?.password || !pendingSignup?.name) {
+  if (
+    !pendingSignup?.email ||
+    !pendingSignup?.password ||
+    !pendingSignup?.name ||
+    pendingSignup?.acceptedTerms !== true
+  ) {
     return <Navigate to="/signup" replace />;
   }
 
@@ -110,6 +115,7 @@ const OtpVerification = () => {
           email: pendingSignup.email,
           password: pendingSignup.password,
           confirmPassword: pendingSignup.confirmPassword,
+          acceptedTerms: pendingSignup.acceptedTerms,
           otp: otp.trim(),
         }),
       });
@@ -145,6 +151,7 @@ const OtpVerification = () => {
           email: pendingSignup.email,
           password: pendingSignup.password,
           confirmPassword: pendingSignup.confirmPassword,
+          acceptedTerms: pendingSignup.acceptedTerms,
         }),
       });
       const data = await response.json().catch(() => ({}));

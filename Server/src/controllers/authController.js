@@ -136,7 +136,14 @@ const registerUser = async (req, res) => {
 
 const signup = async (req, res) => {
   try {
-    const { email, otp, name, password, confirmPassword } = req.body ?? {};
+    const {
+      email,
+      otp,
+      name,
+      password,
+      confirmPassword,
+      acceptedTerms,
+    } = req.body ?? {};
 
     if (!otp) {
       const validationError = validateSignupPayload({
@@ -144,6 +151,7 @@ const signup = async (req, res) => {
         email,
         password,
         confirmPassword,
+        acceptedTerms,
       });
 
       if (validationError) {
@@ -188,6 +196,7 @@ const signup = async (req, res) => {
       email,
       password,
       confirmPassword,
+      acceptedTerms,
     });
 
     if (validationError) {
@@ -204,7 +213,12 @@ const signup = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
-    const user = await createUser({ name, email, password });
+    const user = await createUser({
+      name,
+      email,
+      password,
+      acceptedTermsAt: new Date().toISOString(),
+    });
     const createdUser = await findUserByEmail(user.email);
 
     return res.status(201).json({

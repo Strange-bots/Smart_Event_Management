@@ -64,6 +64,7 @@ const PaymentPage = () => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [acceptedBookingTerms, setAcceptedBookingTerms] = useState(false);
   const { toast, show } = useToast();
   const hasConfirmedSessionRef = useRef(false);
 
@@ -166,6 +167,13 @@ const PaymentPage = () => {
 
   const handleStripeCheckout = async () => {
     if (!event) {
+      return;
+    }
+
+    if (!acceptedBookingTerms) {
+      setPaymentError(
+        "You must acknowledge the booking payment terms before proceeding to Stripe.",
+      );
       return;
     }
 
@@ -318,6 +326,30 @@ const PaymentPage = () => {
                       </p>
                     </div>
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+                  <h3 className="font-semibold text-amber-900">Booking Payment Terms</h3>
+                  <p className="mt-2 text-sm leading-6 text-amber-900/80">
+                    Booking payments are generally non-refundable unless there is a
+                    reasonable issue that is reviewed and confirmed through Student
+                    Services.
+                  </p>
+                  <label className="mt-4 flex items-start gap-3 text-sm text-amber-900">
+                    <input
+                      type="checkbox"
+                      checked={acceptedBookingTerms}
+                      onChange={(event) =>
+                        setAcceptedBookingTerms(event.target.checked)
+                      }
+                      className="mt-1 h-4 w-4 rounded border-amber-300 text-[#1f4e79] focus:ring-[#1f4e79]"
+                    />
+                    <span>
+                      I understand that this booking payment will not be refunded
+                      unless there is a reasonable issue confirmed through Student
+                      Services.
+                    </span>
+                  </label>
                 </div>
 
                 {paymentError ? (

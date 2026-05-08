@@ -28,6 +28,7 @@ const Signup = () => {
     email: "",
     password: "",
     confirmPassword: "",
+    acceptedTerms: false,
   });
 
   useEffect(() => {
@@ -101,6 +102,11 @@ const Signup = () => {
       return;
     }
 
+    if (!formData.acceptedTerms) {
+      setError("You must accept the Terms, Privacy Policy, and platform guidelines to continue");
+      return;
+    }
+
     setError("");
     setIsLoading(true);
 
@@ -128,6 +134,7 @@ const Signup = () => {
           email: formData.email,
           password: formData.password,
           confirmPassword: formData.confirmPassword,
+          acceptedTerms: formData.acceptedTerms,
           previewOtp: data.previewOtp,
         },
       });
@@ -418,6 +425,34 @@ const Signup = () => {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="rounded-lg border border-[#d9e2ec] bg-[#f8fafc] p-4">
+                  <label className="flex items-start gap-3 text-sm text-[#0f1e33]">
+                    <input
+                      type="checkbox"
+                      checked={formData.acceptedTerms}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          acceptedTerms: e.target.checked,
+                        })
+                      }
+                      className="mt-1 h-4 w-4 rounded border-[#c7d3e0] text-[#1f4e79] focus:ring-[#1f4e79]"
+                      required
+                    />
+                    <span>
+                      I agree to the{" "}
+                      <Link to="/terms" className="font-medium text-[#1f4e79] hover:underline">
+                        Terms of Service
+                      </Link>
+                      {", "}
+                      <Link to="/privacy-policy" className="font-medium text-[#1f4e79] hover:underline">
+                        Privacy Policy
+                      </Link>
+                      {", and platform guidelines. I understand my personal data will be used for account, event, security, and communication purposes in line with GDPR-style privacy principles and the Australian Privacy Principles (APPs)."}
+                    </span>
+                  </label>
                 </div>
 
                 {error ? <p className="text-sm text-red-600">{error}</p> : null}

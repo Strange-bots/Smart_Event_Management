@@ -450,7 +450,7 @@ function OrganizerEvents() {
         ) : null}
 
         {!isLoadingEvents ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {filteredEvents.map((event) => {
             const status = getStatusBadge(event.status);
             const progress =
@@ -461,30 +461,62 @@ function OrganizerEvents() {
             return (
               <section
                 key={event.id}
-                className="overflow-hidden rounded-3xl bg-white shadow-sm transition hover:shadow-md"
+                className="group relative min-h-[13.25rem] overflow-hidden rounded-[1.35rem] border border-[#d9e2ec] bg-[#0f1e33] shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl"
               >
-                <div className="flex h-full flex-col sm:flex-row">
+                <div className="absolute inset-0 bg-[#f8fafc]" />
+
+                <div className="absolute inset-0 z-30 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/85 via-[#07111f]/30 to-transparent transition duration-500 group-hover:opacity-0" />
                   <img
                     src={event.imagePreview}
                     alt={event.title}
-                    className="h-52 w-full object-cover sm:h-auto sm:w-36"
+                    className="h-full w-full object-cover transition-all duration-700 ease-out group-hover:w-[34%] group-hover:translate-x-0 group-hover:scale-105 sm:group-hover:w-[32%] xl:group-hover:w-[30%]"
                   />
-                  <div className="flex flex-1 flex-col p-4">
+                </div>
+
+                <div className="absolute inset-x-0 bottom-0 z-10 p-3.5 text-white transition duration-500 group-hover:translate-y-2 group-hover:opacity-0 sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full px-2.5 py-1 text-[0.68rem] font-semibold backdrop-blur",
+                        status.className,
+                      )}
+                    >
+                      {status.label}
+                    </span>
+                    <span className="rounded-full bg-black/35 px-2.5 py-1 text-[0.68rem] font-medium text-white">
+                      {event.isPaid ? `$${Number(event.price || 0).toFixed(2)}` : "Free"}
+                    </span>
+                  </div>
+                  <h3 className="mt-2 text-lg font-semibold leading-tight sm:text-[1.2rem]">
+                    {event.title}
+                  </h3>
+                  <p className="mt-1 text-[0.68rem] font-medium tracking-[0.08em] text-white/75 sm:text-xs sm:tracking-[0.1em]">
+                    {event.dateLabel || event.date} • {event.time}
+                  </p>
+                </div>
+
+                <div className="relative z-20 flex h-full min-h-[13.25rem] flex-col justify-end p-2.5 sm:p-3">
+                  <div className="ml-0 rounded-[1.1rem] bg-white/97 p-3 shadow-lg backdrop-blur transition-all duration-500 ease-out sm:translate-x-3 sm:translate-y-6 sm:opacity-0 sm:delay-0 sm:group-hover:ml-[32%] sm:group-hover:translate-x-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-hover:delay-150 xl:group-hover:ml-[30%]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="truncate text-lg font-semibold text-[#0f1e33]">
-                          {event.title}
-                        </h3>
                         <span
                           className={cn(
-                            "mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold",
+                            "inline-flex rounded-full px-2.5 py-1 text-[0.68rem] font-semibold",
                             status.className,
                           )}
                         >
                           {status.label}
                         </span>
+                        <h3 className="mt-1.5 text-[0.95rem] font-semibold leading-snug text-[#0f1e33]">
+                          {event.title}
+                        </h3>
+                        <p className="mt-1 max-h-8 overflow-hidden text-[0.72rem] leading-4 text-[#5f7088] sm:text-[0.76rem]">
+                          {event.description ||
+                            "Keep attendees informed with a clean event summary, logistics, and current registration progress."}
+                        </p>
                       </div>
-                      <div className="relative">
+                      <div className="relative shrink-0">
                         <button
                           type="button"
                           onClick={() =>
@@ -492,12 +524,12 @@ function OrganizerEvents() {
                               current === event.id ? null : event.id,
                             )
                           }
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d9e2ec] text-[#0f1e33]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#0f1e33] shadow-sm transition hover:text-[#f36f21]"
                         >
-                          <MoreHorizontal size={16} />
+                          <MoreHorizontal size={15} />
                         </button>
                         {activeMenuId === event.id ? (
-                          <div className="absolute right-0 top-11 z-10 w-48 rounded-2xl border border-[#d9e2ec] bg-white p-2 shadow-xl">
+                          <div className="absolute right-0 top-12 z-30 w-48 rounded-2xl border border-[#d9e2ec] bg-white p-2 shadow-xl">
                             <button type="button" onClick={() => handleViewDetails(event)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[#0f1e33] hover:bg-[#f5f7fa]">
                               <Eye size={14} />
                               View Details
@@ -523,27 +555,35 @@ function OrganizerEvents() {
                       </div>
                     </div>
 
-                    <div className="mt-4 space-y-2 text-sm text-[#6b7c93]">
+                    <div className="mt-3 grid gap-2 text-[0.72rem] font-medium text-[#516072] sm:text-[0.76rem]">
                       <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-[#f36f21]" />
+                        <Calendar size={13} className="text-[#f36f21]" />
                         <span>{event.dateLabel || event.date}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Clock size={14} className="text-[#f36f21]" />
+                        <Clock size={13} className="text-[#f36f21]" />
                         <span>{event.time}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <MapPin size={14} className="text-[#f36f21]" />
+                        <MapPin size={13} className="text-[#f36f21]" />
                         <span>{event.venue}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <DollarSign size={13} className="text-[#f36f21]" />
+                        <span>
+                          {event.isPaid
+                            ? `$${Number(event.price || 0).toFixed(2)} per ticket`
+                            : "Free entry"}
+                        </span>
                       </div>
                     </div>
 
                     {event.tags?.length ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-1.5">
                         {event.tags.slice(0, 3).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full bg-[#f5f7fa] px-3 py-1 text-xs font-medium text-[#1f4e79]"
+                            className="rounded-full bg-[#f5f7fa] px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-[#1f4e79]"
                           >
                             {tag}
                           </span>
@@ -551,19 +591,24 @@ function OrganizerEvents() {
                       </div>
                     ) : null}
 
-                    <div className="mt-5 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Users size={14} className="text-[#1f4e79]" />
-                        <span className="font-medium text-[#0f1e33]">
-                          {event.registrations}
-                        </span>
-                        <span className="text-[#6b7c93]">
-                          / {event.capacity} registered
+                    <div className="mt-3 rounded-[0.95rem] bg-[#f8fafc] p-2.5">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 text-[0.72rem] sm:text-xs">
+                          <Users size={13} className="text-[#1f4e79]" />
+                          <span className="font-medium text-[#0f1e33]">
+                            {event.registrations}
+                          </span>
+                          <span className="text-[#6b7c93]">
+                            / {event.capacity} registered
+                          </span>
+                        </div>
+                        <span className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-[#1f4e79]">
+                          {Math.round(progress)}%
                         </span>
                       </div>
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-[#e8eef5]">
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#dfe8f2]">
                         <div
-                          className="h-full rounded-full bg-[#f36f21]"
+                          className="h-full rounded-full bg-[#f36f21] transition-all duration-500"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
