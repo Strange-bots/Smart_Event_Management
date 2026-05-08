@@ -26,7 +26,16 @@ const getRegistrationCountForEventFrom = (registrations, eventId) =>
       registration.attendanceStatus !== 'cancelled',
   ).length;
 
-const formatEventWithRegistrations = (event, registrations) => ({
+const getOrganizerDisplayName = (event, users = []) => {
+  const organizerEmail = normalizeEmail(event.organizerEmail || event.organizerId || '');
+  const organizer = users.find(
+    (user) => normalizeEmail(user.email) === organizerEmail,
+  );
+
+  return organizer?.name || event.organizerName;
+};
+
+const formatEventWithRegistrations = (event, registrations, users = []) => ({
   id: event.id,
   title: event.title,
   description: event.description,
@@ -44,20 +53,20 @@ const formatEventWithRegistrations = (event, registrations) => ({
   price: event.price,
   tags: event.tags,
   organizerId: event.organizerId,
-  organizerName: event.organizerName,
+  organizerName: getOrganizerDisplayName(event, users),
   organizerEmail: event.organizerEmail,
   dateLabel: event.dateLabel,
   createdAt: event.createdAt,
   updatedAt: event.updatedAt,
 });
 
-const formatGalleryItem = (event) => ({
+const formatGalleryItem = (event, users = []) => ({
   id: String(event.id),
   eventId: event.id,
   title: event.title,
   date: event.date,
   category: event.category,
-  organizerName: event.organizerName,
+  organizerName: getOrganizerDisplayName(event, users),
   organizerEmail: event.organizerEmail,
   url: event.image || event.imagePreview || '',
 });
@@ -421,21 +430,23 @@ const validateOrganizerEventPayload = (event) => {
 };
 
 const getOrganizerEvents = async (organizerEmail) => {
-  const [events, registrations] = await Promise.all([
+  const [events, registrations, users] = await Promise.all([
     readCollection('events'),
     readCollection('registrations'),
+    readCollection('users'),
   ]);
 
   return events
     .filter((event) => eventBelongsToOrganizer(event, organizerEmail))
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
-    .map((event) => formatEventWithRegistrations(event, registrations));
+    .map((event) => formatEventWithRegistrations(event, registrations, users));
 };
 
 const getAdminEvents = async () => {
-  const [events, registrations] = await Promise.all([
+  const [events, registrations, users] = await Promise.all([
     readCollection('events'),
     readCollection('registrations'),
+    readCollection('users'),
   ]);
 
   return events
@@ -446,17 +457,20 @@ const getAdminEvents = async () => {
       const leftTimestamp = new Date(left.updatedAt || left.createdAt || left.date).getTime();
       return rightTimestamp - leftTimestamp;
     })
-    .map((event) => formatEventWithRegistrations(event, registrations));
+    .map((event) => formatEventWithRegistrations(event, registrations, users));
 };
 
 const getAdminGalleryImages = async () => {
-  const events = await readCollection('events');
+  const [events, users] = await Promise.all([
+    readCollection('events'),
+    readCollection('users'),
+  ]);
 
   return events
     .filter((event) => Boolean(event.organizerEmail || event.organizerId))
     .filter((event) => Boolean(event.image || event.imagePreview))
     .sort((left, right) => getEventStart(right) - getEventStart(left))
-    .map(formatGalleryItem);
+    .map((event) => formatGalleryItem(event, users));
 };
 
 const updateAdminEventStatus = async ({ eventId, status }) => {

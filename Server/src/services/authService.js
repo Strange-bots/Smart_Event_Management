@@ -362,7 +362,10 @@ const updateUserPassword = async ({ email, newPassword }) => {
 };
 
 const updateUserProfile = async ({ currentEmail, name, phone }) => {
-  const users = await listUsers();
+  const [users, events] = await Promise.all([
+    listUsers(),
+    readCollection('events'),
+  ]);
   const normalizedCurrentEmail = normalizeEmail(currentEmail);
   const trimmedName = String(name || '').trim();
   const trimmedPhone = phone ? String(phone).trim() : '';
@@ -382,7 +385,20 @@ const updateUserProfile = async ({ currentEmail, name, phone }) => {
   user.lastName = trimmedName.split(/\s+/).slice(1).join(' ');
   user.phone = trimmedPhone;
   user.updatedAt = new Date().toISOString();
-  await saveUsers(users);
+
+  events.forEach((event) => {
+    const organizerEmail = normalizeEmail(event.organizerEmail || event.organizerId || '');
+
+    if (organizerEmail === normalizedCurrentEmail) {
+      event.organizerName = trimmedName;
+      event.updatedAt = new Date().toISOString();
+    }
+  });
+
+  await Promise.all([
+    saveUsers(users),
+    writeCollection('events', events),
+  ]);
 
   return {
     statusCode: 200,
