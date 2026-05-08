@@ -128,7 +128,9 @@ function AdminUsers() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteBlockedDialogOpen, setIsDeleteBlockedDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [deleteBlockDetails, setDeleteBlockDetails] = useState(null);
   const [editForm, setEditForm] = useState(INITIAL_EDIT_FORM);
   const [createForm, setCreateForm] = useState(INITIAL_CREATE_FORM);
 
@@ -308,7 +310,19 @@ function AdminUsers() {
       setUsers((prev) => prev.filter((user) => user.id !== userToDelete.id));
       toast.success("User deleted successfully");
     } catch (deleteError) {
-      toast.error(deleteError.message || "Could not delete user.");
+      if (deleteError.status === 409) {
+        setDeleteBlockDetails({
+          name: userToDelete.name,
+          email: userToDelete.email,
+          message:
+            deleteError.message ||
+            "This organizer still owns event records and cannot be deleted yet.",
+          linkedEvents: deleteError.data?.linkedEvents ?? [],
+        });
+        setIsDeleteBlockedDialogOpen(true);
+      } else {
+        toast.error(deleteError.message || "Could not delete user.");
+      }
     } finally {
       setIsDeleteDialogOpen(false);
       setUserToDelete(null);
@@ -793,6 +807,118 @@ function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={isDeleteBlockedDialogOpen}
+        onOpenChange={setIsDeleteBlockedDialogOpen}
+      >
+        <DialogContent className="max-w-3xl border-0 bg-white p-0 shadow-2xl">
+          <div className="overflow-hidden rounded-2xl">
+            <div className="bg-rose-600 px-8 py-6 text-white">
+              <DialogTitle className="text-2xl font-bold">
+                Organizer Deletion Blocked
+              </DialogTitle>
+              <DialogDescription className="mt-2 text-sm text-rose-50">
+                {deleteBlockDetails?.message ||
+                  "This organizer still has linked event records."}
+              </DialogDescription>
+            </div>
+
+            <div className="space-y-6 px-8 py-7">
+              <div className="rounded-2xl bg-rose-50 p-5">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-700">
+                  Affected Organizer
+                </p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">
+                  {deleteBlockDetails?.name || "Organizer account"}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {deleteBlockDetails?.email || ""}
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Why deletion is blocked
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    This organizer still owns events in the system. Admin must
+                    delete or resolve those events first before the organizer
+                    account can be removed.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                  <p className="text-sm font-semibold text-amber-900">
+                    Paid attendance warning
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-amber-800">
+                    If any linked event has paid attendees, delete the event
+                    first so refund-pending notifications can be created for
+                    affected users before the organizer account is removed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Linked Events
+                  </h3>
+                  <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
+                    {(deleteBlockDetails?.linkedEvents ?? []).length} event(s)
+                  </Badge>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {(deleteBlockDetails?.linkedEvents ?? []).map((event) => (
+                    <div
+                      key={event.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                    >
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {event.title}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            Event ID: {event.id}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                            {event.date}
+                          </Badge>
+                          <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
+                            {event.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-900 px-5 py-4 text-sm text-slate-100">
+                Next step: remove or resolve these linked events first, then try
+                deleting the organizer again.
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsDeleteBlockedDialogOpen(false);
+                    setDeleteBlockDetails(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ToastContainer toasts={toast.toasts} />
     </DashboardLayout>

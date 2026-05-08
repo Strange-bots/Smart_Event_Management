@@ -19,7 +19,10 @@ const parseJsonResponse = async (response, fallbackMessage) => {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data?.message || fallbackMessage);
+    const error = new Error(data?.message || fallbackMessage);
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   return data;

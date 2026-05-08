@@ -134,8 +134,8 @@ const Login = () => {
   return (
     <>
     <Navbar/>
-    <div className="auth-hero-shell min-h-screen flex relative">
-      <div className="absolute inset-0 opacity-10 lg:hidden">
+    <div className="auth-hero-shell relative flex min-h-screen overflow-hidden bg-[#f5f7fa]">
+      <div className="pointer-events-none absolute inset-0 opacity-10 lg:hidden">
         <div className="auth-hero-glow-primary absolute left-10 top-20 h-72 w-72 rounded-full blur-3xl" />
         <div className="auth-hero-glow-ai absolute bottom-10 right-10 h-96 w-96 rounded-full blur-3xl" />
       </div>
@@ -166,7 +166,7 @@ const Login = () => {
 
       <AuthPanelDivider />
 
-      <div className="relative z-10 flex-1 flex items-center justify-center p-6 lg:bg-secondary">
+      <div className="relative z-10 flex flex-1 items-center justify-center bg-[#f5f7fa] px-4 py-6 sm:px-6 lg:bg-secondary">
         <div className="w-full max-w-md">
           <Link
             to="/"
@@ -176,7 +176,7 @@ const Login = () => {
             Back to Home
           </Link>
 
-          <div className="border-0 shadow-lg rounded-lg bg-card">
+          <div className="rounded-2xl border border-white/80 bg-white shadow-lg">
             <div className="text-center pb-0 p-6">
               <div className="lg:hidden flex justify-center mb-4">
                 <div className="h-12 w-12 rounded bg-card text-primary flex items-center justify-center font-semibold">
