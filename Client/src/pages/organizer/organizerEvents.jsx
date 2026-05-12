@@ -466,16 +466,6 @@ function OrganizerEvents() {
           </div>
         </section>
 
-        {!isLoadingEvents ? (
-          <EventCalendar
-            events={calendarEvents}
-            summary={calendarSummary}
-            onEventClick={handleViewDetails}
-            title="My Organizer Event Calendar"
-            emptyStateMessage="Select another date or adjust the event state filter."
-          />
-        ) : null}
-
         {isLoadingEvents ? (
           <section className="rounded-3xl bg-white p-12 text-center shadow-sm">
             <Calendar size={48} className="mx-auto text-[#9aa9bc]" />
@@ -671,6 +661,16 @@ function OrganizerEvents() {
             );
           })}
         </div>
+        ) : null}
+
+        {!isLoadingEvents ? (
+          <EventCalendar
+            events={calendarEvents}
+            summary={calendarSummary}
+            onEventClick={handleViewDetails}
+            title="My Organizer Event Calendar"
+            emptyStateMessage="Select another date or adjust the event state filter."
+          />
         ) : null}
 
         {!isLoadingEvents && filteredEvents.length === 0 ? (
