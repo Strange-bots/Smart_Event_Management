@@ -1,5 +1,6 @@
 const {
   generateEventDescription,
+  generateEventImages,
   suggestEventTags,
   suggestEventTimes,
 } = require('../services/organizerAiService');
@@ -61,8 +62,28 @@ const suggestOrganizerEventTimes = async (req, res) => {
   });
 };
 
+const generateOrganizerEventImages = async (req, res) => {
+  const result = await generateEventImages({
+    organizerEmail: req.user.email,
+    payload: req.body ?? {},
+  });
+
+  if (result.error) {
+    return res.status(result.statusCode).json({ message: result.error });
+  }
+
+  return res.status(result.statusCode).json({
+    message: 'Event images generated successfully',
+    images: result.images,
+    source: result.source,
+    reason: result.reason || null,
+    modelResult: result.modelResult || null,
+  });
+};
+
 module.exports = {
   generateOrganizerEventDescription,
+  generateOrganizerEventImages,
   suggestOrganizerEventTags,
   suggestOrganizerEventTimes,
 };

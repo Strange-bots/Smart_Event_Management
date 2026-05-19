@@ -2,6 +2,8 @@ const { readCollection } = require('../database/collections');
 const { findUserByEmail } = require('./authService');
 
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
+const DEFAULT_GEMINI_IMAGE_MODEL =
+  process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image-preview';
 
 const timeSuggestionsByCategory = {
   workshop: [
@@ -64,6 +66,37 @@ const buildFallbackTimeSuggestions = (category) =>
     { startTime: '10:00', endTime: '12:00', reason: 'This is a balanced daytime slot for most campus events.' },
     { startTime: '13:00', endTime: '15:00', reason: 'A post-lunch session is a good general option.' },
   ];
+
+const buildFallbackImageDataUrl = ({ title, category, variantIndex = 0 }) => {
+  const palettes = [
+    { start: '#1F4E79', end: '#163A5A', accent: '#F36F21' },
+    { start: '#163A5A', end: '#0F1E33', accent: '#F36F21' },
+    { start: '#2E6DA4', end: '#1F4E79', accent: '#FFD166' },
+  ];
+  const palette = palettes[variantIndex % palettes.length];
+  const safeTitle = clampText(title || 'Campus Event', 48);
+  const safeCategory = clampText(category || 'Student Experience', 28);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${palette.start}"/>
+          <stop offset="100%" stop-color="${palette.end}"/>
+        </linearGradient>
+      </defs>
+      <rect width="1280" height="720" fill="url(#bg)"/>
+      <circle cx="1080" cy="140" r="120" fill="${palette.accent}" fill-opacity="0.22"/>
+      <circle cx="200" cy="600" r="180" fill="#FFFFFF" fill-opacity="0.08"/>
+      <rect x="88" y="96" width="230" height="44" rx="22" fill="#FFFFFF" fill-opacity="0.14"/>
+      <text x="112" y="124" fill="#FFFFFF" font-size="22" font-family="Arial, sans-serif" font-weight="700">${safeCategory}</text>
+      <text x="88" y="290" fill="#FFFFFF" font-size="64" font-family="Arial, sans-serif" font-weight="700">${safeTitle}</text>
+      <text x="88" y="360" fill="#EAF4FF" font-size="28" font-family="Arial, sans-serif">AI-generated event cover preview</text>
+      <rect x="88" y="442" width="280" height="8" rx="4" fill="${palette.accent}"/>
+    </svg>
+  `.trim();
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
 
 const parseJson = (text) => {
   try {
@@ -156,6 +189,94 @@ const requestGeminiJson = async ({ prompt, schema }) => {
       reason: 'gemini_request_failed',
       modelResult: error?.message || null,
       parsed: null,
+    };
+  }
+};
+
+const extractGeminiImagePart = (responseBody) => {
+  const parts = responseBody?.candidates?.[0]?.content?.parts;
+
+  if (!Array.isArray(parts)) {
+    return null;
+  }
+
+  return (
+    parts.find(
+      (part) =>
+        part?.inlineData?.data &&
+        String(part.inlineData?.mimeType || '').startsWith('image/'),
+    ) || null
+  );
+};
+
+const requestGeminiImage = async ({ prompt }) => {
+  if (!process.env.GEMINI_API_KEY) {
+    return {
+      source: 'fallback',
+      reason: 'missing_api_key',
+      imageDataUrl: null,
+      modelResult: null,
+    };
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+    DEFAULT_GEMINI_IMAGE_MODEL,
+  )}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.8,
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        source: 'fallback',
+        reason: 'gemini_request_failed',
+        imageDataUrl: null,
+        modelResult: `Gemini image request failed (${response.status}): ${errorText}`,
+      };
+    }
+
+    const responseBody = await response.json();
+    const imagePart = extractGeminiImagePart(responseBody);
+
+    if (!imagePart?.inlineData?.data || !imagePart?.inlineData?.mimeType) {
+      return {
+        source: 'fallback',
+        reason: 'invalid_ai_payload',
+        imageDataUrl: null,
+        modelResult: extractGeminiText(responseBody) || null,
+      };
+    }
+
+    return {
+      source: 'gemini',
+      reason: null,
+      imageDataUrl: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
+      modelResult: extractGeminiText(responseBody) || null,
+    };
+  } catch (error) {
+    return {
+      source: 'fallback',
+      reason: 'gemini_request_failed',
+      imageDataUrl: null,
+      modelResult: error?.message || null,
     };
   }
 };
@@ -426,8 +547,113 @@ const suggestEventTimes = async ({ organizerEmail, payload = {} }) => {
   };
 };
 
+const generateEventImages = async ({ organizerEmail, payload = {} }) => {
+  const taskDataFromMongoConst = await buildOrganizerContext(organizerEmail);
+  const { organizerEventsConst } = taskDataFromMongoConst;
+
+  const requestDataConst = {
+    title: normalizeText(payload.title),
+    description: clampText(payload.description, 400),
+    category: normalizeText(payload.category),
+    venue: normalizeText(payload.venue),
+    date: normalizeText(payload.date),
+    isPaid: Boolean(payload.isPaid),
+    tags: Array.isArray(payload.tags) ? payload.tags.map((tag) => normalizeText(tag)).filter(Boolean).slice(0, 5) : [],
+    limit: Math.min(Math.max(Number(payload.limit || 3), 1), 4),
+  };
+
+  if (!requestDataConst.title || !requestDataConst.description) {
+    return {
+      statusCode: 400,
+      error: 'Event title and description are required',
+    };
+  }
+
+  const variantPrompts = [
+    'Create a polished campus event cover image with a realistic, welcoming atmosphere.',
+    'Create a more energetic alternative with stronger motion and crowd energy.',
+    'Create a cleaner professional variation suitable for an academic promotion banner.',
+    'Create a warm community-focused alternative with a strong student-life feeling.',
+  ].slice(0, requestDataConst.limit);
+
+  const images = [];
+  const failures = [];
+
+  for (let index = 0; index < variantPrompts.length; index += 1) {
+    const variantPrompt = variantPrompts[index];
+    const prompt = [
+      'Generate a high-quality event cover image.',
+      'Do not include any text, letters, logos, watermarks, UI, borders, or collages.',
+      'Use a 16:9 composition suitable for a campus event card or hero image.',
+      'Keep the scene appropriate for a university event promotion.',
+      variantPrompt,
+      `Event title: ${requestDataConst.title}`,
+      `Event category: ${requestDataConst.category || 'Campus event'}`,
+      `Event venue: ${requestDataConst.venue || 'Campus venue'}`,
+      `Event date: ${requestDataConst.date || 'Upcoming event'}`,
+      `Event details: ${requestDataConst.description}`,
+      requestDataConst.tags.length ? `Relevant themes: ${requestDataConst.tags.join(', ')}` : null,
+      organizerEventsConst.length
+        ? `Organizer event history themes: ${organizerEventsConst
+            .flatMap((event) => event.tags || [])
+            .filter(Boolean)
+            .slice(0, 8)
+            .join(', ')}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const generatedImage = await requestGeminiImage({ prompt });
+
+    if (generatedImage.imageDataUrl) {
+      images.push({
+        id: `gemini-image-${index + 1}`,
+        label: `Option ${index + 1}`,
+        imageDataUrl: generatedImage.imageDataUrl,
+        mimeType:
+          generatedImage.imageDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)?.[1] ||
+          'image/png',
+      });
+      continue;
+    }
+
+    failures.push(generatedImage.reason || 'unknown_error');
+  }
+
+  if (!images.length) {
+    const fallbackImages = Array.from({ length: requestDataConst.limit }, (_, index) => ({
+      id: `fallback-image-${index + 1}`,
+      label: `Option ${index + 1}`,
+      imageDataUrl: buildFallbackImageDataUrl({
+        title: requestDataConst.title,
+        category: requestDataConst.category,
+        variantIndex: index,
+      }),
+      mimeType: 'image/svg+xml',
+    }));
+
+    return {
+      statusCode: 200,
+      source: 'fallback',
+      reason: failures[0] || 'gemini_request_failed',
+      modelResult: failures.join(', ') || null,
+      images: fallbackImages,
+    };
+  }
+
+  return {
+    statusCode: 200,
+    source: 'gemini',
+    reason: failures.length ? 'partial_generation_failure' : null,
+    modelResult: failures.join(', ') || null,
+    images,
+  };
+};
+
 module.exports = {
   generateEventDescription,
+  generateEventImages,
   suggestEventTags,
   suggestEventTimes,
 };

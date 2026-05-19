@@ -3,6 +3,7 @@ const path = require('path');
 
 const { readCollection, writeCollection } = require('../database/collections');
 const { findUserByEmail } = require('./authService');
+const { generateEventImages } = require('./organizerAiService');
 
 const getEventStart = (event) => {
   const startTime = event.time?.split('-')[0]?.trim() ?? '12:00 AM';
@@ -458,6 +459,34 @@ const validateOrganizerEventPayload = (event) => {
   return null;
 };
 
+const ensureOrganizerEventImage = async ({ organizer, event }) => {
+  if (event.imagePreview || event.image) {
+    return event;
+  }
+
+  const generatedImagesResult = await generateEventImages({
+    organizerEmail: organizer.email,
+    payload: {
+      title: event.title,
+      description: event.description,
+      category: event.category,
+      venue: event.venue,
+      date: event.date,
+      isPaid: event.isPaid,
+      tags: event.tags,
+      limit: 1,
+    },
+  });
+
+  const generatedImage = generatedImagesResult.images?.[0]?.imageDataUrl || '';
+
+  return {
+    ...event,
+    imagePreview: generatedImage,
+    image: generatedImage,
+  };
+};
+
 const getOrganizerEvents = async (organizer) => {
   const [events, registrations, users] = await Promise.all([
     readCollection('events'),
@@ -533,7 +562,10 @@ const updateAdminEventStatus = async ({ eventId, status }) => {
 
 const createOrganizerEvent = async ({ organizer, payload }) => {
   const events = await readCollection('events');
-  const normalizedEvent = normalizeOrganizerEventPayload(payload);
+  const normalizedEvent = await ensureOrganizerEventImage({
+    organizer,
+    event: normalizeOrganizerEventPayload(payload),
+  });
   const validationError = validateOrganizerEventPayload(normalizedEvent);
 
   if (validationError) {
@@ -581,9 +613,12 @@ const updateOrganizerEvent = async ({ organizer, eventId, payload }) => {
     };
   }
 
-  const normalizedEvent = normalizeOrganizerEventPayload({
-    ...event,
-    ...payload,
+  const normalizedEvent = await ensureOrganizerEventImage({
+    organizer,
+    event: normalizeOrganizerEventPayload({
+      ...event,
+      ...payload,
+    }),
   });
   const validationError = validateOrganizerEventPayload(normalizedEvent);
 

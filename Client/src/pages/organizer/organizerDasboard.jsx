@@ -18,6 +18,7 @@ import DashboardLayout from "../../components/dashboard/dashboard.jsx";
 import {
   createOrganizerEvent,
   generateOrganizerEventDescription,
+  generateOrganizerEventImages,
   suggestOrganizerEventTags,
   suggestOrganizerEventTimes,
 } from "../../services/organizerEventService.js";
@@ -80,9 +81,12 @@ function OrganizerDashboard() {
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState({});
   const [uploadedImages, setUploadedImages] = useState([]);
+  const [generatedImages, setGeneratedImages] = useState([]);
+  const [selectedGeneratedImageId, setSelectedGeneratedImageId] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [notice, setNotice] = useState(null);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [isSuggestingTime, setIsSuggestingTime] = useState(false);
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,6 +97,21 @@ function OrganizerDashboard() {
   useEffect(() => () => {
     uploadedImages.forEach((image) => URL.revokeObjectURL(image.preview));
   }, [uploadedImages]);
+
+  const selectedGeneratedImage =
+    generatedImages.find((image) => image.id === selectedGeneratedImageId) || null;
+  const previewImages =
+    uploadedImages.length > 0
+      ? uploadedImages.map((image, index) => ({
+          id: `upload-${index}`,
+          src: image.preview,
+          label: index === 0 ? "Uploaded cover" : `Upload ${index + 1}`,
+        }))
+      : generatedImages.map((image) => ({
+          id: image.id,
+          src: image.imageDataUrl,
+          label: image.label,
+        }));
 
   if (!currentUser || currentUser.role !== "organizer") {
     return <Navigate to="/login" replace />;
@@ -122,7 +141,61 @@ function OrganizerDashboard() {
     const nextImages = imageFiles.slice(0, Math.max(0, 5 - uploadedImages.length)).map((file) => ({ file, preview: URL.createObjectURL(file) }));
     if (!nextImages.length) return setNotice({ type: "error", message: "You can upload a maximum of 5 images." });
     setUploadedImages((prev) => [...prev, ...nextImages].slice(0, 5));
+    setSelectedGeneratedImageId("");
     setNotice({ type: "success", message: `${nextImages.length} image(s) added successfully.` });
+  };
+
+  const handleGenerateImages = async ({ refresh = false } = {}) => {
+    if (!title.trim() || !description.trim()) {
+      setNotice({
+        type: "error",
+        message: "Add the event title and description before generating AI images.",
+      });
+      return;
+    }
+
+    setIsGeneratingImages(true);
+    clearNotice();
+
+    try {
+      const result = await generateOrganizerEventImages({
+        title,
+        description,
+        category,
+        venue,
+        date,
+        isPaid,
+        tags: selectedTags,
+        limit: 3,
+      });
+
+      if (!result.images.length) {
+        setNotice({
+          type: "error",
+          message: "No images were generated. Please try again.",
+        });
+        return;
+      }
+
+      setGeneratedImages(result.images);
+      setSelectedGeneratedImageId(result.images[0].id);
+      setNotice({
+        type: "success",
+        message:
+          result.source === "gemini"
+            ? refresh
+              ? "Generated a new set of AI event images."
+              : "AI event images are ready."
+            : `Generated fallback event images${result.reason ? `: ${result.reason}` : ""}.`,
+      });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.message || "Unable to generate event images.",
+      });
+    } finally {
+      setIsGeneratingImages(false);
+    }
   };
 
   const validateForm = () => {
@@ -244,7 +317,25 @@ function OrganizerDashboard() {
     setIsSubmitting(true);
 
     try {
-      const imagePreview = await readFileAsDataUrl(uploadedImages[0]?.file);
+      let imagePreview = await readFileAsDataUrl(uploadedImages[0]?.file);
+
+      if (!imagePreview && selectedGeneratedImage?.imageDataUrl) {
+        imagePreview = selectedGeneratedImage.imageDataUrl;
+      }
+
+      if (!imagePreview) {
+        const generatedResult = await generateOrganizerEventImages({
+          title,
+          description,
+          category,
+          venue,
+          date,
+          isPaid,
+          tags: selectedTags,
+          limit: 1,
+        });
+        imagePreview = generatedResult.images?.[0]?.imageDataUrl || "";
+      }
 
       await createOrganizerEvent({
         title: title.trim(),
@@ -264,7 +355,8 @@ function OrganizerDashboard() {
       uploadedImages.forEach((image) => URL.revokeObjectURL(image.preview));
       setDate(""); setTitle(""); setDescription(""); setCategory(""); setVenue(""); setCapacity("");
       setStartTime(""); setEndTime(""); setIsPaid(false); setPrice(""); setSelectedTags([]); setTagInput("");
-      setUploadedImages([]); setErrors({}); setSuggestedTimes([]); setShowTimeSuggestions(false);
+      setUploadedImages([]); setGeneratedImages([]); setSelectedGeneratedImageId("");
+      setErrors({}); setSuggestedTimes([]); setShowTimeSuggestions(false);
       setNotice({ type: "success", message: "Event submitted for admin approval." });
     } catch (error) {
       setNotice({ type: "error", message: error.message || "Unable to submit event." });
@@ -475,12 +567,26 @@ function OrganizerDashboard() {
 
             <section className="rounded-3xl bg-white p-6 shadow-sm">
               <h2 className="text-xl font-semibold text-[#0f1e33]">Event Media</h2>
-              <p className="mt-1 text-sm text-[#6b7c93]">Upload up to five images for your listing.</p>
+              <p className="mt-1 text-sm text-[#6b7c93]">Upload your own images or generate AI cover images for the event.</p>
               <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={(event) => { addImages(event.target.files); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="hidden" />
               <div onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setIsDragging(false); }} onDrop={(event) => { event.preventDefault(); setIsDragging(false); addImages(event.dataTransfer.files); }} onClick={() => fileInputRef.current?.click()} className={cn("mt-6 cursor-pointer rounded-3xl border-2 border-dashed p-8 text-center transition", isDragging ? "border-[#f36f21] bg-[#fff1e8]" : "border-[#d9e2ec] hover:border-[#f36f21]")}>
                 <Upload size={38} className={cn("mx-auto", isDragging ? "text-[#f36f21]" : "text-[#6b7c93]")} />
                 <p className="mt-4 font-medium text-[#0f1e33]">{isDragging ? "Drop images here" : "Drag and drop images here"}</p>
                 <p className="mt-1 text-sm text-[#6b7c93]">or click to browse files</p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleGenerateImages({ refresh: generatedImages.length > 0 })}
+                  disabled={isGeneratingImages}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#d9e2ec] px-4 py-2.5 text-sm font-medium text-[#1f4e79] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isGeneratingImages ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {generatedImages.length > 0 ? "Generate Different Pictures" : "Generate AI Pictures"}
+                </button>
+                <p className="self-center text-xs text-[#6b7c93]">
+                  If you skip uploads, the selected AI image will be used as the event cover.
+                </p>
               </div>
               {uploadedImages.length ? (
                 <div className="mt-6">
@@ -495,6 +601,46 @@ function OrganizerDashboard() {
                         {index === 0 ? <span className="absolute left-3 top-3 rounded-full bg-[#f36f21] px-2 py-1 text-xs font-semibold text-white">Cover</span> : null}
                       </div>
                     ))}
+                  </div>
+                </div>
+              ) : null}
+              {generatedImages.length ? (
+                <div className="mt-6">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-medium text-[#0f1e33]">AI Generated Options</p>
+                    <p className="text-xs text-[#6b7c93]">Choose the image that best fits your event.</p>
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {generatedImages.map((image) => {
+                      const isSelected = selectedGeneratedImageId === image.id;
+
+                      return (
+                        <button
+                          key={image.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedGeneratedImageId(image.id);
+                            clearNotice();
+                          }}
+                          className={cn(
+                            "relative overflow-hidden rounded-2xl border text-left transition",
+                            isSelected
+                              ? "border-[#f36f21] ring-2 ring-[#f36f21]/25"
+                              : "border-[#d9e2ec] hover:border-[#1f4e79]",
+                          )}
+                        >
+                          <img src={image.imageDataUrl} alt={image.label} className="aspect-video w-full object-cover" />
+                          <div className="flex items-center justify-between bg-white px-3 py-2">
+                            <span className="text-sm font-medium text-[#0f1e33]">{image.label}</span>
+                            {isSelected ? (
+                              <span className="rounded-full bg-[#f36f21] px-2 py-1 text-[11px] font-semibold text-white">
+                                Selected
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
@@ -518,6 +664,10 @@ function OrganizerDashboard() {
                   {isSuggestingTags ? <Loader2 size={16} className="animate-spin" /> : <Tag size={16} />}
                   Suggest Tags
                 </button>
+                <button type="button" onClick={() => handleGenerateImages({ refresh: generatedImages.length > 0 })} disabled={isGeneratingImages} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#d9e2ec] bg-white px-4 py-3 font-medium text-[#0f1e33] disabled:cursor-not-allowed disabled:opacity-70">
+                  {isGeneratingImages ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {generatedImages.length > 0 ? "Generate Different Pictures" : "Generate AI Pictures"}
+                </button>
               </div>
             </section>
 
@@ -534,6 +684,13 @@ function OrganizerDashboard() {
             <section className="rounded-3xl bg-white p-6 shadow-sm">
               <h2 className="text-xl font-semibold text-[#0f1e33]">Quick Preview</h2>
               <div className="mt-4 rounded-2xl bg-[#f5f7fa] p-4">
+                {previewImages.length ? (
+                  <img
+                    src={previewImages[0].src}
+                    alt="Event preview"
+                    className="mb-4 aspect-video w-full rounded-2xl object-cover"
+                  />
+                ) : null}
                 <h3 className="text-lg font-semibold text-[#0f1e33]">{title || "Event Title"}</h3>
                 <p className="mt-2 text-sm text-[#6b7c93]">{description || "Your event description preview will appear here."}</p>
                 <div className="mt-4 space-y-2 text-sm text-[#6b7c93]">
@@ -587,12 +744,12 @@ function OrganizerDashboard() {
             {/* Body */}
             <div style={{ padding: "32px" }}>
               {/* Image thumbnails */}
-              {uploadedImages.length > 0 ? (
+              {previewImages.length > 0 ? (
                 <div className="mb-6 flex gap-3 overflow-x-auto pb-1">
-                  {uploadedImages.map((img, i) => (
+                  {previewImages.map((img, i) => (
                     <img
-                      key={i}
-                      src={img.preview}
+                      key={img.id}
+                      src={img.src}
                       alt={`Preview ${i + 1}`}
                       style={{ height: "110px", width: "160px", objectFit: "cover", borderRadius: "10px", flexShrink: 0, border: "2px solid #d9e2ec" }}
                     />

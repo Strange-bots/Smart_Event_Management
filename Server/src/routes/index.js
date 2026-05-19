@@ -5,6 +5,7 @@ const { login, signup } = require('../controllers/authController');
 const { getRecommendations } = require('../controllers/AiServiceController');
 const {
   generateOrganizerEventDescription,
+  generateOrganizerEventImages,
   suggestOrganizerEventTags,
   suggestOrganizerEventTimes,
 } = require('../controllers/organizerAiController');
@@ -120,6 +121,7 @@ router.post('/events/:eventId/registrations', requireRole('user'), createEventRe
 router.get('/users/events', requireRole('user'), listCurrentUserEventRegistrations);
 router.get('/organizer/events', requireRole('organizer'), listOrganizerEvents);
 router.post('/organizer/events', requireRole('organizer'), createOrganizerEventRecord);
+router.post('/organizer/events/ai/images', requireRole('organizer'), generateOrganizerEventImages);
 router.post('/organizer/events/ai/description', requireRole('organizer'), generateOrganizerEventDescription);
 router.post('/organizer/events/ai/tags', requireRole('organizer'), suggestOrganizerEventTags);
 router.post('/organizer/events/ai/time-suggestions', requireRole('organizer'), suggestOrganizerEventTimes);

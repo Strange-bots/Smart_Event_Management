@@ -66,6 +66,25 @@ export async function generateOrganizerEventDescription(payload) {
   };
 }
 
+export async function generateOrganizerEventImages(payload) {
+  const response = await fetch(`${getApiBaseUrl()}/api/organizer/events/ai/images`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJsonResponse(response, "Failed to generate event images");
+
+  return {
+    images: data?.images ?? [],
+    source: data?.source ?? "fallback",
+    reason: data?.reason ?? null,
+    modelResult: data?.modelResult ?? null,
+  };
+}
+
 export async function suggestOrganizerEventTags(payload) {
   const response = await fetch(`${getApiBaseUrl()}/api/organizer/events/ai/tags`, {
     method: "POST",
