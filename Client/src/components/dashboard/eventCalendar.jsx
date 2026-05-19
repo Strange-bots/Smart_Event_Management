@@ -206,7 +206,7 @@ const EventCalendar = ({
           })}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div>
             <div className="mb-3 flex items-center justify-between">
               <button
@@ -307,7 +307,7 @@ const EventCalendar = ({
                         <h4 className="truncate text-sm font-medium text-gray-900">
                           {event.title}
                         </h4>
-                        <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-500">
+                        <div className="mt-1.5 flex flex-col gap-1 text-xs text-gray-500 sm:flex-row sm:items-center sm:gap-3">
                           <span>🕐 {event.time}</span>
                           <span>📍 {event.venue}</span>
                         </div>
@@ -354,7 +354,7 @@ const EventCalendar = ({
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-4 border-t pt-4 text-xs text-gray-500">
+        <div className="mt-4 flex flex-wrap items-center gap-4 border-t pt-4 text-xs text-gray-500">
           {["ongoing", "coming", "gone"].map((calendarState) => {
             const meta = getCalendarStateMeta(calendarState);
 

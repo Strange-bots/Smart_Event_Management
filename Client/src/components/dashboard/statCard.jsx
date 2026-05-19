@@ -28,14 +28,14 @@ const StatCard = ({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className={cn(
-            "text-sm font-medium",
+            "pr-3 text-sm font-medium",
             variant === "default" ? "text-muted-foreground" : "text-primary-foreground/80"
           )}>
             {title}
           </CardTitle>
           {Icon && (
-            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", iconBg[variant])}>
-              <Icon size={20} className={variant === "default" ? "text-primary" : "text-primary-foreground"} />
+            <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10", iconBg[variant])}>
+              <Icon size={18} className={variant === "default" ? "text-primary" : "text-primary-foreground"} />
             </div>
           )}
         </div>
@@ -43,7 +43,7 @@ const StatCard = ({
       <CardContent>
         <div className="space-y-1">
           <p className={cn(
-            "text-3xl font-heading font-bold",
+            "text-2xl font-heading font-bold sm:text-3xl",
             variant === "default" ? "text-foreground" : "text-primary-foreground"
           )}>
             {value}

@@ -71,7 +71,7 @@ function Navbar() {
         />
       ) : null}
 
-      <nav className="relative z-50 border-b border-[#163a5a] bg-[#163c5e]">
+      <nav className="sticky top-0 z-50 border-b border-[#163a5a] bg-[#163c5e]">
         <div
           className={`mx-auto w-full max-w-[1440px] px-4 transition-all duration-200 sm:px-6 lg:px-12 ${
             mobileMenuOpen ? "py-2.5" : "py-4"
@@ -148,7 +148,7 @@ function Navbar() {
           </div>
 
           {mobileMenuOpen ? (
-            <div className="absolute right-4 top-full mt-3 w-[min(20rem,calc(100vw-2rem))] space-y-4 rounded-3xl border border-white/10 bg-[#102f4a] p-4 shadow-2xl md:hidden sm:right-6">
+            <div className="absolute inset-x-4 top-full mt-3 space-y-4 rounded-3xl border border-white/10 bg-[#102f4a] p-4 shadow-2xl md:hidden sm:inset-x-6">
               <div className="grid gap-2">
                 <Link to="/" className={mobileNavLinkClass}>
                   Home

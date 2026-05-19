@@ -234,7 +234,7 @@ function DashboardLayout({ children }) {
       <aside
         style={sidebarStyle}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform md:hidden",
+          "fixed inset-y-0 left-0 z-50 w-[min(86vw,20rem)] transform transition-transform md:hidden",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -254,36 +254,36 @@ function DashboardLayout({ children }) {
           </button>
         </div>
 
-        <nav className="space-y-1 p-4">{renderNavItems(true)}</nav>
+        <nav className="max-h-[calc(100vh-5rem)] space-y-1 overflow-y-auto p-4">{renderNavItems(true)}</nav>
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
         {/* Top navigation bar */}
         <header
-          className="sticky top-0 z-30 flex items-center justify-between border-b px-4 py-3"
+          className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-3"
           style={{
             background: "var(--color-nav-bg)",
             borderColor: "var(--color-nav-border)",
           }}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="p-1 md:hidden"
+              className="shrink-0 p-1 md:hidden"
               style={{ color: "var(--color-foreground)" }}
               aria-label="Open menu"
             >
               <Menu size={22} />
             </button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>@</span>
-              <span className="font-semibold" style={{ color: "var(--color-foreground)" }}>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="hidden text-sm sm:inline" style={{ color: "var(--color-muted-foreground)" }}>@</span>
+              <span className="truncate text-sm font-semibold sm:text-base" style={{ color: "var(--color-foreground)" }}>
                 {brandName}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>{userName}</p>
               <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
@@ -291,15 +291,15 @@ function DashboardLayout({ children }) {
               </p>
             </div>
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-full"
+              className="flex h-9 w-9 items-center justify-center rounded-full sm:h-10 sm:w-10"
               style={{ background: "var(--color-section)", color: "var(--color-muted-foreground)" }}
             >
-              <Users size={20} />
+              <Users size={18} />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
