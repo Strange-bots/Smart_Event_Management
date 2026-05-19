@@ -3,7 +3,9 @@ const { findUserByEmail } = require('./authService');
 
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
 const DEFAULT_GEMINI_IMAGE_MODEL =
-  process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image-preview';
+  process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const FALLBACK_GEMINI_IMAGE_MODEL =
+  process.env.GEMINI_IMAGE_FALLBACK_MODEL || 'gemini-3.1-flash-image-preview';
 
 const timeSuggestionsByCategory = {
   workshop: [
@@ -209,7 +211,7 @@ const extractGeminiImagePart = (responseBody) => {
   );
 };
 
-const requestGeminiImage = async ({ prompt }) => {
+const requestGeminiImageFromModel = async ({ prompt, model }) => {
   if (!process.env.GEMINI_API_KEY) {
     return {
       source: 'fallback',
@@ -220,13 +222,14 @@ const requestGeminiImage = async ({ prompt }) => {
   }
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-    DEFAULT_GEMINI_IMAGE_MODEL,
-  )}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
+    model,
+  )}:generateContent`;
 
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
+        'x-goog-api-key': process.env.GEMINI_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -238,7 +241,11 @@ const requestGeminiImage = async ({ prompt }) => {
         ],
         generationConfig: {
           temperature: 0.8,
-          responseModalities: ['TEXT', 'IMAGE'],
+          responseFormat: {
+            image: {
+              aspectRatio: '16:9',
+            },
+          },
         },
       }),
     });
@@ -249,7 +256,7 @@ const requestGeminiImage = async ({ prompt }) => {
         source: 'fallback',
         reason: 'gemini_request_failed',
         imageDataUrl: null,
-        modelResult: `Gemini image request failed (${response.status}): ${errorText}`,
+        modelResult: `Gemini image request failed for ${model} (${response.status}): ${errorText}`,
       };
     }
 
@@ -261,7 +268,7 @@ const requestGeminiImage = async ({ prompt }) => {
         source: 'fallback',
         reason: 'invalid_ai_payload',
         imageDataUrl: null,
-        modelResult: extractGeminiText(responseBody) || null,
+        modelResult: `${model}: ${extractGeminiText(responseBody) || 'No image part returned'}`,
       };
     }
 
@@ -269,16 +276,40 @@ const requestGeminiImage = async ({ prompt }) => {
       source: 'gemini',
       reason: null,
       imageDataUrl: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
-      modelResult: extractGeminiText(responseBody) || null,
+      modelResult: `${model}: ${extractGeminiText(responseBody) || 'image_generated'}`,
     };
   } catch (error) {
     return {
       source: 'fallback',
       reason: 'gemini_request_failed',
       imageDataUrl: null,
-      modelResult: error?.message || null,
+      modelResult: `${model}: ${error?.message || 'Unknown Gemini image error'}`,
     };
   }
+};
+
+const requestGeminiImage = async ({ prompt }) => {
+  const modelsToTry = Array.from(
+    new Set([DEFAULT_GEMINI_IMAGE_MODEL, FALLBACK_GEMINI_IMAGE_MODEL].filter(Boolean)),
+  );
+  const failedResults = [];
+
+  for (const model of modelsToTry) {
+    const result = await requestGeminiImageFromModel({ prompt, model });
+
+    if (result.imageDataUrl) {
+      return result;
+    }
+
+    failedResults.push(result.modelResult || `${model}: unknown_error`);
+  }
+
+  return {
+    source: 'fallback',
+    reason: 'gemini_request_failed',
+    imageDataUrl: null,
+    modelResult: failedResults.join(' | '),
+  };
 };
 
 const buildOrganizerContext = async (organizerEmail) => {
