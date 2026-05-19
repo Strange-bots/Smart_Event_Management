@@ -343,7 +343,7 @@ function AdminUsers() {
           </div>
           <Button
             variant="brand"
-            className="gap-2"
+            className="min-h-11 gap-2"
             onClick={() => setIsCreateDialogOpen(true)}
           >
             <Plus size={18} />
@@ -432,6 +432,7 @@ function AdminUsers() {
                     variant={roleFilter === role ? "default" : "outline"}
                     size="sm"
                     className={cn(
+                      "min-h-11 px-4",
                       roleFilter === role
                         ? "border-[#1f4e79] bg-gradient-to-r from-[#1f4e79] to-[#163a5a] text-white shadow-sm"
                         : "border-[#d9e2ec] bg-white text-[#0f1e33] hover:border-[#1f4e79] hover:bg-gradient-to-r hover:from-[#1f4e79] hover:to-[#163a5a] hover:text-white"
@@ -454,7 +455,106 @@ function AdminUsers() {
 
         <Card className="border-0 shadow-sm">
           <CardContent className="p-0">
-            <Table>
+            <div className="grid gap-4 p-4 md:hidden">
+              {isLoading ? (
+                <div className="rounded-2xl border border-dashed border-[#d9e2ec] px-4 py-8 text-center text-sm text-muted-foreground">
+                  Loading users...
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[#d9e2ec] px-4 py-8 text-center text-sm text-muted-foreground">
+                  No users found.
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="rounded-2xl border border-[#e8eef5] bg-white p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                        <AvatarFallback>
+                          {user.name
+                            .split(" ")
+                            .map((part) => part[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-foreground">{user.name}</p>
+                        <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {getRoleBadge(user.role)}
+                      {getStatusBadge(user.status)}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Events</p>
+                        <p className="font-medium text-foreground">{user.eventsRegistered}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Joined</p>
+                        <p className="font-medium text-foreground">{user.joinDate}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-2">
+                      <Button
+                        variant="outline"
+                        className="min-h-11 justify-start gap-2"
+                        onClick={() => handleViewProfile(user)}
+                      >
+                        <Eye size={16} />
+                        View Profile
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="min-h-11 justify-start gap-2"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        <Edit size={16} />
+                        Edit User
+                      </Button>
+                      {user.status === "pending" ? (
+                        <Button
+                          variant="outline"
+                          className="min-h-11 justify-start gap-2 border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
+                          onClick={() => handleApproveUser(user)}
+                        >
+                          <UserCheck size={16} />
+                          Approve
+                        </Button>
+                      ) : null}
+                      {user.status === "active" ? (
+                        <Button
+                          variant="outline"
+                          className="min-h-11 justify-start gap-2 border-yellow-200 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-800"
+                          onClick={() => handleDeactivateUser(user)}
+                        >
+                          <UserX size={16} />
+                          Deactivate
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="outline"
+                        className="min-h-11 justify-start gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        onClick={() => handleDeleteUser(user)}
+                      >
+                        <Trash2 size={16} />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="hidden md:block">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
@@ -505,26 +605,26 @@ function AdminUsers() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="h-10 w-10">
                               <MoreHorizontal size={16} />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" className="w-52">
                             <DropdownMenuItem
-                              className="gap-2"
+                              className="min-h-10 gap-2"
                               onClick={() => handleViewProfile(user)}
                             >
                               <Eye size={14} /> View Profile
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              className="gap-2"
+                              className="min-h-10 gap-2"
                               onClick={() => handleEditUser(user)}
                             >
                               <Edit size={14} /> Edit User
                             </DropdownMenuItem>
                             {user.status === "pending" ? (
                               <DropdownMenuItem
-                                className="gap-2 text-green-600"
+                                className="min-h-10 gap-2 text-green-600"
                                 onClick={() => handleApproveUser(user)}
                               >
                                 <UserCheck size={14} /> Approve
@@ -532,14 +632,14 @@ function AdminUsers() {
                             ) : null}
                             {user.status === "active" ? (
                               <DropdownMenuItem
-                                className="gap-2 text-yellow-600"
+                                className="min-h-10 gap-2 text-yellow-600"
                                 onClick={() => handleDeactivateUser(user)}
                               >
                                 <UserX size={14} /> Deactivate
                               </DropdownMenuItem>
                             ) : null}
                             <DropdownMenuItem
-                              className="gap-2 text-destructive"
+                              className="min-h-10 gap-2 text-destructive"
                               onClick={() => handleDeleteUser(user)}
                             >
                               <Trash2 size={14} /> Delete
@@ -551,7 +651,8 @@ function AdminUsers() {
                   ))
                 )}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
