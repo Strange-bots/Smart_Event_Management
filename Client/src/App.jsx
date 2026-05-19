@@ -14,6 +14,7 @@ import AdminEvents from "./pages/admin/adminEvents.jsx";
 import AdminGallery from "./pages/admin/adminGallery.jsx";
 import AdminUsers from "./pages/admin/adminUsers.jsx";
 import AdminMessage from "./pages/admin/adminMessage.jsx";
+import AdminSettings from "./pages/admin/adminSettings.jsx";
 import UserDashboard from "./pages/users/userDashboard.jsx";
 import BrowseEventsPage from "./pages/users/browseEvents.jsx";
 import UserEvents from "./pages/users/userEvents.jsx";
@@ -129,6 +130,7 @@ function App() {
           <Route path="/admin/admingallery" element={<ProtectedRoute role="admin"><AdminGallery /></ProtectedRoute>} />
           <Route path="/admin/adminusers" element={<ProtectedRoute role="admin"><AdminUsers /></ProtectedRoute>} />
           <Route path="/admin/adminmessage" element={<ProtectedRoute role="admin"><AdminMessage /></ProtectedRoute>} />
+          <Route path="/admin/adminsettings" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
           {/* User routes */}
           <Route path="/user/dashboard" element={<ProtectedRoute role="user"><UserDashboard /></ProtectedRoute>} />
           <Route path="/browseEvents" element={<ProtectedRoute role="user"><BrowseEventsPage /></ProtectedRoute>} />

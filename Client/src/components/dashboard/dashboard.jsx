@@ -9,6 +9,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  Settings,
   User,
   Users,
   X,
@@ -40,6 +41,7 @@ const navItemsByRole = {
     { path: "/admin/admingallery", label: "Gallery", icon: ChartColumn },
     { path: "/admin/adminusers", label: "Users", icon: Users },
     { path: "/admin/adminmessage", label: "Messages", icon: MessageSquare },
+    { path: "/admin/adminsettings", label: "Settings", icon: Settings },
     { path: "logout", label: "Log Out", icon: LogOut },
   ],
   user: [
