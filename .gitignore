@@ -20,7 +20,7 @@ Server/.vite
 *.local
 
 # Environment files
-.env
+*.env
 .env.*
 !.env.example
 !Client/.env
