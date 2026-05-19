@@ -3,9 +3,9 @@ const { findUserByEmail } = require('./authService');
 
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
 const DEFAULT_GEMINI_IMAGE_MODEL =
-  process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+  process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview';
 const FALLBACK_GEMINI_IMAGE_MODEL =
-  process.env.GEMINI_IMAGE_FALLBACK_MODEL || 'gemini-3.1-flash-image-preview';
+  process.env.GEMINI_IMAGE_FALLBACK_MODEL || 'gemini-2.5-flash-image';
 
 const timeSuggestionsByCategory = {
   workshop: [
@@ -225,6 +225,24 @@ const requestGeminiImageFromModel = async ({ prompt, model }) => {
     model,
   )}:generateContent`;
 
+  const imageGenerationConfig =
+    model === 'gemini-2.5-flash-image'
+      ? {
+          responseFormat: {
+            image: {
+              aspectRatio: '16:9',
+            },
+          },
+        }
+      : {
+          responseFormat: {
+            image: {
+              aspectRatio: '16:9',
+              imageSize: '2K',
+            },
+          },
+        };
+
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -241,11 +259,7 @@ const requestGeminiImageFromModel = async ({ prompt, model }) => {
         ],
         generationConfig: {
           temperature: 0.8,
-          responseFormat: {
-            image: {
-              aspectRatio: '16:9',
-            },
-          },
+          ...imageGenerationConfig,
         },
       }),
     });
@@ -654,6 +668,7 @@ const generateEventImages = async ({ organizerEmail, payload = {} }) => {
         mimeType:
           generatedImage.imageDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)?.[1] ||
           'image/png',
+        modelResult: generatedImage.modelResult || null,
       });
       continue;
     }

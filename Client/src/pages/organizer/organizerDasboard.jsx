@@ -172,7 +172,7 @@ function OrganizerDashboard() {
       if (!result.images.length) {
         setNotice({
           type: "error",
-          message: "No images were generated. Please try again.",
+          message: result.modelResult || "No images were generated. Please try again.",
         });
         return;
       }
@@ -186,7 +186,7 @@ function OrganizerDashboard() {
             ? refresh
               ? "Generated a new set of AI event images."
               : "AI event images are ready."
-            : `Generated fallback event images${result.reason ? `: ${result.reason}` : ""}.`,
+            : `Generated fallback event images${result.reason ? `: ${result.reason}` : ""}${result.modelResult ? ` (${result.modelResult})` : ""}.`,
       });
     } catch (error) {
       setNotice({
