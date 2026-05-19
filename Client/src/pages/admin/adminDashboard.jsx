@@ -299,12 +299,6 @@ function AdminDashboard() {
               >
                 View Reports
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/admin/adminsettings")}
-              >
-                System Settings
-              </Button>
             </div>
           </CardContent>
         </Card>

@@ -86,11 +86,7 @@ const {
 const { requireRole } = require('../middleware/requireRole');
 const upload = require('../middleware/upload');
 const authRoutes = require('./authRoutes');
-const {
-  getPublicSettings,
-  getSettings,
-  updateSettings,
-} = require('../controllers/adminSettingsController');
+const { getPublicSettings } = require('../controllers/adminSettingsController');
 
 const router = express.Router();
 
@@ -137,8 +133,6 @@ router.get('/registrations/users', requireRole('admin'), listUserRegistrations);
 router.post('/registrations/users', createUserRegistration);
 router.put('/registrations/users/:email', requireRole('admin'), updateUserRegistration);
 router.delete('/registrations/users/:email', requireRole('admin'), deleteUserRegistration);
-router.get('/admin/settings', requireRole('admin'), getSettings);
-router.put('/admin/settings', requireRole('admin'), updateSettings);
 router.get('/settings/public', getPublicSettings);
 router.post('/admin/users', requireRole('admin'), createAdminManagedUser);
 router.get('/organizer/feedback', requireRole('organizer'), listOrganizerFeedback);
