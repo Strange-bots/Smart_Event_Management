@@ -653,7 +653,7 @@ const PublicBrowseEvents = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {[
                   { icon: "Date", label: "Date", value: selectedEvent.date },
                   { icon: "Time", label: "Time", value: selectedEvent.time },

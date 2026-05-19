@@ -199,7 +199,7 @@ const UserPayments = () => {
       {/* Receipt Detail Modal */}
       {selectedReceipt && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setSelectedReceipt(null)}
         >
           <div
@@ -224,19 +224,19 @@ const UserPayments = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                   <span className="text-gray-500">Event</span>
-                  <span className="font-medium text-gray-900 text-right max-w-[60%]">{selectedReceipt.eventTitle}</span>
+                  <span className="max-w-full font-medium text-gray-900 sm:max-w-[60%] sm:text-right">{selectedReceipt.eventTitle}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <span className="text-gray-500">Amount</span>
                   <span className="font-bold text-green-600">${selectedReceipt.amount.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-500">Date</span>
                   <span className="text-gray-900">{selectedReceipt.paymentDate}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-gray-500">Payment Method</span>
                   <span className="text-gray-900">{selectedReceipt.paymentMethod}</span>
                 </div>

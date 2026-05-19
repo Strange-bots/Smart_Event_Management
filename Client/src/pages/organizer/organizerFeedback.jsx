@@ -199,7 +199,7 @@ function OrganizerFeedback() {
             <select
               value={eventFilter}
               onChange={(event) => setEventFilter(event.target.value)}
-              className="w-full rounded-xl border border-[#d9e2ec] px-4 py-3 outline-none transition focus:border-[#1f4e79] sm:w-[220px]"
+              className="w-full rounded-xl border border-[#d9e2ec] px-4 py-3 outline-none transition focus:border-[#1f4e79] sm:w-auto sm:min-w-[220px]"
             >
               {eventOptions.map((option) => (
                 <option key={option} value={option}>

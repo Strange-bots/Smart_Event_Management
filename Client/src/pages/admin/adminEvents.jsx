@@ -637,7 +637,7 @@ function AdminEvents() {
                 <p className="text-foreground">{selectedEvent.description}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex items-start gap-2">
                   <Users size={16} className="mt-0.5 text-brand-orange" />
                   <div>
@@ -697,7 +697,7 @@ function AdminEvents() {
               ) : null}
 
               {selectedEvent.status === "pending" ? (
-                <div className="flex gap-2 border-t pt-4">
+                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row">
                   <Button
                     className="flex-1 gap-2 bg-green-600 text-white hover:bg-green-700"
                     onClick={() => {

@@ -257,27 +257,27 @@ const UserDashboard = () => {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Link to="/browseEvents">
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 flex items-center gap-3 h-full">
+            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
               <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-xl">🔍</div>
               <span className="font-medium text-gray-800">Browse Events</span>
             </div>
           </Link>
           <Link to="/userEvents">
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 flex items-center gap-3 h-full">
+            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-xl">📅</div>
               <span className="font-medium text-gray-800">My Events</span>
             </div>
           </Link>
           <Link to="/userPayments">
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 flex items-center gap-3 h-full">
+            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
               <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-xl">💳</div>
               <span className="font-medium text-gray-800">Payments</span>
             </div>
           </Link>
           <Link to="/userProfile">
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 flex items-center gap-3 h-full">
+            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
               <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-xl">👤</div>
               <span className="font-medium text-gray-800">Profile</span>
             </div>
@@ -285,7 +285,7 @@ const UserDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div
             className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer p-5"
             onClick={() => navigate("/userEvents")}
@@ -352,7 +352,7 @@ const UserDashboard = () => {
         ) : null}
 
         {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-5 gap-6">
+        <div className="grid gap-6 lg:grid-cols-5">
           {/* Upcoming Events */}
           <div className="lg:col-span-3 space-y-4">
             <div className="flex items-center justify-between">
@@ -369,19 +369,19 @@ const UserDashboard = () => {
               {dashboardEvents.length ? dashboardEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden flex"
+                  className="flex cursor-pointer flex-col overflow-hidden rounded-xl bg-white shadow-sm transition-all hover:shadow-md sm:flex-row"
                   onClick={() => navigate("/userEvents")}
                 >
-                  <div className="w-32 md:w-40 shrink-0">
+                  <div className="h-48 w-full shrink-0 sm:h-auto sm:w-32 md:w-40">
                     <img
                       src={event.image}
                       alt={event.title}
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="flex-1 p-4 md:p-5 flex flex-col justify-between">
+                  <div className="flex flex-1 flex-col justify-between p-4 md:p-5">
                     <div>
-                      <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <h3 className="font-semibold text-gray-900 line-clamp-2">{event.title}</h3>
                         <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full shrink-0">
                           Registered
@@ -393,7 +393,7 @@ const UserDashboard = () => {
                         <span>📍 {event.location}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 mt-3">
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                       <button
                         className="border border-gray-300 text-gray-700 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={(eventClick) => {
@@ -476,7 +476,7 @@ const UserDashboard = () => {
             {/* Activity Mini Card */}
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-sm font-medium text-gray-800 mb-3">Your Activity</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="text-center p-2 bg-white rounded-lg">
                   <p className="text-xl font-bold text-[#1f4e79]">{dashboardStats.attendanceRate}%</p>
                   <p className="text-xs text-gray-500">Attendance Rate</p>

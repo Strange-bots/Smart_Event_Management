@@ -242,12 +242,12 @@ const PaymentPage = () => {
               <p className="mb-4 text-center font-mono text-xl font-bold text-gray-900">
                 {receipt?.receiptId || "Pending"}
               </p>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <p className="text-gray-500">Event</p>
                   <p className="font-medium text-gray-900">{event.title}</p>
                 </div>
-                <div className="text-right">
+                <div className="sm:text-right">
                   <p className="text-gray-500">Amount Paid</p>
                   <p className="font-bold text-green-600">${event.price.toFixed(2)}</p>
                 </div>
@@ -255,7 +255,7 @@ const PaymentPage = () => {
                   <p className="text-gray-500">Date</p>
                   <p className="font-medium text-gray-900">{event.date}</p>
                 </div>
-                <div className="text-right">
+                <div className="sm:text-right">
                   <p className="text-gray-500">Location</p>
                   <p className="font-medium text-gray-900">{event.venue}</p>
                 </div>
@@ -266,7 +266,7 @@ const PaymentPage = () => {
               Receipt recorded for {currentUser?.email || "your account"}
             </span>
 
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
               <button
                 onClick={() => navigate("/userPayments")}
                 className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
@@ -384,7 +384,7 @@ const PaymentPage = () => {
           </div>
 
           <div className="lg:col-span-2">
-            <div className="sticky top-24 rounded-xl bg-white shadow-lg">
+            <div className="rounded-xl bg-white shadow-lg lg:sticky lg:top-24">
               <div className="px-6 pb-2 pt-6">
                 <h2 className="text-lg font-semibold text-gray-900">Order Summary</h2>
               </div>

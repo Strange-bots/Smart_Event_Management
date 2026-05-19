@@ -465,7 +465,7 @@ const UserEvents = () => {
                 <p className="text-gray-500">{selectedEvent.description}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div className="flex items-center gap-2">
                   <span className="text-[#f36f21]">📅</span>
                   <span>{selectedEvent.date}</span>
