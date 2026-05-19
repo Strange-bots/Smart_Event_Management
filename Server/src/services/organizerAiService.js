@@ -3,9 +3,9 @@ const { findUserByEmail } = require('./authService');
 
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
 const DEFAULT_GEMINI_IMAGE_MODEL =
-  process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview';
+  process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 const FALLBACK_GEMINI_IMAGE_MODEL =
-  process.env.GEMINI_IMAGE_FALLBACK_MODEL || 'gemini-2.5-flash-image';
+  process.env.GEMINI_IMAGE_FALLBACK_MODEL || 'gemini-3-pro-image-preview';
 
 const timeSuggestionsByCategory = {
   workshop: [
@@ -228,19 +228,10 @@ const requestGeminiImageFromModel = async ({ prompt, model }) => {
   const imageGenerationConfig =
     model === 'gemini-2.5-flash-image'
       ? {
-          responseFormat: {
-            image: {
-              aspectRatio: '16:9',
-            },
-          },
+          responseModalities: ['TEXT', 'IMAGE'],
         }
       : {
-          responseFormat: {
-            image: {
-              aspectRatio: '16:9',
-              imageSize: '2K',
-            },
-          },
+          responseModalities: ['TEXT', 'IMAGE'],
         };
 
   try {
@@ -673,7 +664,7 @@ const generateEventImages = async ({ organizerEmail, payload = {} }) => {
       continue;
     }
 
-    failures.push(generatedImage.reason || 'unknown_error');
+    failures.push(generatedImage.modelResult || generatedImage.reason || 'unknown_error');
   }
 
   if (!images.length) {
@@ -691,7 +682,7 @@ const generateEventImages = async ({ organizerEmail, payload = {} }) => {
     return {
       statusCode: 200,
       source: 'fallback',
-      reason: failures[0] || 'gemini_request_failed',
+      reason: 'gemini_request_failed',
       modelResult: failures.join(', ') || null,
       images: fallbackImages,
     };
