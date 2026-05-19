@@ -570,10 +570,10 @@ const generateEventImages = async ({ organizerEmail, payload = {} }) => {
   }
 
   const variantPrompts = [
-    'Create a polished campus event cover image with a realistic, welcoming atmosphere.',
-    'Create a more energetic alternative with stronger motion and crowd energy.',
-    'Create a cleaner professional variation suitable for an academic promotion banner.',
-    'Create a warm community-focused alternative with a strong student-life feeling.',
+    'Create a polished campus event cover image with a realistic, welcoming atmosphere, featuring several students or attendees actively participating in the event.',
+    'Create a more energetic alternative with stronger motion, crowd energy, visible human interaction, and dynamic event activity.',
+    'Create a cleaner professional variation suitable for an academic promotion banner, with people engaged in a focused workshop, seminar, or networking moment.',
+    'Create a warm community-focused alternative with a strong student-life feeling, showing friendly people, social connection, and event-related props.',
   ].slice(0, requestDataConst.limit);
 
   const images = [];
@@ -582,10 +582,16 @@ const generateEventImages = async ({ organizerEmail, payload = {} }) => {
   for (let index = 0; index < variantPrompts.length; index += 1) {
     const variantPrompt = variantPrompts[index];
     const prompt = [
-      'Generate a high-quality event cover image.',
+      'Generate a high-quality, visually appealing event cover image.',
       'Do not include any text, letters, logos, watermarks, UI, borders, or collages.',
       'Use a 16:9 composition suitable for a campus event card or hero image.',
       'Keep the scene appropriate for a university event promotion.',
+      'The image should feel like a real event moment, not a plain abstract background.',
+      'Include human subjects whenever appropriate, such as students, speakers, attendees, presenters, or small groups interacting naturally.',
+      'Show visual elements that represent the event theme, such as laptops, presentation screens, workshop tables, microphones, discussion circles, notebooks, sports equipment, cultural decor, or networking interactions when relevant.',
+      'Use cinematic but realistic lighting, clear focal points, layered foreground and background depth, and a composition that reads well as a promotional banner.',
+      'Avoid uncanny faces, extra fingers, distorted anatomy, cluttered scenes, and empty spaces with no subject.',
+      'Prefer a modern university or event environment with believable activity and strong visual storytelling.',
       variantPrompt,
       `Event title: ${requestDataConst.title}`,
       `Event category: ${requestDataConst.category || 'Campus event'}`,
@@ -593,6 +599,9 @@ const generateEventImages = async ({ organizerEmail, payload = {} }) => {
       `Event date: ${requestDataConst.date || 'Upcoming event'}`,
       `Event details: ${requestDataConst.description}`,
       requestDataConst.tags.length ? `Relevant themes: ${requestDataConst.tags.join(', ')}` : null,
+      requestDataConst.isPaid
+        ? 'The scene can feel premium, polished, and high-value because this is a paid event.'
+        : 'The scene should feel open, engaging, and accessible because this is a free event.',
       organizerEventsConst.length
         ? `Organizer event history themes: ${organizerEventsConst
             .flatMap((event) => event.tags || [])
