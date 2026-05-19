@@ -143,7 +143,7 @@ function DashboardLayout({ children }) {
               handleLogout();
             }}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
+              "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
               "text-white hover:bg-white/10"
             )}
           >
@@ -165,7 +165,7 @@ function DashboardLayout({ children }) {
             }
           }}
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all",
+            "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 transition-all",
             isActive
               ? "bg-[#f36f21] text-white"
               : "text-white hover:bg-white/10"
@@ -211,7 +211,7 @@ function DashboardLayout({ children }) {
           </Link>
           <button
             onClick={() => setSidebarOpen((value) => !value)}
-            className="p-1 text-white/70 hover:text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-white/70 hover:text-white"
             aria-label="Toggle sidebar"
           >
             <CollapseIcon collapsed={!sidebarOpen} />
@@ -269,7 +269,7 @@ function DashboardLayout({ children }) {
           <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="shrink-0 p-1 md:hidden"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl md:hidden"
               style={{ color: "var(--color-foreground)" }}
               aria-label="Open menu"
             >
@@ -291,7 +291,7 @@ function DashboardLayout({ children }) {
               </p>
             </div>
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-full sm:h-10 sm:w-10"
+              className="flex h-10 w-10 items-center justify-center rounded-full sm:h-10 sm:w-10"
               style={{ background: "var(--color-section)", color: "var(--color-muted-foreground)" }}
             >
               <Users size={18} />

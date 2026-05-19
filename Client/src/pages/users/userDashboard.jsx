@@ -239,15 +239,15 @@ const UserDashboard = () => {
                 : "You have no upcoming events right now. Discover new opportunities tailored just for you."}
             </p>
 
-            <div className="flex flex-wrap gap-3 mt-6">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
-                className="flex items-center gap-2 bg-white text-[#1f4e79] hover:bg-white/90 font-medium px-4 py-2 rounded-lg transition-colors"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-3 font-medium text-[#1f4e79] transition-colors hover:bg-white/90 sm:min-h-11 sm:w-auto sm:justify-start sm:py-2"
                 onClick={() => navigate("/browseEvents")}
               >
                 🔍 Browse Events
               </button>
               <button
-                className="flex items-center gap-2 text-white hover:bg-white/10 font-medium px-4 py-2 rounded-lg transition-colors"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium text-white transition-colors hover:bg-white/10 sm:min-h-11 sm:w-auto sm:justify-start sm:py-2"
                 onClick={() => navigate("/userEvents")}
               >
                 My Events →
@@ -258,27 +258,27 @@ const UserDashboard = () => {
 
         {/* Quick Links */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Link to="/browseEvents">
-            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-xl">🔍</div>
+          <Link to="/browseEvents" className="block h-full">
+            <div className="flex h-full min-h-[72px] items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-xl">🔍</div>
               <span className="font-medium text-gray-800">Browse Events</span>
             </div>
           </Link>
-          <Link to="/userEvents">
-            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-xl">📅</div>
+          <Link to="/userEvents" className="block h-full">
+            <div className="flex h-full min-h-[72px] items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-xl">📅</div>
               <span className="font-medium text-gray-800">My Events</span>
             </div>
           </Link>
-          <Link to="/userPayments">
-            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-xl">💳</div>
+          <Link to="/userPayments" className="block h-full">
+            <div className="flex h-full min-h-[72px] items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 text-xl">💳</div>
               <span className="font-medium text-gray-800">Payments</span>
             </div>
           </Link>
-          <Link to="/userProfile">
-            <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-xl">👤</div>
+          <Link to="/userProfile" className="block h-full">
+            <div className="flex h-full min-h-[72px] items-center gap-3 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100 text-xl">👤</div>
               <span className="font-medium text-gray-800">Profile</span>
             </div>
           </Link>
@@ -295,7 +295,7 @@ const UserDashboard = () => {
                 <p className="text-3xl font-bold text-gray-900">{dashboardStats.registeredCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Registered Events</p>
               </div>
-              <div className="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center text-2xl">📅</div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-2xl">📅</div>
             </div>
             <p className="mt-3 text-xs text-green-600">
               {dashboardStats.upcomingCount} upcoming
@@ -311,7 +311,7 @@ const UserDashboard = () => {
                 <p className="text-3xl font-bold text-gray-900">{dashboardStats.attendedCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Events Attended</p>
               </div>
-              <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center text-2xl">⭐</div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-2xl">⭐</div>
             </div>
             <p className="mt-3 text-xs text-gray-400">From your attendance history</p>
           </div>
@@ -325,7 +325,7 @@ const UserDashboard = () => {
                 <p className="text-3xl font-bold text-gray-900">{dashboardStats.certificateCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Certificates</p>
               </div>
-              <div className="w-11 h-11 rounded-xl bg-purple-100 flex items-center justify-center text-2xl">🏆</div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-2xl">🏆</div>
             </div>
             <p className="mt-3 text-xs text-purple-600">Earned from attended events</p>
           </div>
@@ -339,7 +339,7 @@ const UserDashboard = () => {
                 <p className="text-3xl font-bold text-gray-900">{dashboardStats.unreadNotificationCount}</p>
                 <p className="text-sm text-gray-500 mt-1">Notifications</p>
               </div>
-              <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center text-2xl">🔔</div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-2xl">🔔</div>
             </div>
             <p className="mt-3 text-xs text-red-500">Unread messages</p>
           </div>
@@ -355,10 +355,10 @@ const UserDashboard = () => {
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Upcoming Events */}
           <div className="lg:col-span-3 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-gray-900">My Upcoming Events</h2>
               <button
-                className="text-sm text-[#f36f21] hover:underline flex items-center gap-1"
+                className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm text-[#f36f21] transition-colors hover:bg-orange-50"
                 onClick={() => navigate("/userEvents")}
               >
                 View All ›
@@ -383,7 +383,7 @@ const UserDashboard = () => {
                     <div>
                       <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <h3 className="font-semibold text-gray-900 line-clamp-2">{event.title}</h3>
-                        <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full shrink-0">
+                        <span className="shrink-0 rounded-full bg-green-100 px-2.5 py-1 text-xs text-green-700">
                           Registered
                         </span>
                       </div>
@@ -393,9 +393,9 @@ const UserDashboard = () => {
                         <span>📍 {event.location}</span>
                       </div>
                     </div>
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                       <button
-                        className="border border-gray-300 text-gray-700 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="min-h-11 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
                         onClick={(eventClick) => {
                           eventClick.stopPropagation();
                           navigate("/userEvents");
@@ -404,7 +404,7 @@ const UserDashboard = () => {
                         View Details
                       </button>
                       <button
-                        className="text-gray-400 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="min-h-11 rounded-lg px-4 py-2 text-sm text-gray-500 transition-colors hover:bg-gray-50"
                         onClick={(eventClick) => {
                           eventClick.stopPropagation();
                           navigate("/userEvents");
@@ -456,10 +456,10 @@ const UserDashboard = () => {
                       <h3 className="font-semibold text-white text-sm line-clamp-1">{event.title}</h3>
                     </div>
                   </div>
-                  <div className="p-3 flex items-center justify-between">
+                  <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-sm text-gray-500">📅 {event.date}</span>
                     <button
-                      className="bg-[#f36f21] text-white text-sm px-3 py-1.5 rounded-lg hover:bg-[#e05e10] transition-colors"
+                      className="min-h-11 rounded-lg bg-[#f36f21] px-4 py-2 text-sm text-white transition-colors hover:bg-[#e05e10]"
                       onClick={(e) => { e.stopPropagation(); navigate("/browseEvents"); }}
                     >
                       Register
@@ -477,11 +477,11 @@ const UserDashboard = () => {
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-sm font-medium text-gray-800 mb-3">Your Activity</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="text-center p-2 bg-white rounded-lg">
+                <div className="rounded-lg bg-white p-3 text-center">
                   <p className="text-xl font-bold text-[#1f4e79]">{dashboardStats.attendanceRate}%</p>
                   <p className="text-xs text-gray-500">Attendance Rate</p>
                 </div>
-                <div className="text-center p-2 bg-white rounded-lg">
+                <div className="rounded-lg bg-white p-3 text-center">
                   <p className="text-xl font-bold text-[#f36f21]">
                     {dashboardStats.averageRating.toFixed(1)}
                   </p>

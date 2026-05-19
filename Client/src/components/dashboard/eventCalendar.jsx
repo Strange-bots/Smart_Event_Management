@@ -149,7 +149,7 @@ const EventCalendar = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             {stateFilters.map(({ key, count }) => {
               const meta = getCalendarStateMeta(key);
 
@@ -159,7 +159,7 @@ const EventCalendar = ({
                   type="button"
                   onClick={() => setActiveState(key)}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                    "inline-flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition",
                     activeState === key
                       ? "border-[#1f4e79] bg-[#1f4e79] text-white"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
@@ -169,7 +169,7 @@ const EventCalendar = ({
                   {meta.label}
                   <span
                     className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[11px]",
+                      "rounded-full px-1.5 py-0.5 text-xs",
                       activeState === key
                         ? "bg-white/15 text-white"
                         : "bg-slate-100 text-slate-600",
@@ -208,19 +208,19 @@ const EventCalendar = ({
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <button
                 onClick={prevMonth}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors text-lg leading-none"
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-lg leading-none text-gray-600 transition-colors hover:bg-gray-100"
               >
                 ‹
               </button>
-              <span className="text-sm font-semibold text-gray-800">
+              <span className="text-center text-sm font-semibold text-gray-800 sm:text-base">
                 {MONTHS[monthIndex]} {year}
               </span>
               <button
                 onClick={nextMonth}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors text-lg leading-none"
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-lg leading-none text-gray-600 transition-colors hover:bg-gray-100"
               >
                 ›
               </button>
@@ -237,7 +237,7 @@ const EventCalendar = ({
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-y-1">
+            <div className="grid grid-cols-7 gap-y-1.5">
               {calendarDays.map((day, index) => {
                 if (!day) {
                   return <div key={`empty-${index}`} />;
@@ -254,7 +254,7 @@ const EventCalendar = ({
                     key={day}
                     onClick={() => setSelectedDate(date)}
                     className={cn(
-                      "relative mx-auto flex h-10 w-10 flex-col items-center justify-center rounded-full text-sm transition-colors",
+                      "relative mx-auto flex h-11 w-11 flex-col items-center justify-center rounded-full text-sm transition-colors sm:h-10 sm:w-10",
                       isSelected
                         ? "bg-[#1f4e79] font-semibold text-white"
                         : isToday
@@ -299,7 +299,7 @@ const EventCalendar = ({
                 selectedDateEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="group cursor-pointer rounded-lg bg-gray-50 p-3 transition-colors hover:bg-gray-100"
+                    className="group cursor-pointer rounded-xl bg-gray-50 p-4 transition-colors hover:bg-gray-100"
                     onClick={() => onEventClick?.(event)}
                   >
                     <div className="flex items-start justify-between gap-2">

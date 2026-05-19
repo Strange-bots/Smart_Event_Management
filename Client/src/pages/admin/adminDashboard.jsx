@@ -40,11 +40,11 @@ const formatCurrency = (value, currency = "AUD") =>
 function StatCard({ title, value, subtitle, icon: Icon, trend }) {
   return (
     <Card className="border-0 shadow-sm">
-      <CardContent className="p-5">
+      <CardContent className="p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <p className="text-sm font-medium text-[#6b7c93]">{title}</p>
-            <p className="text-3xl font-bold text-[#0f1e33]">{value}</p>
+            <p className="text-2xl font-bold text-[#0f1e33] sm:text-3xl">{value}</p>
             <div className="flex items-center gap-2">
               <p className="text-sm text-[#6b7c93]">{subtitle}</p>
               {trend ? (
@@ -280,27 +280,31 @@ function AdminDashboard() {
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Button
                 variant="brand"
+                className="min-h-11 justify-center sm:justify-start"
                 onClick={() => navigate("/admin/adminevents")}
               >
                 Manage Events
               </Button>
               <Button
                 variant="outline"
+                className="min-h-11 justify-center sm:justify-start"
                 onClick={() => navigate("/admin/adminusers")}
               >
                 Manage Users
               </Button>
               <Button
                 variant="outline"
+                className="min-h-11 justify-center sm:justify-start"
                 onClick={() => navigate("/admin/adminmessage")}
               >
                 View Reports
               </Button>
               <Button
                 variant="outline"
+                className="min-h-11 justify-center sm:justify-start"
                 onClick={() => navigate("/admin/adminsettings")}
               >
                 System Settings
