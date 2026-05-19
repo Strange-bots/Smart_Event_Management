@@ -257,9 +257,10 @@ const requestGeminiImageFromModel = async ({ prompt, model }) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      const quotaExceeded = response.status === 429 && /quota|resource_exhausted/i.test(errorText);
       return {
         source: 'fallback',
-        reason: 'gemini_request_failed',
+        reason: quotaExceeded ? 'quota_exceeded' : 'gemini_request_failed',
         imageDataUrl: null,
         modelResult: `Gemini image request failed for ${model} (${response.status}): ${errorText}`,
       };
@@ -307,6 +308,15 @@ const requestGeminiImage = async ({ prompt }) => {
     }
 
     failedResults.push(result.modelResult || `${model}: unknown_error`);
+
+    if (result.reason === 'quota_exceeded') {
+      return {
+        source: 'fallback',
+        reason: 'quota_exceeded',
+        imageDataUrl: null,
+        modelResult: failedResults.join(' | '),
+      };
+    }
   }
 
   return {
@@ -682,7 +692,10 @@ const generateEventImages = async ({ organizerEmail, payload = {} }) => {
     return {
       statusCode: 200,
       source: 'fallback',
-      reason: 'gemini_request_failed',
+      reason:
+        failures.some((failure) => /quota|resource_exhausted/i.test(String(failure)))
+          ? 'quota_exceeded'
+          : 'gemini_request_failed',
       modelResult: failures.join(', ') || null,
       images: fallbackImages,
     };

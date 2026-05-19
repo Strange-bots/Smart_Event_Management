@@ -186,7 +186,9 @@ function OrganizerDashboard() {
             ? refresh
               ? "Generated a new set of AI event images."
               : "AI event images are ready."
-            : `Generated fallback event images${result.reason ? `: ${result.reason}` : ""}${result.modelResult ? ` (${result.modelResult})` : ""}.`,
+            : result.reason === "quota_exceeded"
+              ? "Gemini image quota is currently exhausted. Fallback images were generated instead."
+              : `Generated fallback event images${result.reason ? `: ${result.reason}` : ""}.`,
       });
     } catch (error) {
       setNotice({
