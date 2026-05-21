@@ -511,7 +511,7 @@ function OrganizerEvents() {
                   <img
                     src={event.imagePreview}
                     alt={event.title}
-                    className="h-full w-full object-cover transition-all duration-700 ease-out sm:group-hover:w-[34%] sm:group-hover:translate-x-0 sm:group-hover:scale-105 sm:group-hover:w-[32%] xl:group-hover:w-[30%]"
+                    className="h-full w-full object-cover transition-all duration-900 ease-out sm:group-hover:w-[34%] sm:group-hover:translate-x-0 sm:group-hover:scale-105 sm:group-hover:w-[32%] xl:group-hover:w-[30%]"
                   />
                 </div>
 
